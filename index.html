@@ -4,810 +4,381 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bogglo 全鏈監控 & 策略回測 Dashboard</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
     <style>
-        :root {
-            --bg: #0d1117;
-            --card-bg: #161b22;
-            --text-main: #c9d1d9;
-            --text-muted: #8b949e;
-            --primary: #58a6ff;
-            --success: #2ea44f;
-            --warning: #f0883e;
-            --danger: #f85149;
-            --accent-orange: #f3a03c;
-            --accent-blue: #3894ff;
-            --accent-yellow: #f1c40f;
-            --terminal-bg: #05070a;
-            --border: #30363d;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            background-color: var(--bg);
-            color: var(--text-main);
-            font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            padding-bottom: 30px;
-            line-height: 1.5;
-        }
-
-        /* 導航欄 */
-        .navbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 5%;
-            background-color: var(--card-bg);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .navbar h1 {
-            margin: 0;
-            font-size: 1.4rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
-
-        .system-status {
-            display: inline-flex;
-            align-items: center;
-            font-size: 0.85rem;
-            color: #2ea44f;
-            background: rgba(46, 164, 79, 0.1);
-            padding: 4px 10px;
-            border-radius: 12px;
-            margin-left: 10px;
-        }
-
-        .system-status i {
-            margin-right: 5px;
-            font-size: 0.7rem;
-        }
-
-        .nav-right {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .menu-btn, .lang-btn {
-            background: none;
-            border: none;
-            color: var(--text-main);
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 5px;
-            transition: color 0.2s;
-        }
-
-        .menu-btn:hover, .lang-btn:hover {
-            color: var(--primary);
-        }
-
-        /* 主體佈局 */
-        .container {
-            max-width: 1200px;
-            margin: 20px auto;
-            padding: 0 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        /* 行情頂欄快訊 */
-        .ticker-bar {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-        }
-
-        .ticker-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 12px 15px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .ticker-info {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        .ticker-price {
-            font-family: 'Share Tech Mono', monospace;
-            font-weight: bold;
-            font-size: 1.1rem;
-        }
-
-        .data-source-hint {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-align: right;
-            margin-top: -5px;
-            padding-right: 5px;
-        }
-
-        .data-source-hint a {
-            color: #2ea44f;
-            text-decoration: none;
-        }
-
-        /* 網路監控網格 */
-        .network-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-        }
-
-        .network-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 20px;
-            position: relative;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .network-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
-        }
-
-        .network-card.error-state {
-            border-left: 4px solid var(--danger);
-        }
-
-        .network-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .network-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: var(--success);
-            display: inline-block;
-        }
-
-        .status-dot.error {
-            background-color: var(--danger);
-            animation: blink 1.5s infinite;
-        }
-
-        @keyframes blink {
-            0% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 1; }
-        }
-
-        .network-value {
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 2.2rem;
-            font-weight: bold;
-            color: #58a6ff;
-            margin-bottom: 15px;
-        }
-
-        .network-value.error-text {
-            color: var(--danger);
-        }
-
-        .network-meta {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            border-top: 1px solid rgba(255,255,255,0.05);
-            padding-top: 10px;
-        }
-
-        .meta-row {
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .meta-val {
-            color: var(--text-main);
-            font-family: 'Share Tech Mono', monospace;
-        }
-
-        .pool-indicator {
-            display: flex;
-            gap: 3px;
-            align-items: center;
-        }
-
-        .pool-block {
-            width: 10px;
-            height: 10px;
-            border-radius: 2px;
-            background-color: var(--success);
-        }
-
-        .pool-block.muted {
-            background-color: var(--danger);
-        }
-
-        /* 模組卡片樣式 */
-        .module-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 22px;
-        }
-
-        .module-header {
-            font-size: 1.15rem;
-            font-weight: 700;
-            margin-bottom: 18px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 10px;
-        }
-
-        .module-desc {
-            font-size: 0.88rem;
-            color: var(--text-muted);
-            margin-bottom: 15px;
-            line-height: 1.4;
-        }
-
-        /* 查詢組件 */
-        .query-box {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 8px;
-        }
-
-        select, input {
-            background-color: var(--bg);
-            border: 1px solid var(--border);
-            color: var(--text-main);
-            padding: 10px 14px;
-            border-radius: 6px;
-            font-size: 0.95rem;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        select:focus, input:focus {
-            border-color: var(--primary);
-        }
-
-        select {
-            cursor: pointer;
-            min-width: 140px;
-        }
-
-        input {
-            flex: 1;
-            font-family: 'Share Tech Mono', monospace;
-        }
-
-        .btn-action {
-            background-color: var(--success);
-            color: white;
-            border: none;
-            padding: 11px 20px;
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 0.95rem;
-            transition: filter 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .btn-action:hover {
-            filter: brightness(1.1);
-        }
-
-        /* 終端命令行輸出 */
-        .terminal-container {
-            background-color: var(--terminal-bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 15px;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 0.9rem;
-            color: #a2b1cd;
-            margin-top: 15px;
-            display: none;
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
-        }
-
-        .terminal-container.active {
-            display: block;
-        }
-
-        .term-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            padding-bottom: 6px;
-            margin-bottom: 10px;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        .term-close {
-            cursor: pointer;
-            color: var(--text-muted);
-        }
-        .term-close:hover { color: var(--danger); }
-
-        .term-line {
-            margin-bottom: 5px;
-            word-break: break-all;
-            white-space: pre-wrap;
-        }
-
-        .term-success { color: #4af626; }
-        .term-error { color: var(--danger); }
-        .term-warning { color: var(--accent-orange); }
-        .term-highlight { color: #58a6ff; }
-        .term-accent { color: #e14eca; }
-
-        /* 公告與贊助板塊 */
-        .alert-banner {
-            background: linear-gradient(135deg, #8b0000 0%, #4a0000 100%);
-            border: 1px solid var(--danger);
-            border-radius: 6px;
-            padding: 18px;
-            margin-top: 10px;
-        }
-
-        .alert-title {
-            color: #fff;
-            font-weight: bold;
-            font-size: 1.05rem;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .alert-content {
-            font-size: 0.88rem;
-            color: #f0f0f0;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .alert-content li {
-            margin-left: 18px;
-        }
-
-        .crypto-address-box {
-            background-color: rgba(0,0,0,0.4);
-            border: 1px dashed rgba(255,255,255,0.2);
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 12px;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 0.85rem;
-            word-break: break-all;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .address-tabs {
-            display: flex;
-            gap: 6px;
-        }
-
-        .tab-btn {
-            background-color: rgba(255,255,255,0.08);
-            border: 1px solid var(--border);
-            color: var(--text-main);
-            padding: 4px 10px;
-            font-size: 0.75rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .tab-btn.active {
-            background-color: #fff;
-            color: #000;
-            border-color: #fff;
-        }
-
-        /* 策略側邊懸浮窗（蒙特卡羅等） */
-        .floating-menu {
-            position: fixed;
-            top: 15%;
-            right: -280px;
-            width: 280px;
-            background-color: var(--card-bg);
-            border: 1px solid var(--border);
-            border-top-left-radius: 8px;
-            border-bottom-left-radius: 8px;
-            box-shadow: -4px 4px 16px rgba(0,0,0,0.4);
-            transition: right 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 999;
-            padding: 20px;
-        }
-
-        .floating-menu.open {
-            right: 0;
-        }
-
-        .floating-trigger {
-            position: absolute;
-            left: -45px;
-            top: 20px;
-            width: 45px;
-            height: 45px;
-            background-color: var(--card-bg);
-            border: 1px solid var(--border);
-            border-right: none;
-            border-top-left-radius: 8px;
-            border-bottom-left-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: var(--accent-orange);
-            font-size: 1.2rem;
-        }
-
-        .sim-input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 12px;
-            font-size: 0.85rem;
-        }
-
-        .sim-input-group input, .sim-input-group select {
-            padding: 6px 10px;
-            font-size: 0.85rem;
-        }
-
-        /* 複製提示組件 */
-        .toast-msg {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: var(--success);
-            color: white;
-            padding: 8px 20px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            display: none;
-            z-index: 1000;
-        }
+        :root { --bg: #0d1117; --card-bg: #161b22; --text: #c9d1d9; --accent: #58a6ff; --green: #238636; --red: #da3637; --yellow: #d29922; --sidebar-width: 320px; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Segoe UI', monospace; margin: 0; padding: 0; overflow-x: hidden; }
+        .june-fourth-mourning { filter: grayscale(100%) !important; }
+        .memorial-banner { display: none; background: #000000; color: #ffffff; text-align: center; padding: 12px 20px; font-size: 16px; font-weight: bold; letter-spacing: 2px; border-bottom: 2px solid #333333; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #12161f; border-bottom: 1px solid #30363d; }
+        .navbar h1 { margin: 0; font-size: 20px; color: #fff; text-shadow: 0 0 10px var(--accent); }
+        .nav-right { display: flex; align-items: center; gap: 15px; }
+        .menu-btn, .lang-btn { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; padding: 5px 10px; transition: color 0.2s; }
+        .menu-btn:hover, .lang-btn:hover { color: var(--accent); }
+        .lang-dropdown { position: relative; }
+        .lang-menu { display: none; position: absolute; right: 0; top: 100%; background: #161b22; border: 1px solid #30363d; border-radius: 6px; min-width: 120px; z-index: 2000; }
+        .lang-menu.show { display: block; }
+        .lang-option { padding: 10px 15px; cursor: pointer; white-space: nowrap; }
+        .lang-option:hover { background: #21262d; }
+        .lang-option.active { color: var(--accent); font-weight: bold; }
+        .main-container { padding: 20px; max-width: 1200px; margin: 0 auto; box-sizing: border-box; }
+        .sidebar { width: var(--sidebar-width); background: #12161f; border-left: 1px solid #30363d; height: 100vh; position: fixed; right: 0; top: 0; z-index: 1000; transition: transform 0.3s ease; box-shadow: -5px 0 15px rgba(0,0,0,0.5); padding: 20px; box-sizing: border-box; overflow-y: auto; }
+        .sidebar.closed { transform: translateX(var(--sidebar-width)); }
+        .close-sidebar-btn { background: none; border: none; color: #8b949e; font-size: 20px; cursor: pointer; float: right; margin-top: -5px; }
+        .close-sidebar-btn:hover { color: #fff; }
+        .ticker-bar { display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; background: #21262d; padding: 12px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 25px; font-weight: bold; }
+        .ticker-price { color: var(--yellow); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .card { background: var(--card-bg); border: 1px solid #30363d; border-radius: 8px; padding: 15px; position: relative; min-height: 120px; display: flex; flex-direction: column; justify-content: space-between; }
+        .status { font-size: 22px; font-weight: bold; margin: 5px 0; color: var(--accent); word-break: break-all; }
+        .badge { position: absolute; top: 15px; right: 15px; width: 10px; height: 10px; border-radius: 50%; }
+        .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+        label { font-size: 11px; color: #8b949e; font-weight: bold; }
+        select, input, button { background: #21262d; border: 1px solid #30363d; color: #fff; padding: 10px; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box; }
+        button { background: var(--green); cursor: pointer; font-weight: bold; border: none; margin-top: 5px; }
+        button:hover { background: #2ea44f; }
+        .backtest-result { background: #0d1117; border: 1px solid #30363d; padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; margin-top: 15px; white-space: pre-wrap; }
+        .bottom-flex { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 20px; }
+        @media (min-width: 768px) { .bottom-flex { grid-template-columns: 1fr 1fr; } }
+        .explorer, .donate-box { background: var(--card-bg); border: 1px solid #30363d; border-radius: 8px; padding: 15px; text-align: center; }
+        .donate-warning { background: linear-gradient(135deg, #da3637 0%, #b62324 100%); color: white; padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 12px; line-height: 1.4; border: 1px solid #ff7b72; text-align: left; box-shadow: 0 2px 8px rgba(218, 54, 55, 0.3); }
+        .donate-warning-header { display: flex; align-items: center; margin-bottom: 6px; }
+        .donate-warning-icon { font-size: 16px; margin-right: 6px; }
+        .donate-warning-title { font-size: 13px; font-weight: bold; }
+        .donate-warning-content { font-size: 11px; opacity: 0.9; }
+        .donate-warning-content b { font-weight: bold; }
+        .donate-tabs { display: flex; gap: 5px; justify-content: center; margin-bottom: 10px; }
+        .tab-btn { background: #21262d; border: 1px solid #30363d; color: #8b949e; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .tab-btn.active { background: var(--accent); color: #fff; }
+        #qrcode { background: white; padding: 8px; border-radius: 6px; display: inline-block; margin: 8px 0; }
+        .addr-text { font-size: 11px; color: #8b949e; word-break: break-all; background: #0d1117; padding: 6px; border-radius: 4px; border: 1px solid #30363d; }
+        .history-section { border-top: 1px solid #30363d; margin-top: 15px; padding-top: 15px; text-align: left; }
+        .history-section h4 { margin: 0 0 10px 0; color: #fff; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .clear-btn { background: none; border: none; color: var(--red); font-size: 11px; cursor: pointer; padding: 0; width: auto; }
+        .clear-btn:hover { text-decoration: underline; }
+        .history-list { max-height: 150px; overflow-y: auto; font-size: 11px; font-family: monospace; list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; }
+        .history-item { background: #0d1117; padding: 6px 8px; border-radius: 4px; border: 1px solid #21262d; display: flex; justify-content: space-between; }
+        .history-time { color: #8b949e; }
+        .history-amount { font-weight: bold; color: var(--green); }
+        .record-form { display: flex; gap: 5px; margin-top: 8px; }
+        .record-form input { padding: 6px; font-size: 12px; }
+        .record-form button { padding: 6px 12px; font-size: 12px; margin: 0; width: auto; white-space: nowrap; }
     </style>
 </head>
 <body>
-
-    <nav class="navbar">
-        <div style="display: flex; align-items: center;">
-            <h1>Bogglo 全鏈監控 Panel</h1>
-            <span class="system-status"><i class="fas fa-circle"></i> System Operational</span>
-        </div>
+    <div class="memorial-banner" id="memorialBanner">🕯️ 勿忘六四．天安門悼念｜結束一黨專政，打倒中國共產黨 🕯️</div>
+    <div class="navbar">
+        <h1 id="navTitle">🛰️ Bogglo 全鏈監控 Dashboard</h1>
         <div class="nav-right">
-            <button class="lang-btn" title="切換語言"><i class="fas fa-globe"></i></button>
-            <button class="menu-btn" id="sidebar-toggle" title="回測控制台"><i class="fas fa-sliders-h"></i></button>
+            <div class="lang-dropdown">
+                <button class="lang-btn" onclick="toggleLangMenu()">🌐</button>
+                <div class="lang-menu" id="langMenu">
+                    <div class="lang-option active" data-lang="zh-TW" onclick="switchLanguage('zh-TW')">繁體中文</div>
+                    <div class="lang-option" data-lang="zh-CN" onclick="switchLanguage('zh-CN')">简体中文</div>
+                    <div class="lang-option" data-lang="en" onclick="switchLanguage('en')">English</div>
+                </div>
+            </div>
+            <button class="menu-btn" onclick="toggleSidebar()">☰</button>
         </div>
-    </nav>
-
-    <div class="container">
-        
-        <div class="ticker-bar">
-            <div class="ticker-card">
-                <div class="ticker-info"><i class="fab fa-bitcoin" style="color:var(--accent-orange)"></i> BTC</div>
-                <div class="ticker-price" id="price-btc">$73,428.00</div>
-            </div>
-            <div class="ticker-card">
-                <div class="ticker-info"><i class="fab fa-ethereum" style="color:var(--accent-blue)"></i> ETH</div>
-                <div class="ticker-price" id="price-eth">$1,996.86</div>
-            </div>
-            <div class="ticker-card">
-                <div class="ticker-info"><i class="fas fa-coins" style="color:var(--accent-yellow)"></i> BNB</div>
-                <div class="ticker-price" id="price-bnb">$711.01</div>
-            </div>
-        </div>
-        <div class="data-source-hint">
-            行情數據源：<span class="status-dot" style="width:6px;height:6px;background-color:var(--success)"></span> Binance 國際服務器 (<a href="https://api.binance.com" target="_blank">api.binance.com</a>)
-        </div>
-
-        <div class="network-grid">
-            <div class="network-card">
-                <div class="network-header">
-                    <div class="network-title"><i class="fab fa-bitcoin" style="color:var(--accent-orange)"></i> Bitcoin Network</div>
-                    <span class="status-dot"></span>
-                </div>
-                <div class="network-value" id="height-btc">951933</div>
-                <div class="network-meta">
-                    <div class="meta-row"><span>手續費率:</span><span class="meta-val">~18 sat/vB</span></div>
-                    <div class="meta-row"><span>網絡延遲:</span><span class="meta-val">393 ms</span></div>
-                    <div class="meta-row">
-                        <span>池狀態:</span>
-                        <div class="pool-indicator"><div class="pool-block muted"></div><div class="pool-block muted"></div><div class="pool-block"></div></div>
-                    </div>
-                    <div class="meta-row" style="font-size:0.75rem;"><span>節點數據源:</span><span class="meta-val" style="color:var(--primary)">blockchain.info</span></div>
-                </div>
-            </div>
-
-            <div class="network-card error-state">
-                <div class="network-header">
-                    <div class="network-title"><i class="fab fa-ethereum" style="color:var(--accent-blue)"></i> Ethereum</div>
-                    <span class="status-dot error"></span>
-                </div>
-                <div class="network-value error-text" id="height-eth">Error</div>
-                <div class="network-meta">
-                    <div class="meta-row"><span>Gas 價格:</span><span class="meta-val">NaN Gwei</span></div>
-                    <div class="meta-row"><span>網絡延遲:</span><span class="meta-val" style="color:var(--danger)">405 ms</span></div>
-                    <div class="meta-row">
-                        <span>池狀態:</span>
-                        <div class="pool-indicator"><div class="pool-block"></div><div class="pool-block"></div><div class="pool-block"></div></div>
-                    </div>
-                    <div class="meta-row" style="font-size:0.75rem;"><span>節點數據源:</span><span class="meta-val" style="color:var(--primary)">cloudflare-eth.com</span></div>
-                </div>
-            </div>
-
-            <div class="network-card">
-                <div class="network-header">
-                    <div class="network-title"><i class="fas fa-cubes" style="color:var(--accent-yellow)"></i> BNB Chain</div>
-                    <span class="status-dot"></span>
-                </div>
-                <div class="network-value" id="height-bnb">10162617</div>
-                <div class="network-meta">
-                    <div class="meta-row"><span>Gas 價格:</span><span class="meta-val">0.05 Gwei</span></div>
-                    <div class="meta-row"><span>網絡延遲:</span><span class="meta-val">197 ms</span></div>
-                    <div class="meta-row" style="font-size:0.75rem;"><span>節點數據源:</span><span class="meta-val" style="color:var(--primary)">bsc-dataseed.binance.org</span></div>
-                </div>
-            </div>
-
-            <div class="network-card">
-                <div class="network-header">
-                    <div class="network-title"><i class="fas fa-bolt" style="color:var(--danger)"></i> TRON Network</div>
-                    <span class="status-dot"></span>
-                </div>
-                <div class="network-value" id="height-tron">67931863</div>
-                <div class="network-meta">
-                    <div class="meta-row"><span>Gas 價格:</span><span class="meta-val">420 sun</span></div>
-                    <div class="meta-row"><span>網絡延遲:</span><span class="meta-val">422 ms</span></div>
-                    <div class="meta-row">
-                        <span>池狀態:</span>
-                        <div class="pool-indicator"><div class="pool-block"></div><div class="pool-block"></div></div>
-                    </div>
-                    <div class="meta-row" style="font-size:0.75rem;"><span>節點數據源:</span><span class="meta-val" style="color:var(--primary)">api.nileex.io</span></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="module-card">
-            <div class="module-header"><i class="fas fa-search"></i> 本站 RPC 節點直連查詢器</div>
-            <div class="module-desc">拒絕跳轉！直接呼叫大盤底層健全的 RPC 節點，實時抓取鏈上原生的精確數據。支援地址格式自動識別。</div>
-            
-            <div class="query-box">
-                <div class="input-group">
-                    <input type="text" id="wallet-address" placeholder="請貼上 錢包地址 / 交易哈希 / 代幣合約地址..." value="0xBAB23C3F0eF97DFd7b63a147B9cdF422e3E66a76">
-                    <button class="btn-action" id="btn-query"><i class="fas fa-bolt"></i> 查詢</button>
-                </div>
-                <div style="font-size: 0.85rem; color: var(--text-muted);">
-                    識別類型：<span id="ident-type" style="color: #4af626; font-weight: bold;"><i class="fas fa-cog"></i> EVM 地址 / 錢包</span>
-                </div>
-            </div>
-
-            <div class="terminal-container active" id="term-box">
-                <div class="term-header">
-                    <span>>_ RPC ASSET TERMINAL (ARB)</span>
-                    <span class="term-close" id="term-close-btn"><i class="fas fa-times"></i> 關閉</span>
-                </div>
-                <div id="term-content">
-                    <div class="term-line term-success">[SUCCESS] 成功讀取 ARB 節點狀態：</div>
-                    <div class="term-line">• 賬戶地址：<span class="term-highlight">0xBAB23C3F0eF97DFd7b63a147B9cdF422e3E66a76</span></div>
-                    <div class="term-line">---------------------------------------------------------</div>
-                    <div class="term-line">  <i class="fab fa-ethereum" style="color:var(--accent-blue)"></i> <span class="term-warning">ETH (Arbitrum Native)</span> : <span class="term-success">0.035550 ETH</span></div>
-                    <div class="term-line">  <i class="fas fa-dollar-sign" style="color:var(--success)"></i> <span class="term-warning">USDC</span> : <span class="term-success">94.4670</span></div>
-                    <div class="term-line">  <i class="fas fa-dollar-sign" style="color:var(--success)"></i> <span class="term-warning">USDT</span> : <span class="term-success">0.0000</span></div>
-                    <div class="term-line">  <i class="fas fa-money-bill-wave" style="color:var(--text-muted)"></i> <span class="term-warning">USD24</span> : <span class="term-success">0.0000 (或合約未響應)</span></div>
-                    <div class="term-line">---------------------------------------------------------</div>
-                    <div class="term-line">• 節點數據源：<span class="term-highlight">本地智能路由節點池</span></div>
-                    <div class="term-line">• 狀態響應代碼：<span class="term-success">200 OK</span></div>
-                    <div class="term-line term-muted">[提示]：以上數據直接從底層合約儲存槽(Storage Slot)導出，絕不扣假。</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="module-card" style="padding: 0; overflow: hidden; border: none;">
-            <div class="alert-banner">
-                <div class="alert-title"><i class="fas fa-shield-alt"></i> 鄭重聲明：與 Arkham Intelligence 合作打擊非法資金</div>
-                <div class="alert-content">
-                    <ul>
-                        <li>本地地址僅接受 <b>自願贊助</b>，非商業用途。</li>
-                        <li>本開發者已與 <b>Arkham Intelligence</b> 區塊鏈分析平台建立合作關係，所有交易均受 <b>24/7 區塊鏈監控</b>，非法資金將被 <b>實時標記與追蹤</b>。</li>
-                        <li>嚴禁轉入 <b>涉賭、涉詐、黑錢、贓款</b> 等任何非法資金！</li>
-                        <li>一經發現可疑資金，將 <b>立即凍結並向執法機關報告</b>。後果自負，絕不姑息！</li>
-                    </ul>
-                    
-                    <div class="crypto-address-box">
-                        <div class="address-tabs">
-                            <button class="tab-btn active" onclick="switchAddr('evm', '0x82a44b5c42b8e1d90Ef04A9d539a1E5303c6Bc7')">EVM (ETH/BSC/ARB)</button>
-                            <button class="tab-btn" onclick="switchAddr('btc', 'bc1q9x...【範例BTC地址】')">BTC (Native SegWit)</button>
-                            <button class="tab-btn" onclick="switchAddr('tron', 'TY...【範例TRON地址】')">TRON (TRC20)</button>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
-                            <span id="current-addr-text" style="color: #ff6b6b; font-weight: bold;">0x82a44b5c42b8e1d90Ef04A9d539a1E5303c6Bc7</span>
-                            <button class="tab-btn" style="background:var(--border);" onclick="copyAddress()"><i class="fas fa-copy"></i> 複製</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
     </div>
-
-    <div class="floating-menu" id="sidebar-menu">
-        <div class="floating-trigger" id="sidebar-btn">
-            <i class="fas fa-chart-line"></i>
+    <div class="main-container">
+        <div class="ticker-bar">
+            <div>🪙 BTC: <span id="price-BTC" class="ticker-price">Loading...</span></div>
+            <div>🔷 ETH: <span id="price-ETH" class="ticker-price">Loading...</span></div>
+            <div>🔶 BNB: <span id="price-BNB" class="ticker-price">Loading...</span></div>
         </div>
-        <h3 style="font-size:1.1rem; margin-bottom:15px; color:var(--accent-orange); border-bottom:1px solid var(--border); padding-bottom:8px;">
-            <i class="fas fa-brain"></i> 蒙特卡羅網格回測
-        </h3>
-        <div class="sim-input-group">
-            <label>幾何布朗運動 (GBM) 線路量化模型</label>
-            <select id="sim-pair">
-                <option value="BTC">BTC / USDT</option>
-                <option value="ETH">ETH / USDT</option>
-                <option value="SOL">SOL / USDT</option>
+        <div class="grid" id="monitorGrid"></div>
+        <div class="bottom-flex">
+            <div class="explorer">
+                <h3 id="explorerTitle">🔍 錢包餘額快速查詢</h3>
+                <div class="input-group">
+                    <select id="chainSelect">
+                        <option value="ETH">Ethereum (ETH)</option>
+                        <option value="BSC">BNB Chain (BNB)</option>
+                        <option value="ARB">Arbitrum (ETH)</option>
+                        <option value="MORPH">Morph (ETH)</option>
+                        <option value="BTC">Bitcoin (BTC)</option>
+                        <option value="TRON">波場 TRON (TRX)</option>
+                    </select>
+                    <input type="text" id="addressInput" placeholder="請輸入錢包地址...">
+                    <button onclick="queryBalance()" id="queryBtn">查詢</button>
+                </div>
+                <div id="searchResult" style="text-align:left; font-family:monospace; font-size:12px; margin-top:10px; white-space:pre-wrap;"></div>
+            </div>
+            <div class="donate-box">
+                <h3 id="donateTitle">☕ 贊助咖啡</h3>
+                <div class="donate-warning" id="donateWarning">
+                    <div class="donate-warning-header"><span class="donate-warning-icon">⚠️</span><span class="donate-warning-title" id="warningTitle">鄭重聲明：與 Arkham Intelligence 合作打擊非法資金</span></div>
+                    <div class="donate-warning-content" id="warningContent"></div>
+                </div>
+                <div class="donate-tabs">
+                    <button class="tab-btn active" id="tab-EVM" onclick="switchDonate('EVM')">EVM</button>
+                    <button class="tab-btn" id="tab-BTC" onclick="switchDonate('BTC')">BTC</button>
+                    <button class="tab-btn" id="tab-TRON" onclick="switchDonate('TRON')">TRON</button>
+                </div>
+                <div id="qrcode"></div>
+                <div class="addr-text" id="donateAddrText">Loading...</div>
+                <div class="history-section">
+                    <h4><span id="historyTitle">📜 歷史贊助紀錄</span><button class="clear-btn" onclick="clearDonateHistory()" id="clearHistoryBtn">清除歷史</button></h4>
+                    <ul class="history-list" id="historyList"></ul>
+                    <div class="record-form">
+                        <input type="number" id="historyAmount" placeholder="金額" step="any">
+                        <input type="text" id="historyUnit" placeholder="幣種" style="max-width: 65px;">
+                        <button onclick="addDonateRecord()" id="addRecordBtn">記一筆</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="sidebar closed" id="sidebar">
+        <button class="close-sidebar-btn" onclick="toggleSidebar()">✕</button>
+        <h3 style="margin-top:0;" id="sidebarTitle">🎲 蒙地卡羅網格回測</h3>
+        <p style="font-size: 11px; color:#8b949e; margin-bottom:15px;" id="sidebarDesc"></p>
+        <div class="input-group">
+            <label id="backtestPairLabel"></label>
+            <select id="backtestTarget" onchange="syncLivePrice()">
+                <option value="BTCUSDT">BTC / USDT</option>
+                <option value="BTCUSDC">BTC / USDC</option>
+                <option value="ETHUSDT">ETH / USDT</option>
+                <option value="ETHUSDC">ETH / USDC</option>
+                <option value="BNBUSDT">BNB / USDT</option>
+                <option value="BNBUSDC">BNB / USDC</option>
             </select>
         </div>
-        <div class="sim-input-group">
-            <label>初始價格 (同步大盤實時價)</label>
-            <input type="text" id="sim-start-price" value="73684.57">
-        </div>
-        <div class="sim-input-group">
-            <label>網格區間上限</label>
-            <input type="number" id="sim-grid-upper" value="88421">
-        </div>
-        <div class="sim-input-group">
-            <label>網格區間下限</label>
-            <input type="number" id="sim-grid-lower" value="58948">
-        </div>
-        <div class="sim-input-group">
-            <label>網格格子數量 (等差)</label>
-            <input type="number" id="sim-grid-count" value="40">
-        </div>
-        <div class="sim-input-group">
-            <label>預估年化波動率 (%)</label>
-            <input type="number" id="sim-volatility" value="65">
-        </div>
-        <div class="sim-input-group">
-            <label>模擬持有天數</label>
-            <input type="number" id="sim-days" value="7">
-        </div>
-        <div class="sim-input-group">
-            <label>隨機模擬路徑次數</label>
-            <input type="number" id="sim-paths" value="1000">
-        </div>
-        <button class="btn-action" style="width:100%; background-color:var(--primary); margin-top:10px;" onclick="runSimulation()">
-            <i class="fas fa-play"></i> 執行矩陣模擬
-        </button>
+        <div class="input-group"><label id="initPriceLabel"></label><input type="number" id="initPrice" step="any" value="65000"></div>
+        <div class="input-group"><label id="gridUpperLabel"></label><input type="number" id="gridUpper" value="80000"></div>
+        <div class="input-group"><label id="gridLowerLabel"></label><input type="number" id="gridLower" value="50000"></div>
+        <div class="input-group"><label id="gridCountLabel"></label><input type="number" id="gridCount" value="40"></div>
+        <div class="input-group"><label id="volatilityLabel"></label><input type="number" id="volatility" value="65"></div>
+        <div class="input-group"><label id="simDaysLabel"></label><input type="number" id="simDays" value="7"></div>
+        <div class="input-group"><label id="simRunsLabel"></label><input type="number" id="simRuns" value="200" max="500"></div>
+        <button onclick="runMonteCarloGrid()" id="runBacktestBtn"></button>
+        <div class="backtest-result" id="backtestResult"></div>
     </div>
-
-    <div class="toast-msg" id="toast">地址已成功複製到剪貼簿！</div>
-
-    <script>
-        // 側邊欄控制
-        const sidebarMenu = document.getElementById('sidebar-menu');
-        const sidebarBtn = document.getElementById('sidebar-btn');
-        const sidebarToggleNav = document.getElementById('sidebar-toggle');
-
-        function toggleSidebar() {
-            sidebarMenu.classList.toggle('open');
+<script>
+const translations = {
+    'zh-TW': { navTitle: '🛰️ Bogglo 全鏈監控 Dashboard', explorerTitle: '🔍 錢包餘額快速查詢', queryBtn: '查詢', addressPlaceholder: '請輸入錢包地址...', donateTitle: '☕ 贊助咖啡', warningTitle: '鄭重聲明：與 Arkham Intelligence 合作打擊非法資金', warningLine1: '本地址僅接受<b>自願贊助</b>，非商業用途', warningLine2: '本開發者已與<b>Arkham Intelligence</b>區塊鏈分析平台建立合作關係', warningLine3: '所有交易均受<b>24/7區塊鏈監控</b>，非法資金將被<b>實時標記與追蹤</b>', warningLine4: '嚴禁轉入<b>涉賭、涉詐、黑錢、贓款</b>等任何非法資金', warningLine5: '一經發現可疑資金，將<b>立即凍結並向執法機關報告</b>', warningLine6: '後果自負，絕不姑息！', historyTitle: '📜 歷史贊助紀錄', clearHistoryBtn: '清除歷史', addRecordBtn: '記一筆', amountPlaceholder: '金額', unitPlaceholder: '幣種', sidebarTitle: '🎲 蒙地卡羅網格回測', sidebarDesc: '幾何布朗運動(GBM)輕量版路徑回測模型', backtestPairLabel: '選擇回測交易對', initPriceLabel: '初始價格 (同步幣安實時價)', gridUpperLabel: '網格區間上限', gridLowerLabel: '網格區間下限', gridCountLabel: '網格格子數量 (等差)', volatilityLabel: '預估年化波動率 (%)', simDaysLabel: '模擬持有天數', simRunsLabel: '隨機模擬路徑次數', runBacktestBtn: '⚡ 開始隨機路徑回測', loadingModel: '模型加載中...', emptyHistory: '暫無紀錄，記一筆吧！', confirmClear: '確定要清除所有本地贊助紀錄嗎？', fillAllFields: '請填寫完整的金額與幣種！', noAddress: '請輸入地址', querying: '🔍 查詢中...', balanceText: '💵 餘額: ', noHistory: '暫無紀錄，記一筆吧！', backtestReport: '📈 回測報告', expectedProfit: '🔹 預期網格套利收益', avgCumulativeReturn: '平均累積收益: ', annualizedReturn: '折合預估年化: ', gridBreakRisk: '⚠️ 網格區間破位風險', breakUpProb: '向上突破機率 (空倉): ', breakDownProb: '向下跌破機率 (套牢): ', evmTab: 'EVM', btcTab: 'BTC', tronTab: 'TRON', memorialText: '🕯️ 勿忘六四．天安門悼念｜結束一黨專政，打倒中國共產黨 🕯️' },
+    'zh-CN': { navTitle: '🛰️ Bogglo 全链监控 Dashboard', explorerTitle: '🔍 钱包余额快速查询', queryBtn: '查询', addressPlaceholder: '请输入钱包地址...', donateTitle: '☕ 赞助咖啡', warningTitle: '郑重声明：与 Arkham Intelligence 合作打击非法资金', warningLine1: '本地址仅接受<b>自愿赞助</b>，非商业用途', warningLine2: '本开发者已与<b>Arkham Intelligence</b>区块链分析平台建立合作关系', warningLine3: '所有交易均受<b>24/7区块链监控</b>，非法资金将被<b>实时标记与追踪</b>', warningLine4: '严禁转入<b>涉赌、涉诈、黑钱、赃款</b>等任何非法资金', warningLine5: '一经发现可疑资金，将<b>立即冻结并向执法机关报告</b>', warningLine6: '后果自负，绝不姑息！', historyTitle: '📜 历史赞助记录', clearHistoryBtn: '清除历史', addRecordBtn: '记一笔', amountPlaceholder: '金额', unitPlaceholder: '币种', sidebarTitle: '🎲 蒙地卡羅网格回测', sidebarDesc: '几何布朗运动(GBM)轻量版路径回测模型', backtestPairLabel: '选择回测交易对', initPriceLabel: '初始价格 (同步币安实时价)', gridUpperLabel: '网格区间上限', gridLowerLabel: '网格区间下限', gridCountLabel: '网格格子数量 (等差)', volatilityLabel: '预估年化波动率 (%)', simDaysLabel: '模拟持有天数', simRunsLabel: '随机模拟路径次数', runBacktestBtn: '⚡ 开始随机路径回测', loadingModel: '模型加载中...', emptyHistory: '暂无记录，记一笔吧！', confirmClear: '确定要清除所有本地赞助记录吗？', fillAllFields: '请填写完整的金额与币种！', noAddress: '请输入地址', querying: '🔍 查询中...', balanceText: '💵 余额: ', noHistory: '暂无记录，记一筆吧！', backtestReport: '📈 回测报告', expectedProfit: '🔹 预期网格套利收益', avgCumulativeReturn: '平均累积收益: ', annualizedReturn: '折合预估年化: ', gridBreakRisk: '⚠️ 网格区间破位风险', breakUpProb: '向上突破机率 (空仓): ', breakDownProb: '向下突破机率 (套牢): ', evmTab: 'EVM', btcTab: 'BTC', tronTab: 'TRON', memorialText: '🕯️ 勿忘六四．天安门悼念｜结束一党专政，打倒中国共产党 🕯️' },
+    'en': { navTitle: '🛰️ Bogglo Multi-Chain Dashboard', explorerTitle: '🔍 Wallet Balance Quick Query', queryBtn: 'Query', addressPlaceholder: 'Enter wallet address...', donateTitle: '☕ Sponsor Coffee', warningTitle: 'STRONG WARNING: Partnership with Arkham Intelligence', warningLine1: 'This address accepts <b>voluntary donations ONLY</b>, not for commercial use', warningLine2: 'Developer has established partnership with <b>Arkham Intelligence</b> blockchain analysis platform', warningLine3: 'All transactions are under <b>24/7 blockchain surveillance</b>, illicit funds will be <b>real-time tagged and tracked</b>', warningLine4: 'STRICTLY PROHIBITED: gambling, fraud, black money, or any illicit funds', warningLine5: 'Suspicious funds will be <b>frozen immediately and reported to authorities</b>', warningLine6: 'You are SOLELY responsible for the consequences!', historyTitle: '📜 Donation History', clearHistoryBtn: 'Clear History', addRecordBtn: 'Add Record', amountPlaceholder: 'Amount', unitPlaceholder: 'Currency', sidebarTitle: '🎲 Monte Carlo Grid Backtest', sidebarDesc: 'Lightweight Geometric Brownian Motion (GBM) Path Backtest Model', backtestPairLabel: 'Select Backtest Trading Pair', initPriceLabel: 'Initial Price (Sync Binance Live)', gridUpperLabel: 'Grid Upper Bound', gridLowerLabel: 'Grid Lower Bound', gridCountLabel: 'Number of Grid Levels (Arithmetic)', volatilityLabel: 'Estimated Annual Volatility (%)', simDaysLabel: 'Simulation Holding Days', simRunsLabel: 'Random Simulation Paths', runBacktestBtn: '⚡ Start Monte Carlo Backtest', loadingModel: 'Model loading...', emptyHistory: 'No records yet, add one!', confirmClear: 'Are you sure to clear all local donation records?', fillAllFields: 'Please fill amount and currency!', noAddress: 'Please enter address', querying: '🔍 Querying...', balanceText: '💵 Balance: ', noHistory: 'No records yet, add one!', backtestReport: '📈 Backtest Report', expectedProfit: '🔹 Expected Grid Arbitrage Profit', avgCumulativeReturn: 'Average Cumulative Return: ', annualizedReturn: 'Annualized Return: ', gridBreakRisk: '⚠️ Grid Breakout Risk', breakUpProb: 'Break Up Probability (Empty): ', breakDownProb: 'Break Down Probability (Trapped): ', evmTab: 'EVM', btcTab: 'BTC', tronTab: 'TRON', memorialText: '🕯️ Remember June Fourth ． Tiananmen Square Massacre | End One-Party Dictatorship, Down with the CCP 🕯️' }
+};
+let currentLang = localStorage.getItem('bogglo_lang') || 'zh-TW';
+let livePrices = { BTCUSDT: 65000, BTCUSDC: 65000, ETHUSDT: 3400, ETHUSDC: 3400, BNBUSDT: 580, BNBUSDC: 580 };
+let currentDonateChain = 'EVM';
+function checkMemorialDay() {
+    const now = new Date();
+    if (now.getMonth() + 1 === 6 && now.getDate() === 4) { document.body.classList.add('june-fourth-mourning'); document.getElementById('memorialBanner').style.display = 'block'; }
+    else { document.body.classList.remove('june-fourth-mourning'); document.getElementById('memorialBanner').style.display = 'none'; }
+}
+function switchLanguage(lang) {
+    if (!translations[lang]) return; currentLang = lang; localStorage.setItem('bogglo_lang', lang);
+    document.querySelectorAll('.lang-option').forEach(option => option.classList.toggle('active', option.dataset.lang === lang));
+    updatePageText(); document.getElementById('langMenu').classList.remove('show');
+}
+function updatePageText() {
+    const t = translations[currentLang];
+    document.getElementById('navTitle').textContent = t.navTitle;
+    document.getElementById('explorerTitle').textContent = t.explorerTitle;
+    document.getElementById('queryBtn').textContent = t.queryBtn;
+    document.getElementById('addressInput').placeholder = t.addressPlaceholder;
+    document.getElementById('donateTitle').textContent = t.donateTitle;
+    document.getElementById('memorialBanner').textContent = t.memorialText;
+    document.getElementById('warningTitle').textContent = t.warningTitle;
+    document.getElementById('warningContent').innerHTML = `• ${t.warningLine1}<br>• ${t.warningLine2}<br>• ${t.warningLine3}<br>• ${t.warningLine4}<br>• ${t.warningLine5}<br>• ${t.warningLine6}`;
+    document.getElementById('historyTitle').textContent = t.historyTitle; document.getElementById('clearHistoryBtn').textContent = t.clearHistoryBtn; document.getElementById('addRecordBtn').textContent = t.addRecordBtn;
+    document.getElementById('historyAmount').placeholder = t.amountPlaceholder; document.getElementById('historyUnit').placeholder = t.unitPlaceholder;
+    document.getElementById('sidebarTitle').textContent = t.sidebarTitle; document.getElementById('sidebarDesc').textContent = t.sidebarDesc;
+    document.getElementById('backtestPairLabel').textContent = t.backtestPairLabel; document.getElementById('initPriceLabel').textContent = t.initPriceLabel;
+    document.getElementById('gridUpperLabel').textContent = t.gridUpperLabel; document.getElementById('gridLowerLabel').textContent = t.gridLowerLabel;
+    document.getElementById('gridCountLabel').textContent = t.gridCountLabel; document.getElementById('volatilityLabel').textContent = t.volatilityLabel;
+    document.getElementById('simDaysLabel').textContent = t.simDaysLabel; document.getElementById('simRunsLabel').textContent = t.simRunsLabel;
+    document.getElementById('runBacktestBtn').textContent = t.runBacktestBtn; document.getElementById('backtestResult').textContent = t.loadingModel;
+    document.getElementById('tab-EVM').textContent = t.evmTab; document.getElementById('tab-BTC').textContent = t.btcTab; document.getElementById('tab-TRON').textContent = t.tronTab;
+    loadDonateHistory();
+}
+function toggleLangMenu() { document.getElementById('langMenu').classList.toggle('show'); }
+document.addEventListener('click', (e) => { if (!e.target.closest('.lang-dropdown')) document.getElementById('langMenu').classList.remove('show'); });
+function toggleSidebar() { document.getElementById("sidebar").classList.toggle("closed"); }
+function syncLivePrice() { const pair = document.getElementById("backtestTarget").value; if(livePrices[pair]) { document.getElementById("initPrice").value = livePrices[pair]; document.getElementById("gridUpper").value = Math.round(livePrices[pair] * 1.2); document.getElementById("gridLower").value = Math.round(livePrices[pair] * 0.8); } }
+function runMonteCarloGrid() {
+    const t = translations[currentLang]; const S0 = parseFloat(document.getElementById("initPrice").value);
+    const upper = parseFloat(document.getElementById("gridUpper").value); const lower = parseFloat(document.getElementById("gridLower").value);
+    const grids = parseInt(document.getElementById("gridCount").value); const vol = parseFloat(document.getElementById("volatility").value) / 100;
+    const days = parseInt(document.getElementById("simDays").value); const runs = parseInt(document.getElementById("simRuns").value);
+    if(!S0 || !upper || !lower || !grids) return;
+    const dt = 1 / 365, steps = days, gridSpacing = (upper - lower) / grids; const pairText = document.getElementById("backtestTarget").value;
+    let totalGridProfits = 0, breakUpperCount = 0, breakLowerCount = 0;
+    for(let r = 0; r < runs; r++) {
+        let price = S0; let lastGridIdx = Math.floor((price - lower) / gridSpacing); let gridProfit = 0; let pathBrokeLower = false, pathBrokeUpper = false;
+        for(let s = 0; s < steps; s++) {
+            let u1 = Math.random(), u2 = Math.random(); let randNormal = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+            price = price * Math.exp((0.05 - 0.5 * vol * vol) * dt + vol * Math.sqrt(dt) * randNormal);
+            if (price >= upper) pathBrokeUpper = true; if (price <= lower) pathBrokeLower = true;
+            let currentGridIdx = Math.floor((price - lower) / gridSpacing);
+            if(currentGridIdx !== lastGridIdx && currentGridIdx >= 0 && currentGridIdx < grids) { gridProfit += (gridSpacing / S0) * 100; lastGridIdx = currentGridIdx; }
         }
-        sidebarBtn.addEventListener('click', toggleSidebar);
-        sidebarToggleNav.addEventListener('click', toggleSidebar);
+        if(pathBrokeUpper) breakUpperCount++; if(pathBrokeLower) breakLowerCount++; totalGridProfits += gridProfit;
+    }
+    const avgGridProfit = totalGridProfits / runs;
+    document.getElementById("backtestResult").innerHTML = `${t.backtestReport} (${pairText})\n--------------------------------\n${t.expectedProfit}:\n    ${t.avgCumulativeReturn}<span style="color:var(--green)">+${avgGridProfit.toFixed(2)}%</span>\n    ${t.annualizedReturn}<span style="color:var(--yellow)">+${((avgGridProfit / days) * 365).toFixed(1)}%</span>\n\n${t.gridBreakRisk}:\n    ${t.breakUpProb}${(breakUpperCount / runs * 100).toFixed(1)}%\n    ${t.breakDownProb}${(breakLowerCount / runs * 100).toFixed(1)}%`;
+}
+function loadDonateHistory() {
+    const t = translations[currentLang]; const listContainer = document.getElementById("historyList"); listContainer.innerHTML = "";
+    let history = JSON.parse(localStorage.getItem("bogglo_donate_history")) || [];
+    if(history.length === 0) { listContainer.innerHTML = `<li style="color:#8b949e; text-align:center; padding-top:10px;">${t.noHistory}</li>`; return; }
+    history.forEach(item => { const li = document.createElement("li"); li.className = "history-item"; li.innerHTML = `<div><span class="history-time">[${item.time}]</span> <span style="color:var(--accent)">${item.type}</span></div><div class="history-amount">+${item.amount} ${item.unit}</div>`; listContainer.appendChild(li); });
+}
+function addDonateRecord() {
+    const t = translations[currentLang]; const amount = parseFloat(document.getElementById("historyAmount").value); const unit = document.getElementById("historyUnit").value.trim().toUpperCase();
+    if(!amount || !unit) { alert(t.fillAllFields); return; }
+    const now = new Date(); const timeStr = `${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    let history = JSON.parse(localStorage.getItem("bogglo_donate_history")) || []; history.unshift({ time: timeStr, type: currentDonateChain, amount: amount, unit: unit });
+    localStorage.setItem("bogglo_donate_history", JSON.stringify(history)); document.getElementById("historyAmount").value = ""; loadDonateHistory();
+}
+function clearDonateHistory() { const t = translations[currentLang]; if(confirm(t.confirmClear)) { localStorage.removeItem("bogglo_donate_history"); loadDonateHistory(); } }
 
-        // 終端關閉控制
-        const termBox = document.getElementById('term-box');
-        document.getElementById('term-close-btn').addEventListener('click', () => {
-            termBox.classList.remove('active');
-        });
+// 🚀 全鏈架構核心配置對齊：全部導航至本站本地反向代理端點（配合 _redirects 消除 CORS）
+const CHAINS = {
+    ETH: { name: "Ethereum", type: "evm", symbol: "ETH", proxyUrl: "/api/eth" },
+    BSC: { name: "BNB Chain", type: "evm", symbol: "BNB", proxyUrl: "/api/bsc" },
+    ARB: { name: "Arbitrum", type: "evm", symbol: "ETH", proxyUrl: "/api/arb" },
+    MORPH: { name: "Morph L2", type: "evm", symbol: "ETH", proxyUrl: "/api/morph" },
+    TRON: { name: "TRON Network", type: "tron", symbol: "TRX", proxyUrl: "/api/tron" },
+    BTC: { name: "Bitcoin", type: "btc", symbol: "BTC", proxyUrl: "/api/btc" }
+};
 
-        // 模擬查詢按鈕點擊
-        document.getElementById('btn-query').addEventListener('click', () => {
-            const addr = document.getElementById('wallet-address').value.trim();
-            if(!addr) return alert('請輸入有效地址');
-            termBox.classList.add('active');
-            
-            // 動態生成終端內容的範例邏輯
-            const termContent = document.getElementById('term-content');
-            let isEvm = addr.startsWith('0x');
-            
-            document.getElementById('ident-type').innerHTML = isEvm ? 
-                `<i class="fas fa-cog"></i> EVM 地址 / 錢包` : `<i class="fas fa-question-circle"></i> 其他鏈網絡地址`;
+// 💎 獨家代幣解析矩陣（包含跨鏈小數點與獨創代幣 USD24）
+const TOKEN_MATRIX = {
+    ETH: [
+        { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 },
+        { symbol: "USDC", address: "0xA0b86991c6218b36c1d19D4a2e9Eb0CE3606eB48", decimals: 6 }
+    ],
+    BSC: [
+        { symbol: "USDT", address: "0x55d398326f99059fF775485246999027B3197955", decimals: 18 },
+        { symbol: "USDC", address: "0x8AC76a51cc950d9822D68b83fE1Ad97B32CD580d", decimals: 18 }
+    ],
+    ARB: [
+        { symbol: "USDC", address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", decimals: 6 },
+        { symbol: "USDT", address: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", decimals: 6 },
+        { symbol: "USD24", address: "0x39a1E5303c6Bc7b190Ef04A9d539a1E5303c6Bc7", decimals: 6 }
+    ],
+    MORPH: [
+        { symbol: "USDT", address: "0x452479e000000000000000000000000000000001", decimals: 6 },
+        { symbol: "USDC", address: "0x5300000000000000000000000000000000000002", decimals: 6 }
+    ]
+};
 
-            termContent.innerHTML = `
-                <div class="term-line term-success">[SUCCESS] 成功調用 RPC 節點快照：</div>
-                <div class="term-line">• 查詢目標：<span class="term-highlight">${addr}</span></div>
-                <div class="term-line">---------------------------------------------------------</div>
-                ${isEvm ? `
-                <div class="term-line">  <i class="fab fa-ethereum" style="color:var(--accent-blue)"></i> <span class="term-warning">ETH (Arbitrum Native)</span> : <span class="term-success">0.035550 ETH</span></div>
-                <div class="term-line">  <i class="fas fa-dollar-sign" style="color:var(--success)"></i> <span class="term-warning">USDC</span> : <span class="term-success">94.4670</span></div>
-                <div class="term-line">  <i class="fas fa-dollar-sign" style="color:var(--success)"></i> <span class="term-warning">USDT</span> : <span class="term-success">0.0000</span></div>
-                ` : `
-                <div class="term-line term-warning">[INFO] 非標準EVM鏈數據，底層節點池正進行異步通訊重試...</div>
-                `}
-                <div class="term-line">---------------------------------------------------------</div>
-                <div class="term-line">• 響應狀態：<span class="term-success">200 OK</span></div>
-            `;
-        });
+const DONATE_ADDRS = { EVM: { addr: "0x82a4ab5c42b8ea1d90ef04a9d539a1e5303c6bc7", defaultUnit: "USDT" }, BTC: { addr: "bc1qaq5m3yafrf2wagvd5qymgzhrs2m4xkzrrvkapa", defaultUnit: "BTC" }, TRON: { addr: "TMDnW7z167gs7BJCcAHh7XUskKTN2Qbkpg", defaultUnit: "TRX" } };
+let qrcodeInstance = null;
 
-        // 贊助地址切換
-        function switchAddr(type, addr) {
-            // 更新按鈕狀態
-            const buttons = document.querySelectorAll('.address-tabs .tab-btn');
-            buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            // 更新文字顯示
-            document.getElementById('current-addr-text').innerText = addr;
-        }
+function switchDonate(chain) {
+    currentDonateChain = chain; document.querySelectorAll('.tab-btn').forEach(btn => btn.id === `tab-${chain}` ? btn.classList.add('active') : btn.classList.remove('active'));
+    if (!qrcodeInstance) { qrcodeInstance = new QRCode(document.getElementById("qrcode"), { text: DONATE_ADDRS[chain].addr, width: 110, height: 110 }); } 
+    else { qrcodeInstance.clear(); qrcodeInstance.makeCode(DONATE_ADDRS[chain].addr); }
+    document.getElementById("donateAddrText").innerText = DONATE_ADDRS[chain].addr; document.getElementById("historyUnit").value = DONATE_ADDRS[chain].defaultUnit;
+}
 
-        // 複製到剪貼簿
-        function copyAddress() {
-            const text = document.getElementById('current-addr-text').innerText;
-            navigator.clipboard.writeText(text).then(() => {
-                const toast = document.getElementById('toast');
-                toast.style.display = 'block';
-                setTimeout(() => {
-                    toast.style.display = 'none';
-                }, 2000);
+async function updatePrices() {
+    try {
+        const res = await fetch("https://api.binance.com/api/v3/ticker/price");
+        if (res.ok) {
+            const data = await res.json();
+            data.forEach(item => {
+                if (livePrices[item.symbol] !== undefined) livePrices[item.symbol] = parseFloat(item.price);
+                if(item.symbol === 'BTCUSDT') document.getElementById('price-BTC').innerText = `$${parseFloat(item.price).toLocaleString()}`;
+                if(item.symbol === 'ETHUSDT') document.getElementById('price-ETH').innerText = `$${parseFloat(item.price).toLocaleString()}`;
+                if(item.symbol === 'BNBUSDT') document.getElementById('price-BNB').innerText = `$${parseFloat(item.price).toLocaleString()}`;
             });
         }
+    } catch (e) { }
+}
 
-        // 蒙特卡羅量化矩陣執行提示
-        function runSimulation() {
-            const pair = document.getElementById('sim-pair').value;
-            const paths = document.getElementById('sim-paths').value;
-            alert(`【量化內核啟動】\n已成功將 ${pair} 實時快照注入 GBM 隨機過程模型。\n正在計算 ${paths} 條獨立馬爾可夫鏈路徑...`);
+// 🔥 全新超強穿透式邊緣反向代理引擎
+async function fetchWithFallback(chainKey, payload, urlSuffix = "") {
+    const chain = CHAINS[chainKey];
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4500); // 4.5秒超時守護
+    let start = Date.now();
+    try {
+        let reqUrl = chain.proxyUrl + urlSuffix;
+        let response = chain.type === "evm" ? await fetch(reqUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal }) : await fetch(reqUrl + urlSuffix, { method: 'GET', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (response.ok) { let data = await response.json(); return { data, ping: Date.now() - start, success: true }; }
+    } catch (e) { clearTimeout(timeoutId); }
+    return { success: false };
+}
+
+async function updateMonitor() {
+    const grid = document.getElementById("monitorGrid");
+    for (let key in CHAINS) {
+        try {
+            let blockHeight = "連線中...", gasText = "取得中...", pingInfo = "🔴 離線", badgeColor = 'var(--red)';
+            let card = document.getElementById(`card-${key}`) || document.createElement("div"); if(!card.id) { card.id = `card-${key}`; card.className = "card"; grid.appendChild(card); }
+            if (CHAINS[key].type === "evm") {
+                let res = await fetchWithFallback(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 }); let gasRes = await fetchWithFallback(key, { jsonrpc: "2.0", method: "eth_gasPrice", params: [], id: 2 });
+                if (res?.success && res.data.result) { blockHeight = parseInt(res.data.result, 16); pingInfo = `🟢 ${res.ping}ms`; badgeColor = 'var(--green)'; }
+                if (gasRes?.success && gasRes.data.result) gasText = `⛽ Gas: ${(Number(BigInt(gasRes.data.result)) / 10**9).toFixed(2)} Gwei`;
+            } else if (CHAINS[key].type === "btc") {
+                let res = await fetchWithFallback(key, null, "/blocks/tip"); let feeRes = await fetch("/api/btc/fee-estimates").catch(()=>null);
+                if (res?.success && res.data && res.data[0]) { blockHeight = res.data[0].height || "成功"; pingInfo = `🟢 ${res.ping}ms`; badgeColor = 'var(--green)'; }
+                if (feeRes?.ok) { let fee = await feeRes.json(); gasText = `📊 費率: ${(fee["1"] || 0).toFixed(1)} sat/vB`; } else { gasText = `📊 費率: ~16 sat/vB`; }
+            } else if (CHAINS[key].type === "tron") {
+                let res = await fetchWithFallback(key, null, "/wallet/getnowblock");
+                if (res?.success && res.data && res.data.block_header) { blockHeight = res.data.block_header.raw_data.number; pingInfo = `🟢 ${res.ping}ms`; badgeColor = 'var(--green)'; gasText = `⚡ 門檻: 420/1000 sun`; }
+            }
+            card.innerHTML = `<div class="badge" style="background-color: ${badgeColor}"></div><h3>${CHAINS[key].name}</h3><div class="status">${blockHeight}</div><div class="gas-info">${gasText}</div><div class="ping">${pingInfo}</div>`;
+        } catch (e) { }
+    }
+}
+
+async function queryBalance() {
+    const t = translations[currentLang]; const chainKey = document.getElementById("chainSelect").value; const address = document.getElementById("addressInput").value.trim(); const resultDiv = document.getElementById("searchResult");
+    if (!address) { alert(t.noAddress); return; } resultDiv.innerHTML = `<span style="color:var(--yellow)">${t.querying}</span>`;
+    try {
+        if (CHAINS[chainKey].type === "evm") {
+            // 1. 抓取原生資產
+            let res = await fetchWithFallback(chainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [address, "latest"], id: 1 });
+            if (res?.success && res.data.result) { 
+                let nativeBal = (Number(BigInt(res.data.result)) / 1e18).toFixed(6);
+                let output = `${t.balanceText}\n  🔹 <span style="color:var(--yellow)">${CHAINS[chainKey].symbol} (Native)</span>: <span style="color:var(--accent)">${nativeBal}</span>`;
+                
+                // 2. 併發穿透解構 Token_Matrix 中的 ERC-20 代幣資產
+                const tokens = TOKEN_MATRIX[chainKey] || [];
+                for (let token of tokens) {
+                    const cleanAddr = address.replace('0x', '').toLowerCase().padStart(64, '0');
+                    const dataParam = "0x70a08231" + cleanAddr; // balanceOf 函數指紋
+                    let tokenRes = await fetchWithFallback(chainKey, { jsonrpc: "2.0", method: "eth_call", params: [{ to: token.address, data: dataParam }, "latest"], id: 2 });
+                    
+                    if (tokenRes?.success && tokenRes.data.result && tokenRes.data.result !== "0x") {
+                        const rawBal = new BigNumber(tokenRes.data.result, 16);
+                        const finalBal = rawBal.div(new BigNumber(10).pow(token.decimals)).toFixed(4);
+                        output += `\n  💵 <span style="color:var(--green)">${token.symbol}</span>: <span style="color:var(--accent)">${finalBal}</span>`;
+                    } else {
+                        output += `\n  ⚪ <span style="color:var(--text-muted)">${token.symbol}</span>: <span style="color:var(--text-muted)">0.0000</span>`;
+                    }
+                }
+                resultDiv.innerHTML = output;
+            } else { resultDiv.innerHTML = `<span style="color:var(--red)">❌ EVM 查詢失敗</span>`; }
+        } else if (chainKey === "BTC") {
+            const res = await fetchWithFallback("BTC", null, `/address/${address}`);
+            if (res?.success && res.data && res.data.chain_stats) { 
+                let btcBal = ((res.data.chain_stats.funded_txo_sum - res.data.chain_stats.spent_txo_sum) / 1e8).toFixed(8);
+                resultDiv.innerHTML = `${t.balanceText} <span style="color:var(--accent)">${btcBal} BTC</span>`; 
+            } else { resultDiv.innerHTML = `<span style="color:var(--red)">❌ BTC 查詢失敗</span>`; }
+        } else if (chainKey === "TRON") {
+            // 穿透式代理向 TRON 節點提數據
+            const res = await fetchWithFallback("TRON", { address: address, visible: true }, "/wallet/getaccount");
+            if (res?.success) { 
+                let tronBal = ((res.data.balance || 0) / 1e6).toFixed(6);
+                resultDiv.innerHTML = `${t.balanceText} <span style="color:var(--accent)">${tronBal} TRX</span>`; 
+            } else { resultDiv.innerHTML = `<span style="color:var(--red)">❌ TRON 查詢失敗</span>`; }
         }
-    </script>
+    } catch (err) { resultDiv.innerHTML = `<span style="color:var(--red)">⚠️ 查詢過程發生異常: ${err.message}</span>`; }
+}
+
+async function initDashboard() { switchLanguage(currentLang); checkMemorialDay(); await updatePrices(); updateMonitor(); syncLivePrice(); runMonteCarloGrid(); switchDonate('EVM'); loadDonateHistory(); }
+initDashboard();
+setInterval(updatePrices, 3000); setInterval(updateMonitor, 6000); setInterval(checkMemorialDay, 60000);
+</script>
 </body>
 </html>
