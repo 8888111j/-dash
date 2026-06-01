@@ -45,16 +45,18 @@
         }
         .system-status i { margin-right: 5px; font-size: 0.7rem; }
         .nav-right { display: flex; align-items: center; gap: 15px; }
-        .menu-btn, .lang-btn { background: none; border: none; color: var(--text-main); font-size: 1.2rem; cursor: pointer; }
+        .menu-btn { background: none; border: none; color: var(--text-main); font-size: 1.2rem; cursor: pointer; }
 
         .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; display: flex; flex-direction: column; gap: 20px; }
         
-        /* 行情快訊 */
-        .ticker-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
-        .ticker-card { background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; }
-        .ticker-info { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 500; }
-        .ticker-price { font-family: 'Share Tech Mono', monospace; font-weight: bold; font-size: 1.1rem; }
-        .data-source-hint { font-size: 0.75rem; color: var(--text-muted); text-align: right; margin-top: -5px; padding-right: 5px; }
+        /* 幣虎跑馬燈專用外層容器 */
+        .marquee-wrapper {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            padding: 0;
+        }
 
         /* 網路監控網格 */
         .network-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
@@ -99,6 +101,7 @@
         .term-success { color: #4af626; }
         .term-warning { color: var(--warning); }
         .term-highlight { color: #58a6ff; }
+        .term-error { color: var(--danger); }
 
         /* 聲明與贊助 */
         .alert-banner { background: linear-gradient(135deg, #8b0000 0%, #4a0000 100%); border: 1px solid var(--danger); border-radius: 6px; padding: 18px; }
@@ -132,21 +135,16 @@
 
     <div class="container">
         
-        <div class="ticker-bar">
-            <div class="ticker-card">
-                <div class="ticker-info"><i class="fab fa-bitcoin" style="color:var(--accent-orange)"></i> BTC</div>
-                <div class="ticker-price" id="price-btc">$--</div>
-            </div>
-            <div class="ticker-card">
-                <div class="ticker-info"><i class="fab fa-ethereum" style="color:var(--accent-blue)"></i> ETH</div>
-                <div class="ticker-price" id="price-eth">$--</div>
-            </div>
-            <div class="ticker-card">
-                <div class="ticker-info"><i class="fas fa-coins" style="color:var(--accent-yellow)"></i> BNB</div>
-                <div class="ticker-price" id="price-bnb">$--</div>
-            </div>
+        <div class="marquee-wrapper">
+            <script src="https://widgets.coingecko.com/gecko-coin-price-marquee-widget.js"></script>
+            <gecko-coin-price-marquee-widget 
+                locale="zh-tw" 
+                dark-mode="true" 
+                outlined="true" 
+                coin-ids="bitcoin,solana,ethereum,binancecoin,monero" 
+                initial-currency="usd">
+            </gecko-coin-price-marquee-widget>
         </div>
-        <div class="data-source-hint" id="binance-api-source">正在加載幣安行情流...</div>
 
         <div class="network-grid" id="monitorGrid"></div>
 
@@ -165,7 +163,7 @@
 
             <div class="query-box">
                 <div class="input-group">
-                    <input type="text" id="wallet-address" placeholder="請輸入 錢包地址 或 交易哈希 (TxHash)..." value="" oninput="analyzeQueryType()">
+                    <input type="text" id="wallet-address" placeholder="請輸入 錢包地址 或 交易哈希 (TxHash)..." value="1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa" oninput="analyzeQueryType()">
                     <button class="btn-action" onclick="executeQuery()"><i class="fas fa-bolt"></i> 啟動節點讀取</button>
                 </div>
                 <div style="font-size: 0.85rem; color: var(--text-muted);">
@@ -221,7 +219,6 @@
     <div class="toast-msg" id="toast">地址已成功複製到剪貼簿！</div>
 
     <script>
-        // 🚀 全鏈多鏈合約矩陣掃描管理
         const TOKEN_MATRIX = {
             ETH: [
                 { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 },
@@ -232,7 +229,7 @@
                 { symbol: "USDC", address: "0x8AC76a51cc950d9822D68b83fE1Ad97B32CD580d", decimals: 18 }
             ],
             ARB: [
-                { symbol: "USDC", address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", decimals: 6 },
+                { symbol: "USDC", address: "0xaf88d055e77c8cC2239327C5EDb3A432268e5831", decimals: 6 },
                 { symbol: "USDT", address: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", decimals: 6 },
                 { symbol: "USD24", address: "0x39a1E5303c6Bc7b190Ef04A9d539a1E5303c6Bc7", decimals: 6 }
             ],
@@ -246,14 +243,14 @@
             BTC: { name: "Bitcoin Network", type: "btc", color: "var(--accent-orange)", nativeToken: "BTC" },
             ETH: { name: "Ethereum", type: "evm", color: "var(--accent-blue)", nativeToken: "ETH" },
             BSC: { name: "BNB Chain", type: "evm", color: "var(--accent-yellow)", nativeToken: "BNB" },
-            ARB: { name: "Arbitrum One", type: "evm", color: "var(--primary)", nativeToken: "ETH" }, // 🔥 修復：Arbitrum 的 Native Token 是 ETH
+            ARB: { name: "Arbitrum One", type: "evm", color: "var(--primary)", nativeToken: "ETH" },
             TRON: { name: "TRON Network", type: "tron", color: "var(--accent-tron)", nativeToken: "TRX" },
-            MORPH: { name: "Morph L2", type: "evm", color: "var(--accent-morph)", nativeToken: "ETH" }  // 🔥 修復：Morph L2 的 Native Token 也是 ETH
+            MORPH: { name: "Morph L2", type: "evm", color: "var(--accent-morph)", nativeToken: "ETH" }
         };
 
         const RPC_POOL = {
-            BTC: [{ url: "https://blockstream.info/api" }, { url: "https://unisat.io/api" }],
-            ETH: [{ url: "https://rpc.mevblocker.io" }, { url: "https://1rpc.io/eth" }],
+            BTC: [{ url: "https://blockstream.info/api" }, { url: "https://blockchain.info" }],
+            ETH: [{ url: "https://rpc.mevblocker.io" }, { url: "https://1rpc.io/eth" }, { url: "https://cloudflare-eth.com" }],
             BSC: [{ url: "https://binance.llamarpc.com" }, { url: "https://bsc-dataseed.binance.org" }],
             ARB: [{ url: "https://arb1.arbitrum.io/rpc" }, { url: "https://arbitrum.drpc.org" }],
             TRON: [{ url: "https://api.trongrid.io" }, { url: "https://api.nileex.io" }],
@@ -261,7 +258,6 @@
         };
 
         let selectedChainKey = "BTC";
-        let rawPrices = { btc: 73000, eth: 2000, bnb: 700 };
 
         function selectChain(key) {
             selectedChainKey = key;
@@ -288,7 +284,6 @@
             badge.textContent = "🔎 自適應通用查詢模式"; badge.style.color = "var(--text-muted)";
         }
 
-        // 🔥 執行核心多鏈異步解構引擎
         async function executeQuery() {
             const query = document.getElementById('wallet-address').value.trim();
             if(!query) return alert("請先輸入地址或交易哈希！");
@@ -318,7 +313,6 @@
                                 `<div class="term-line">• 轉賬數額: ${new BigNumber(tx.value).div(1e18).toFixed(6)} ${chainConf.nativeToken}</div>`;
                         } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 節點池未檢索到該 TxHash，請確認鏈選擇是否正確。</div>`; }
                     } else {
-                        // 1. 抓取原生資產餘額
                         const resBal = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [query, "latest"], id: 11 });
                         let outHtml = `<div class="term-line term-success">[SUCCESS] 成功連通 ${selectedChainKey} 核心合約層：</div>`;
                         outHtml += `<div class="term-line">• 賬戶地址：<span class="term-highlight">${query}</span></div>`;
@@ -330,11 +324,10 @@
                         }
                         outHtml += `<div class="term-line">  <i class="fab fa-ethereum"></i> <span class="term-warning">${chainConf.nativeToken} (${selectedChainKey} Native)</span> : <span class="term-success">${nativeBal} ${chainConf.nativeToken}</span></div>`;
 
-                        // 2. 併發讀取 ERC-20 代幣矩陣
                         const tokens = TOKEN_MATRIX[selectedChainKey] || [];
                         for (let token of tokens) {
                             const cleanAddr = query.replace('0x', '').toLowerCase().padStart(64, '0');
-                            const dataParam = "0x70a08231" + cleanAddr; // balanceOf 函數簽名
+                            const dataParam = "0x70a08231" + cleanAddr;
 
                             const resToken = await fetchFromPool(selectedChainKey, {
                                 jsonrpc: "2.0", method: "eth_call", params: [{ to: token.address, data: dataParam }, "latest"], id: 12
@@ -353,14 +346,32 @@
                         content.innerHTML = outHtml;
                     }
                 } else if (selectedChainKey === "BTC") {
+                    const legacyOrShRegex = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/;
+                    const nativeSegwitRegex = /^bc1[ac-hj-np-z02-9]{11,71}$/;
+
+                    if (!legacyOrShRegex.test(query) && !nativeSegwitRegex.test(query) && !isHash) {
+                        content.innerHTML = `<div class="term-line term-error">[ERROR] 無法獲取 BTC 地址數據，請確認地址格式是否為合法的 1 / 3 / bc1 開頭。</div>`;
+                        return;
+                    }
+
                     const suffix = isHash ? `/tx/${query}` : `/address/${query}`;
                     const res = await fetchFromPool("BTC", null, suffix);
+                    
                     if (res.success && res.data) {
-                        let btcBal = res.data.chain_stats ? (res.data.chain_stats.funded_txo_sum - res.data.chain_stats.spent_txo_sum) / 1e8 : 0;
-                        content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈原生數據解構：</div>` +
+                        let btcBal = 0;
+                        if (res.activeRpc.includes('blockstream.info')) {
+                            const stats = res.data.chain_stats;
+                            btcBal = stats ? (stats.funded_txo_sum - stats.spent_txo_sum) / 1e8 : 0;
+                        } else if (res.activeRpc.includes('blockchain.info')) {
+                            btcBal = res.data.final_balance ? res.data.final_balance / 1e8 : 0;
+                        }
+
+                        content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈原生數據解構 (${res.activeRpc.includes('blockstream') ? 'Blockstream' : 'Blockchain.info'} 節點)：</div>` +
                             `<div class="term-line">• 目標地址: <span class="term-highlight">${query}</span></div>` +
                             `<div class="term-line">  🧡 BTC 餘額 : <span class="term-success">${btcBal.toFixed(8)} BTC</span></div>`;
-                    } else { content.innerHTML = `<div class="term-line term-error">[ERROR] BTC 節點未找到此賬戶數據。</div>`; }
+                    } else { 
+                        content.innerHTML = `<div class="term-line term-error">[ERROR] 所有 BTC 公共節點皆未檢索到此賬戶數據，或踩到節點頻率限制。</div>`; 
+                    }
                 } else if (selectedChainKey === "TRON") {
                     content.innerHTML = `<div class="term-line term-success">[SUCCESS] TRON Network 智能節點響應：</div>` +
                         `<div class="term-line">• 賬戶地址: <span class="term-highlight">${query}</span></div>` +
@@ -383,8 +394,19 @@
                 try {
                     let response;
                     if (CHAINS[chainKey].type === "evm") {
-                        response = await fetch(node.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal });
-                    } else { response = await fetch(node.url + urlSuffix, { method: 'GET', signal: controller.signal }); }
+                        response = await fetch(node.url, { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify(payload), 
+                            signal: controller.signal 
+                        });
+                    } else { 
+                        let targetUrl = node.url + urlSuffix;
+                        if (node.url.includes('blockchain.info') && !urlSuffix.startsWith('/rawaddr')) {
+                            targetUrl = `${node.url}/rawaddr/${urlSuffix.replace('/address/', '')}?limit=1`;
+                        }
+                        response = await fetch(targetUrl, { method: 'GET', signal: controller.signal }); 
+                    }
                     clearTimeout(timeoutId);
                     if (response.ok) {
                         const data = await response.json();
@@ -395,7 +417,6 @@
             return { success: false };
         }
 
-        // 初始化實時監控盤
         function initGrid() {
             const grid = document.getElementById('monitorGrid'); grid.innerHTML = '';
             Object.keys(CHAINS).forEach(key => {
@@ -413,22 +434,6 @@
         }
 
         async function refreshData() {
-            // 抓取幣安價格流
-            const apiSource = document.getElementById("binance-api-source");
-            try {
-                const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbols=[%22BTCUSDT%22,%22ETHUSDT%22,%22BNBUSDT%22]`);
-                if (res.ok) {
-                    const data = await res.json();
-                    data.forEach(p => {
-                        const sym = p.symbol.replace('USDT','').toLowerCase();
-                        rawPrices[sym] = parseFloat(p.price);
-                        document.getElementById(`price-${sym}`).textContent = `$${parseFloat(p.price).toLocaleString(undefined,{minimumFractionDigits:2})}`;
-                    });
-                    apiSource.innerHTML = `行情數據源：<span class="status-dot" style="width:6px;height:6px;"></span> Binance 國際服務器`;
-                }
-            } catch (e) { apiSource.textContent = "行情流對接異常"; }
-
-            // 刷新各網頁區塊高度
             for (let key of Object.keys(CHAINS)) {
                 const blockElem = document.getElementById(`height-${key}`);
                 const gasElem = document.getElementById(`gas-${key}`);
@@ -436,13 +441,14 @@
 
                 if (CHAINS[key].type === "btc") {
                     const res = await fetchFromPool(key, null, "/blocks/tip/height");
-                    if(res.success) { blockElem.textContent = res.data; gasElem.textContent = "~16 sat/vB"; dot.className = 'status-dot'; }
+                    if(res.success) { blockElem.textContent = res.data; gasElem.textContent = "~21 sat/vB"; dot.className = 'status-dot'; }
+                    else { blockElem.textContent = "Timeout"; dot.className = 'status-dot error'; }
                 } else if (CHAINS[key].type === "evm") {
                     const res = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 });
                     if(res.success) { blockElem.textContent = parseInt(res.data.result, 16); gasElem.textContent = "🔥 Active"; dot.className = 'status-dot'; }
-                    else { blockElem.textContent = "Error"; dot.className = 'status-dot error'; }
+                    else { blockElem.textContent = "Timeout"; dot.className = 'status-dot error'; }
                 } else if (CHAINS[key].type === "tron") {
-                    blockElem.textContent = "67931K"; gasElem.textContent = "420 sun"; dot.className = 'status-dot';
+                    blockElem.textContent = "82147K"; gasElem.textContent = "420 sun"; dot.className = 'status-dot';
                 }
             }
         }
@@ -462,7 +468,10 @@
 
         function runSimulation() { alert("量化矩陣引擎已啟動，正在生成幾何布朗運動模擬路徑..."); }
 
-        initGrid(); refreshData(); setInterval(refreshData, 5000);
+        initGrid(); 
+        refreshData(); 
+        setInterval(refreshData, 8000); 
+        analyzeQueryType();
     </script>
 </body>
 </html>
