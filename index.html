@@ -23,114 +23,131 @@
             color: var(--text);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
         }
         .june-fourth-mourning { filter: grayscale(100%) !important; }
         .memorial-banner {
             display: none; background: #000; color: #fff; text-align: center;
             padding: 10px; font-weight: bold; font-size: 14px;
-            border-bottom: 2px solid var(--danger); margin: -20px -20px 20px -20px;
+            border-bottom: 2px solid var(--danger); margin: -15px -15px 15px -15px;
         }
         .navbar {
             display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid #30363d; padding-bottom: 10px; margin-bottom: 20px;
+            border-bottom: 1px solid #30363d; padding-bottom: 10px; margin-bottom: 15px;
         }
-        .navbar h1 { margin: 0; font-size: 20px; color: #fff; }
-        .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .navbar h1 { margin: 0; font-size: 18px; color: #fff; }
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
         .tab-btn {
             background: #21262d; border: 1px solid #30363d; color: var(--text);
-            padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;
+            padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px;
         }
         .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
         
         /* 行情 */
-        .ticker-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        .ticker-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
         .ticker-card {
             background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px;
-            padding: 12px; display: flex; justify-content: space-between; align-items: center;
+            padding: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px;
         }
-        .ticker-price { font-weight: bold; color: #fff; font-size: 16px; }
-        .ticker-api-status { font-size: 10px; color: #8b949e; text-align: right; margin-top: -15px; margin-bottom: 15px;}
+        .ticker-price { font-weight: bold; color: #fff; font-size: 14px; font-family: monospace; }
+        .ticker-api-status { font-size: 10px; color: #8b949e; text-align: right; margin-top: -10px; margin-bottom: 15px;}
 
         /* 面板切換 */
         .panel { display: none; }
         .panel.active { display: block; }
 
         /* 監控網格 */
-        .monitor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .monitor-card { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 15px; position: relative; }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .card-title { font-weight: bold; color: #fff; font-size: 16px; }
-        .block-number { font-size: 22px; font-weight: bold; color: var(--accent); margin: 10px 0; font-family: monospace; }
-        .meta-line { font-size: 12px; color: #8b949e; margin: 4px 0; display: flex; justify-content: space-between; align-items: center; }
+        .monitor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 15px; }
+        .monitor-card { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 12px; position: relative; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .card-title { font-weight: bold; color: #fff; font-size: 14px; }
+        .block-number { font-size: 20px; font-weight: bold; color: var(--accent); margin: 8px 0; font-family: monospace; }
+        .meta-line { font-size: 11px; color: #8b949e; margin: 4px 0; display: flex; justify-content: space-between; align-items: center; }
         
         /* 指示器 */
-        .rpc-pool-status { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #30363d; font-size: 11px; color: #8b949e; }
-        .rpc-current-url { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; color: #58a6ff; margin-top: 4px; }
+        .rpc-pool-status { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #30363d; font-size: 11px; color: #8b949e; }
+        .rpc-current-url { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; color: #58a6ff; margin-top: 2px; }
         .pool-pixel-container { display: flex; gap: 4px; }
-        .status-pixel { width: 8px; height: 8px; border-radius: 1.5px; background-color: var(--muted); transition: all 0.3s ease; }
-        .status-pixel.active { background-color: var(--success-glow); box-shadow: 0 0 6px var(--success-glow); }
-        .status-pixel.dead { background-color: var(--danger); box-shadow: 0 0 4px var(--danger); }
+        .status-pixel { width: 8px; height: 8px; border-radius: 1.5px; background-color: var(--muted); }
+        .status-pixel.active { background-color: var(--success-glow); box-shadow: 0 0 5px var(--success-glow); }
+        .status-pixel.dead { background-color: var(--danger); box-shadow: 0 0 3px var(--danger); }
 
         /* 蒙地卡羅面板專用 */
-        .mc-layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
-        .mc-form { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 15px; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-size: 12px; color: #8b949e; margin-bottom: 5px; }
+        .mc-layout { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        @media (min-width: 768px) { .mc-layout { grid-template-columns: 300px 1fr; } }
+        .mc-form { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 12px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 11px; color: #8b949e; margin-bottom: 4px; }
         .form-group input, .form-group select {
             width: 100%; background: #0d1117; border: 1px solid #30363d; color: #fff;
-            padding: 8px; border-radius: 6px; box-sizing: border-box;
+            padding: 8px; border-radius: 6px; box-sizing: border-box; font-size: 13px;
         }
         .btn-run {
             width: 100%; background: var(--success); color: #fff; border: none; padding: 10px;
-            border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px;
+            border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px;
         }
-        .btn-run:hover { background: #2ea043; }
-        .mc-chart-area { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 15px; position: relative; }
-        canvas { background: #0d1117; width: 100%; height: 350px; border-radius: 4px; border: 1px solid #21262d; }
-        .mc-results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px; }
-        .res-box { background: #0d1117; border: 1px solid #30363d; padding: 10px; border-radius: 6px; text-align: center; }
-        .res-val { font-size: 18px; font-weight: bold; margin-top: 5px; font-family: monospace; }
+        .mc-chart-area { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 12px; }
+        canvas { background: #0d1117; width: 100%; height: 260px; border-radius: 4px; border: 1px solid #21262d; }
+        .mc-results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+        .res-box { background: #0d1117; border: 1px solid #30363d; padding: 8px; border-radius: 6px; text-align: center; }
+        .res-val { font-size: 13px; font-weight: bold; margin-top: 4px; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* 模塊通用背景 */
-        .interactive-section { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 15px; margin-top: 20px;}
+        .interactive-section { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-top: 15px;}
         
-        /* ⚙️ 智能鏈上瀏覽器矩陣樣式 */
-        .search-box-container { display: flex; gap: 10px; margin-top: 10px; }
+        /* 🔍 站內一體化智能瀏覽器矩陣 */
+        .search-box-container { display: flex; gap: 8px; margin-top: 8px; }
         .search-input {
             flex: 1; background: #0d1117; border: 1px solid #30363d; color: #fff;
-            padding: 12px; border-radius: 6px; font-family: monospace; font-size: 14px;
+            padding: 10px; border-radius: 6px; font-family: monospace; font-size: 13px; width: 100%;
         }
         .type-badge {
-            display: inline-block; padding: 3px 8px; font-size: 11px; border-radius: 4px;
-            margin-top: 5px; background: #21262d; color: #8b949e; font-weight: bold;
+            display: inline-block; padding: 3px 6px; font-size: 10px; border-radius: 4px;
+            margin-top: 6px; background: #21262d; color: #8b949e; font-weight: bold;
         }
-        .explorer-matrix { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 15px; }
+        .explorer-matrix { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+        @media (min-width: 600px) { .explorer-matrix { grid-template-columns: repeat(6, 1fr); } }
         .matrix-btn {
-            background: #21262d; border: 1px solid #30363d; color: #fff; padding: 12px;
-            border-radius: 6px; cursor: pointer; text-align: center; font-weight: bold; font-size: 13px;
-            transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; gap: 4px;
+            background: #21262d; border: 1px solid #30363d; color: #fff; padding: 10px 4px;
+            border-radius: 6px; cursor: pointer; text-align: center; font-weight: bold; font-size: 12px;
+            transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; gap: 2px;
         }
-        .matrix-btn:hover { border-color: var(--accent); background: rgba(56, 139, 253, 0.1); }
-        .matrix-btn span.chain-lbl { font-size: 10px; color: #8b949e; font-weight: normal; }
+        .matrix-btn:hover, .matrix-btn.active { border-color: var(--accent); background: rgba(56, 139, 253, 0.1); }
+        .matrix-btn span.chain-lbl { font-size: 9px; color: #8b949e; font-weight: normal; }
 
-        /* 贊助盒子與多鏈切換 */
-        .donate-box { background: linear-gradient(135deg, #da3637 0%, #b62324 100%); border-radius: 6px; padding: 15px; color: #fff; margin-top: 20px; }
-        .donate-title { font-weight: bold; display: flex; align-items: center; gap: 5px; margin-bottom: 8px; }
-        .donate-body { font-size: 12px; line-height: 1.6; }
-        .address-box { background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin-top: 10px; font-family: monospace; font-size: 11px; word-break: break-all; }
+        /* 站內內嵌瀏覽器視窗 */
+        .iframe-wrapper { display: none; margin-top: 12px; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; background: #fff; }
+        .iframe-wrapper.active { display: block; }
+        .iframe-bar { background: #161b22; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #30363d; }
+        .iframe-title { font-size: 11px; color: #8b949e; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
+        .iframe-ctrl-btn { background: #21262d; border: 1px solid #30363d; color: #fff; padding: 2px 8px; font-size: 10px; border-radius: 4px; cursor: pointer; }
+        .iframe-container { width: 100%; height: 480px; position: relative; -webkit-overflow-scrolling: touch; overflow-y: scroll; }
+        .iframe-container iframe { width: 100%; height: 100%; border: none; background: #fff; }
+        .iframe-wrapper.fullscreen { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; margin: 0; border-radius: 0; }
+        .iframe-wrapper.fullscreen .iframe-container { height: calc(100vh - 35px); }
+
+        /* 贊助盒子與安全優化 */
+        .donate-box { background: linear-gradient(135deg, #da3637 0%, #b62324 100%); border-radius: 6px; padding: 12px; color: #fff; margin-top: 15px; }
+        .donate-title { font-weight: bold; display: flex; align-items: center; gap: 5px; margin-bottom: 6px; font-size: 13px; }
+        .donate-body { font-size: 11px; line-height: 1.5; }
+        .address-box { background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; margin-top: 8px; font-family: monospace; font-size: 10px; word-break: break-all; border: 1px solid rgba(255,255,255,0.1); }
         
-        .chain-selector { display: flex; gap: 8px; margin: 12px 0 8px 0; }
+        .chain-selector { display: flex; gap: 6px; margin: 10px 0 6px 0; flex-wrap: wrap; }
         .chain-sub-btn {
             background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255,255,255,0.2);
-            color: #fff; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;
+            color: #fff; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;
         }
         .chain-sub-btn.active { background: #fff; color: #b62324; border-color: #fff; }
         
+        /* 🔥 二維碼完美修復樣式（杜絕爆框大坨） */
+        .qr-box-holder { display: flex; justify-content: flex-start; margin-top: 10px; }
         .qr-wrapper {
-            background: #fff; padding: 8px; width: 110px; height: 110px; 
-            border-radius: 4px; margin-top: 10px; display: flex; justify-content: center; align-items: center;
+            background: #fff; padding: 6px; 
+            width: 110px; height: 110px; 
+            max-width: 110px; max-height: 110px;
+            border-radius: 6px; display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2); box-sizing: border-box;
         }
+        .qr-wrapper #qrcode img { width: 98px !important; height: 98px !important; display: block; }
     </style>
 </head>
 <body>
@@ -141,12 +158,12 @@
 
     <div class="navbar">
         <h1>Bogglo 策略終端</h1>
-        <div><span id="global-status" style="color: var(--success)">● Operational</span></div>
+        <div><span id="global-status" style="color: var(--success); font-size:12px;">● Operational</span></div>
     </div>
 
     <div class="nav-tabs">
         <button class="tab-btn active" onclick="switchTab('monitor')">🛰️ 全鏈監控大盤</button>
-        <button class="tab-btn" onclick="switchTab('montecarlo')">📈 蒙地卡羅量化模擬</button>
+        <button class="tab-btn" onclick="switchTab('montecarlo')">📈 蒙地卡羅量化</button>
     </div>
 
     <div>
@@ -165,7 +182,7 @@
     <div id="panel-montecarlo" class="panel">
         <div class="mc-layout">
             <div class="mc-form">
-                <h3 style="margin-top:0; font-size: 16px; color:#fff;">GBM 幾何布朗運動配置</h3>
+                <h3 style="margin-top:0; font-size: 14px; color:#fff;">GBM 幾何布朗運動配置</h3>
                 <div class="form-group">
                     <label>選擇模擬標的</label>
                     <select id="mc-target" onchange="syncInitialPrice()">
@@ -196,15 +213,15 @@
                 <canvas id="mcCanvas"></canvas>
                 <div class="mc-results">
                     <div class="res-box" style="border-color: var(--danger);">
-                        <label style="font-size:11px; color:#8b949e;">🔥 95% 悲觀極限低點</label>
+                        <label style="font-size:10px; color:#8b949e;">🔥 95% 悲觀極點</label>
                         <div class="res-val" id="res-low" style="color: var(--danger);">$--</div>
                     </div>
                     <div class="res-box" style="border-color: var(--accent);">
-                        <label style="font-size:11px; color:#8b949e;">📊 數學期望值 (中位數)</label>
+                        <label style="font-size:10px; color:#8b949e;">📊 期望中位數</label>
                         <div class="res-val" id="res-mid" style="color: var(--accent);">$--</div>
                     </div>
                     <div class="res-box" style="border-color: var(--success);">
-                        <label style="font-size:11px; color:#8b949e;">🚀 樂觀極限高點</label>
+                        <label style="font-size:10px; color:#8b949e;">🚀 樂觀極點</label>
                         <div class="res-val" id="res-high" style="color: var(--success);">$--</div>
                     </div>
                 </div>
@@ -213,8 +230,8 @@
     </div>
 
     <div class="interactive-section">
-        <h3 style="margin-top:0; color:#fff;">🔍 全鏈智能瀏覽器交叉查詢矩陣</h3>
-        <p style="font-size:12px; color:#8b949e; margin:0;">輸入任意鏈的錢包地址、交易哈希(TxID)或代幣合約(如USDT/Meme)，系統將智能組裝跳轉路由：</p>
+        <h3 style="margin-top:0; color:#fff; font-size: 14px;">🔍 全鏈內嵌智能瀏覽器</h3>
+        <p style="font-size:11px; color:#8b949e; margin:0;">貼入地址/交易哈希/代幣合約，直接在下方站內沙盒視窗內加載，免跳轉：</p>
         
         <div class="search-box-container">
             <input type="text" id="explorerQuery" class="search-input" placeholder="粘貼 地址 / 交易哈希 / 代幣合約地址..." oninput="analyzeQueryType()">
@@ -222,18 +239,31 @@
         <div id="queryTypeBadge" class="type-badge">輸入類型: 等待輸入...</div>
 
         <div class="explorer-matrix">
-            <button class="matrix-btn" onclick="openExplorer('BTC')">🧡 Bitcoin<span class="chain-lbl">Mempool.space</span></button>
-            <button class="matrix-btn" onclick="openExplorer('ETH')">🔷 Ethereum<span class="chain-lbl">Etherscan</span></button>
-            <button class="matrix-btn" onclick="openExplorer('BSC')">🔶 BNB Chain<span class="chain-lbl">BscScan</span></button>
-            <button class="matrix-btn" onclick="openExplorer('ARB')">💙 Arbitrum<span class="chain-lbl">Arbiscan</span></button>
-            <button class="matrix-btn" onclick="openExplorer('TRON')">❤️ TRON<span class="chain-lbl">Tronscan</span></button>
-            <button class="matrix-btn" onclick="openExplorer('MORPH')">🟢 Morph L2<span class="chain-lbl">Morphscan</span></button>
+            <button class="matrix-btn" id="btn-chain-BTC" onclick="openEmbeddedExplorer('BTC')">🧡 Bitcoin<span class="chain-lbl">Mempool</span></button>
+            <button class="matrix-btn" id="btn-chain-ETH" onclick="openEmbeddedExplorer('ETH')">🔷 Ethereum<span class="chain-lbl">Etherscan</span></button>
+            <button class="matrix-btn" id="btn-chain-BSC" onclick="openEmbeddedExplorer('BSC')">🔶 BNB Chain<span class="chain-lbl">BscScan</span></button>
+            <button class="matrix-btn" id="btn-chain-ARB" onclick="openEmbeddedExplorer('ARB')">💙 Arbitrum<span class="chain-lbl">Arbiscan</span></button>
+            <button class="matrix-btn" id="btn-chain-TRON" onclick="openEmbeddedExplorer('TRON')">❤️ TRON<span class="chain-lbl">Tronscan</span></button>
+            <button class="matrix-btn" id="btn-chain-MORPH" onclick="openEmbeddedExplorer('MORPH')">🟢 Morph L2<span class="chain-lbl">Morphscan</span></button>
+        </div>
+
+        <div class="iframe-wrapper" id="embeddedExplorerWrapper">
+            <div class="iframe-bar">
+                <div class="iframe-title" id="embeddedExplorerTitle">站內無縫視窗: 未加載</div>
+                <div style="display:flex; gap:6px;">
+                    <button class="iframe-ctrl-btn" onclick="toggleFullscreenExplorer()">🖥️ 全螢幕</button>
+                    <button class="iframe-ctrl-btn" style="background:var(--danger); border-color:var(--danger);" onclick="closeEmbeddedExplorer()">✕ 收起</button>
+                </div>
+            </div>
+            <div class="iframe-container">
+                <iframe id="explorerIframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" src="about:blank"></iframe>
+            </div>
         </div>
     </div>
 
     <div class="interactive-section">
-        <h3>🧲 終端矩陣配置安全聲明</h3>
-        <p style="font-size: 13px; color: #8b949e;">本終端集成全鏈異步監控池與輕量級隨機過程波動模擬模型。所有計算均在用戶瀏覽器內本地沙盒化執行，不依賴任何外部量化服務器。</p>
+        <h3 style="font-size:14px; margin-top:0;">🧲 終端矩陣配置安全聲明</h3>
+        <p style="font-size: 12px; color: #8b949e; margin:0 0 10px 0;">本終端集成全鏈異步監控池與輕量級隨機過程波動模擬模型。所有計算均在用戶瀏覽器內本地沙盒化執行。</p>
         
         <div class="donate-box">
             <div class="donate-title">⚠️ 鄭重聲明：與 Arkham Intelligence 合作打擊非法資金</div>
@@ -250,8 +280,10 @@
 
                 <div class="address-box" id="walletAddress">0x82a4ab5c42b8eA1d90Ef04A9d539a1E5303c6Bc7</div>
                 
-                <div class="qr-wrapper">
-                    <div id="qrcode"></div>
+                <div class="qr-box-holder">
+                    <div class="qr-wrapper">
+                        <div id="qrcode"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -276,22 +308,14 @@
             
             if(!val) { badge.textContent = "輸入類型: 等待輸入..."; badge.style.color = "#8b949e"; return; }
 
-            // 1. 波場特徵分析
             if(val.startsWith('T') && val.length === 34) {
-                badge.textContent = "識別類型: 🔴 TRON 錢包地址"; badge.style.color = "var(--accent)";
-                return;
+                badge.textContent = "識別類型: 🔴 TRON 錢包地址"; badge.style.color = "var(--accent)"; return;
             }
-            
-            // 2. 比特幣特徵分析
             if((val.startsWith('bc1') || val.startsWith('1') || val.startsWith('3')) && (val.length >= 26 && val.length <= 62)) {
-                badge.textContent = "識別類型: 🟠 Bitcoin 錢包地址"; badge.style.color = "var(--warning)";
-                return;
+                badge.textContent = "識別類型: 🟠 Bitcoin 錢包地址"; badge.style.color = "var(--warning)"; return;
             }
-
-            // 3. EVM 鏈特徵分析（地址或合約）
             if(val.startsWith('0x')) {
                 if(val.length === 42) {
-                    // EVM 合約與普通錢包長度相同，在此提示為「智能混查」
                     badge.textContent = "識別類型: ⚙️ EVM 錢包地址 / 代幣合約地址"; badge.style.color = "var(--success-glow)";
                 } else if(val.length === 66) {
                     badge.textContent = "識別類型: ⚡ 全鏈通用 交易哈希 (TxHash)"; badge.style.color = "var(--accent)";
@@ -300,56 +324,74 @@
                 }
                 return;
             }
-
-            // 4. 純哈希（非0x開頭，如波場或比特幣TxID）
             if(val.length === 64) {
-                badge.textContent = "識別類型: 📝 TxID / 交易哈希"; badge.style.color = "var(--accent)";
-                return;
+                badge.textContent = "識別類型: 📝 TxID / 交易哈希"; badge.style.color = "var(--accent)"; return;
             }
-
             badge.textContent = "識別類型: 🔎 模糊匹配模式 (直接點擊對應鏈查詢)"; badge.style.color = "#8b949e";
         }
 
-        // 🚀 多鏈路由組裝跳轉
-        function openExplorer(chain) {
+        // 🖥️ 站內沙盒 iframe 路由加載引擎（免跳轉）
+        function openEmbeddedExplorer(chain) {
             const query = document.getElementById('explorerQuery').value.trim();
             if(!query) { alert("請先粘貼輸入需要查詢的內容！"); return; }
 
             let url = "";
             const is0x = query.startsWith('0x');
             const isHash = query.length === 66 || (query.length === 64 && !query.startsWith('T'));
-            const isAddress = (is0x && query.length === 42) || (query.startsWith('T') && query.length === 34) || query.startsWith('bc1');
 
-            // 這裡做了一手絕活：非主流代幣合約與地址在 EVM 鏈上普通查詢時基本能交叉兼容，
-            // 但如果用戶明確查的是 Token，部分瀏覽器有單獨優化，這裡針對代幣、地址、哈希做動態路由。
+            // 全矩陣按鈕樣式切換
+            document.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-chain-${chain}`).classList.add('active');
+
             switch(chain) {
                 case 'BTC':
-                    url = isHash ? `https://mempool.space/tx/${query}` : `https://mempool.space/address/${query}`;
+                    url = isHash ? `https://mempool.space/zh/tx/${query}` : `https://mempool.space/zh/address/${query}`;
                     break;
                 case 'ETH':
-                    if(isHash) url = `https://etherscan.io/tx/${query}`;
-                    else url = `https://etherscan.io/token/${query}`; // 使用 token 路由可兼查普通地址與自定義幣種
+                    url = isHash ? `https://etherscan.io/tx/${query}` : `https://etherscan.io/token/${query}`;
                     break;
                 case 'BSC':
-                    if(isHash) url = `https://bscscan.com/tx/${query}`;
-                    else url = `https://bscscan.com/token/${query}`;
+                    url = isHash ? `https://bscscan.com/tx/${query}` : `https://bscscan.com/token/${query}`;
                     break;
                 case 'ARB':
-                    if(isHash) url = `https://arbiscan.io/tx/${query}`;
-                    else url = `https://arbiscan.io/token/${query}`;
+                    url = isHash ? `https://arbiscan.io/tx/${query}` : `https://arbiscan.io/token/${query}`;
                     break;
                 case 'TRON':
                     if(query.startsWith('T') && query.length === 34) url = `https://tronscan.org/#/address/${query}`;
                     else if(query.length === 64) url = `https://tronscan.org/#/transaction/${query}`;
-                    else url = `https://tronscan.org/#/token20/${query}`; // 支持波場 TRC20 智能幣種代碼查詢
+                    else url = `https://tronscan.org/#/token20/${query}`;
                     break;
                 case 'MORPH':
-                    if(isHash) url = `https://explorer.morphl2.io/tx/${query}`;
-                    else url = `https://explorer.morphl2.io/address/${query}`;
+                    url = isHash ? `https://explorer.morphl2.io/tx/${query}` : `https://explorer.morphl2.io/address/${query}`;
                     break;
             }
 
-            if(url) window.open(url, '_blank');
+            if(url) {
+                const wrapper = document.getElementById('embeddedExplorerWrapper');
+                const iframe = document.getElementById('explorerIframe');
+                const title = document.getElementById('embeddedExplorerTitle');
+                
+                title.textContent = `站內連線中: [${chain}] -> ${url}`;
+                wrapper.classList.add('active');
+                iframe.src = url;
+                
+                // 自動平滑滾動到視窗位置，方便手機端觀看
+                wrapper.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function closeEmbeddedExplorer() {
+            const wrapper = document.getElementById('embeddedExplorerWrapper');
+            const iframe = document.getElementById('explorerIframe');
+            wrapper.classList.remove('active');
+            wrapper.classList.remove('fullscreen');
+            iframe.src = "about:blank";
+            document.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        function toggleFullscreenExplorer() {
+            const wrapper = document.getElementById('embeddedExplorerWrapper');
+            wrapper.classList.toggle('fullscreen');
         }
 
         // 贊助多鏈配置數據
@@ -368,8 +410,10 @@
             const addr = WALLETS[chainKey];
             document.getElementById('walletAddress').textContent = addr;
             document.getElementById('qrcode').innerHTML = "";
+            
+            // 這裡強制鎖死 98x98 的生成尺寸，配合 CSS 容器，絕對不爆
             qrcodeInstance = new QRCode(document.getElementById("qrcode"), {
-                text: addr, width: 110, height: 110, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M
+                text: addr, width: 98, height: 98, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M
             });
         }
 
@@ -394,8 +438,7 @@
         const RPC_POOL = {
             BTC: [
                 { url: "https://blockstream.info/api", ping: 0, status: true, failures: 0 },
-                { url: "https://blockchain.info", ping: 0, status: true, failures: 0 },
-                { url: "https://api.tokenview.io/api/btc", ping: 0, status: true, failures: 0 }
+                { url: "https://blockchain.info", ping: 0, status: true, failures: 0 }
             ],
             ETH: [
                 { url: "https://rpc.mevblocker.io", ping: 0, status: true, failures: 0 },
@@ -404,13 +447,11 @@
             ],
             BSC: [
                 { url: "https://binance.llamarpc.com", ping: 0, status: true, failures: 0 },
-                { url: "https://bsc-dataseed.binance.org", ping: 0, status: true, failures: 0 },
-                { url: "https://rpc.ankr.com/bsc", ping: 0, status: true, failures: 0 }
+                { url: "https://bsc-dataseed.binance.org", ping: 0, status: true, failures: 0 }
             ],
             ARB: [
                 { url: "https://arb1.arbitrum.io/rpc", ping: 0, status: true, failures: 0 },
-                { url: "https://arbitrum.drpc.org", ping: 0, status: true, failures: 0 },
-                { url: "https://1rpc.io/arb", ping: 0, status: true, failures: 0 }
+                { url: "https://arbitrum.drpc.org", ping: 0, status: true, failures: 0 }
             ],
             MORPH: [
                 { url: "https://rpc-core.morphl2.io", ping: 0, status: true, failures: 0 },
@@ -462,24 +503,23 @@
 
         function drawChart(pathsData, days) {
             const canvas = document.getElementById('mcCanvas'); const ctx = canvas.getContext('2d'); const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width * window.devicePixelRatio; canvas.height = 350 * window.devicePixelRatio; ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-            const W = rect.width; const H = 350; ctx.clearRect(0, 0, W, H);
+            canvas.width = rect.width * window.devicePixelRatio; canvas.height = 260 * window.devicePixelRatio; ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            const W = rect.width; const H = 260; ctx.clearRect(0, 0, W, H);
             let maxP = -Infinity; let minP = Infinity;
             pathsData.forEach(path => { path.forEach(p => { if (p > maxP) maxP = p; if (p < minP) minP = p; }); });
-            const padding = 40; const chartW = W - padding * 2; const chartH = H - padding * 2;
+            const padding = 30; const chartW = W - padding * 2; const chartH = H - padding * 2;
             ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
-            for(let i=0; i<=5; i++) { let y = padding + (chartH / 5) * i; ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(W - padding, y); ctx.stroke(); }
+            for(let i=0; i<=4; i++) { let y = padding + (chartH / 4) * i; ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(W - padding, y); ctx.stroke(); }
             pathsData.forEach((path, index) => {
-                ctx.beginPath(); ctx.lineWidth = index === 50 ? 2 : 0.6; ctx.strokeStyle = index === 50 ? 'rgba(88,166,255,0.9)' : 'rgba(139,148,158,0.25)';
+                ctx.beginPath(); ctx.lineWidth = index === 50 ? 2 : 0.6; ctx.strokeStyle = index === 50 ? 'rgba(88,166,255,0.9)' : 'rgba(139,148,158,0.2)';
                 for (let d = 0; d <= days; d++) {
                     let x = padding + (d / days) * chartW; let y = H - padding - ((path[d] - minP) / (maxP - minP || 1)) * chartH;
                     if (d === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
                 }
                 ctx.stroke();
             });
-            ctx.fillStyle = '#8b949e'; ctx.font = '10px monospace';
-            ctx.fillText(`0天`, padding, H - 15); ctx.fillText(`${days}天(未來預測)`, W - padding - 60, H - 15);
-            ctx.fillText(`Max: $${Math.round(maxP)}`, padding, padding - 10); ctx.fillText(`Min: $${Math.round(minP)}`, padding, H - padding + 20);
+            ctx.fillStyle = '#8b949e'; ctx.font = '9px monospace';
+            ctx.fillText(`0天`, padding, H - 10); ctx.fillText(`${days}天`, W - padding - 30, H - 10);
         }
 
         async function fetchFromPool(chainKey, payload, urlSuffix = "") {
@@ -536,7 +576,7 @@
             CURRENT_BINANCE_API = (CURRENT_BINANCE_API === "https://api.binance.com") ? "https://api.binance.us" : "https://api.binance.com";
             try {
                 const res = await fetch(`${CURRENT_BINANCE_API}/api/v3/ticker/price?symbols=[%22BTCUSDT%22,%22ETHUSDT%22,%22BNBUSDT%22]`);
-                if (res.ok) { const prices = await res.json(); renderPrices(prices); statusElem.textContent = `行情數據源: ⚠️ 美區 IP 觸發容災機制 -> 已切換至 Binance US (${CURRENT_BINANCE_API})`; statusElem.style.color = "var(--warning)"; }
+                if (res.ok) { const prices = await res.json(); renderPrices(prices); statusElem.textContent = `內網容災 -> Binance US (${CURRENT_BINANCE_API})`; statusElem.style.color = "var(--warning)"; }
             } catch (err) { statusElem.textContent = "行情數據源: ❌ 幣安兩端 API 被阻斷"; statusElem.style.color = "var(--danger)"; }
         }
 
@@ -551,19 +591,15 @@
                 if (CHAINS[key].type === "btc") {
                     const res = await fetchFromPool(key, null, "/blocks/tip/height");
                     if (res.success) { blockElem.textContent = res.data; pingElem.textContent = `${res.ping} ms`; gasElem.textContent = "~15 sat/vB"; dot.style.color = 'var(--success)'; updatePoolUI(key, res.activeRpc); } 
-                    else {
-                        const resBackup = await fetchFromPool(key, null, "/q/getblockcount");
-                        if (resBackup.success) { blockElem.textContent = resBackup.data; pingElem.textContent = `${resBackup.ping} ms`; gasElem.textContent = "~18 sat/vB"; dot.style.color = 'var(--success)'; updatePoolUI(key, resBackup.activeRpc); } 
-                        else { dot.style.color = 'var(--danger)'; blockElem.textContent = "All Nodes Down"; updatePoolUI(key, null); }
-                    }
+                    else { dot.style.color = 'var(--danger)'; blockElem.textContent = "Down"; updatePoolUI(key, null); }
                 } else if (CHAINS[key].type === "evm") {
                     const res = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 });
                     if (res.success) { const blockNum = parseInt(res.data.result, 16); blockElem.textContent = isNaN(blockNum) ? "Error" : blockNum; pingElem.textContent = `${res.ping} ms`; dot.style.color = 'var(--success)'; getEvmGas(key, res.activeRpc, gasElem); updatePoolUI(key, res.activeRpc); } 
-                    else { dot.style.color = 'var(--danger)'; blockElem.textContent = "All Nodes Down"; updatePoolUI(key, null); }
+                    else { dot.style.color = 'var(--danger)'; blockElem.textContent = "Down"; updatePoolUI(key, null); }
                 } else if (CHAINS[key].type === "tron") {
                     const res = await fetchFromPool(key, null, "/wallet/getnowblock");
                     if (res.success && res.data.block_header) { blockElem.textContent = res.data.block_header.raw_data.number; pingElem.textContent = `${res.ping} ms`; gasElem.textContent = "420 sun"; dot.style.color = 'var(--success)'; updatePoolUI(key, res.activeRpc); } 
-                    else { dot.style.color = 'var(--danger)'; blockElem.textContent = "All Nodes Down"; updatePoolUI(key, null); }
+                    else { dot.style.color = 'var(--danger)'; blockElem.textContent = "Down"; updatePoolUI(key, null); }
                 }
             }
         }
@@ -571,12 +607,12 @@
         async function getEvmGas(chainKey, rpcUrl, gasElem) {
             try {
                 const res = await fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: "2.0", method: "eth_gasPrice", params: [], id: 2 }) });
-                const data = await res.json(); if (!data || !data.result) { gasElem.textContent = "Fetch Error"; return; }
+                const data = await res.json(); if (!data || !data.result) { gasElem.textContent = "Error"; return; }
                 const gasGwei = new BigNumber(data.result).div(1e9).toFixed(2); gasElem.textContent = `${gasGwei} Gwei`;
-            } catch(e) { gasElem.textContent = "Fetch Error"; }
+            } catch(e) { gasElem.textContent = "Error"; }
         }
 
-        initGrid(); refreshData(); setInterval(refreshData, 3500);
+        initGrid(); refreshData(); setInterval(refreshData, 4000);
         setTimeout(() => switchDonateChain('EVM'), 500);
     </script>
 </body>
