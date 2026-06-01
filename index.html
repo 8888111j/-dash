@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bogglo 全鏈監控 & 策略回測 Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
     <style>
         :root { --bg: #0d1117; --card-bg: #161b22; --text: #c9d1d9; --accent: #58a6ff; --green: #238636; --red: #da3637; --yellow: #d29922; --sidebar-width: 320px; }
         body { background-color: var(--bg); color: var(--text); font-family: 'Segoe UI', monospace; margin: 0; padding: 0; overflow-x: hidden; }
@@ -159,7 +158,7 @@
 <script>
 const translations = {
     'zh-TW': { navTitle: '🛰️ Bogglo 全鏈監控 Dashboard', explorerTitle: '🔍 錢包餘額快速查詢', queryBtn: '查詢', addressPlaceholder: '請輸入錢包地址...', donateTitle: '☕ 贊助咖啡', warningTitle: '鄭重聲明：與 Arkham Intelligence 合作打擊非法資金', warningLine1: '本地址僅接受<b>自願贊助</b>，非商業用途', warningLine2: '本開發者已與<b>Arkham Intelligence</b>區塊鏈分析平台建立合作關係', warningLine3: '所有交易均受<b>24/7區塊鏈監控</b>，非法資金將被<b>實時標記與追蹤</b>', warningLine4: '嚴禁轉入<b>涉賭、涉詐、黑錢、贓款</b>等任何非法資金', warningLine5: '一經發現可疑資金，將<b>立即凍結並向執法機關報告</b>', warningLine6: '後果自負，絕不姑息！', historyTitle: '📜 歷史贊助紀錄', clearHistoryBtn: '清除歷史', addRecordBtn: '記一筆', amountPlaceholder: '金額', unitPlaceholder: '幣種', sidebarTitle: '🎲 蒙地卡羅網格回測', sidebarDesc: '幾何布朗運動(GBM)輕量版路徑回測模型', backtestPairLabel: '選擇回測交易對', initPriceLabel: '初始價格 (同步幣安實時價)', gridUpperLabel: '網格區間上限', gridLowerLabel: '網格區間下限', gridCountLabel: '網格格子數量 (等差)', volatilityLabel: '預估年化波動率 (%)', simDaysLabel: '模擬持有天數', simRunsLabel: '隨機模擬路徑次數', runBacktestBtn: '⚡ 開始隨機路徑回測', loadingModel: '模型加載中...', emptyHistory: '暫無紀錄，記一筆吧！', confirmClear: '確定要清除所有本地贊助紀錄嗎？', fillAllFields: '請填寫完整的金額與幣種！', noAddress: '請輸入地址', querying: '🔍 查詢中...', balanceText: '💵 餘額: ', noHistory: '暫無紀錄，記一筆吧！', backtestReport: '📈 回測報告', expectedProfit: '🔹 預期網格套利收益', avgCumulativeReturn: '平均累積收益: ', annualizedReturn: '折合預估年化: ', gridBreakRisk: '⚠️ 網格區間破位風險', breakUpProb: '向上突破機率 (空倉): ', breakDownProb: '向下跌破機率 (套牢): ', evmTab: 'EVM', btcTab: 'BTC', tronTab: 'TRON', memorialText: '🕯️ 勿忘六四．天安門悼念｜結束一黨專政，打倒中國共產黨 🕯️' },
-    'zh-CN': { navTitle: '🛰️ Bogglo 全链监控 Dashboard', explorerTitle: '🔍 钱包余额快速查询', queryBtn: '查询', addressPlaceholder: '请输入钱包地址...', donateTitle: '☕ 赞助咖啡', warningTitle: '郑重声明：与 Arkham Intelligence 合作打击非法资金', warningLine1: '本地址仅接受<b>自愿赞助</b>，非商业用途', warningLine2: '本开发者已与<b>Arkham Intelligence</b>区块链分析平台建立合作关系', warningLine3: '所有交易均受<b>24/7区块链监控</b>，非法资金将被<b>实时标记与追踪</b>', warningLine4: '严禁转入<b>涉赌、涉诈、黑钱、赃款</b>等任何非法资金', warningLine5: '一经发现可疑资金，将<b>立即冻结并向执法机关报告</b>', warningLine6: '后果自负，绝不姑息！', historyTitle: '📜 历史赞助记录', clearHistoryBtn: '清除历史', addRecordBtn: '记一笔', amountPlaceholder: '金额', unitPlaceholder: '币种', sidebarTitle: '🎲 蒙地卡羅网格回测', sidebarDesc: '几何布朗运动(GBM)轻量版路径回测模型', backtestPairLabel: '选择回测交易对', initPriceLabel: '初始价格 (同步币安实时价)', gridUpperLabel: '网格区间上限', gridLowerLabel: '网格区间下限', gridCountLabel: '网格格子数量 (等差)', volatilityLabel: '预估年化波动率 (%)', simDaysLabel: '模拟持有天数', simRunsLabel: '随机模拟路径次数', runBacktestBtn: '⚡ 开始随机路径回测', loadingModel: '模型加载中...', emptyHistory: '暂无记录，记一笔吧！', confirmClear: '确定要清除所有本地赞助记录吗？', fillAllFields: '请填写完整的金额与币种！', noAddress: '请输入地址', querying: '🔍 查询中...', balanceText: '💵 余额: ', noHistory: '暂无记录，记一筆吧！', backtestReport: '📈 回测报告', expectedProfit: '🔹 预期网格套利收益', avgCumulativeReturn: '平均累积收益: ', annualizedReturn: '折合预估年化: ', gridBreakRisk: '⚠️ 网格区间破位风险', breakUpProb: '向上突破机率 (空仓): ', breakDownProb: '向下突破机率 (套牢): ', evmTab: 'EVM', btcTab: 'BTC', tronTab: 'TRON', memorialText: '🕯️ 勿忘六四．天安门悼念｜结束一党专政，打倒中国共产党 🕯️' },
+    'zh-CN': { navTitle: '🛰️ Bogglo 全链监控 Dashboard', explorerTitle: '🔍 钱包余额快速查询', queryBtn: '查询', addressPlaceholder: '请输入钱包地址...', donateTitle: '☕ 赞助咖啡', warningTitle: '郑重声明：与 Arkham Intelligence 合作打击非法资金', warningLine1: '本地址仅接受<b>自愿赞助</b>，非商业用途', warningLine2: '本开发者已与<b>Arkham Intelligence</b>区块链分析平台建立合作关系', warningLine3: '所有交易均受<b>24/7区块链监控</b>，非法资金将被<b>实时标记与追踪</b>', warningLine4: '严禁转入<b>涉赌、涉诈、黑钱、赃款</b>等任何非法资金', warningLine5: '一经发现可疑资金，将<b>立即冻结并向执法机关报告</b>', warningLine6: '后果自负，绝不姑息！', historyTitle: '📜 历史赞助记录', clearHistoryBtn: '清除历史', addRecordBtn: '记一笔', amountPlaceholder: '金额', unitPlaceholder: '币种', sidebarTitle: '🎲 蒙地卡羅网格回测', sidebarDesc: '几何布朗运动(GBM)轻量版路径回测模型', backtestPairLabel: '选择回测交易对', initPriceLabel: '初始价格 (同步币安实时价)', gridUpperLabel: '网格区间上限', gridLowerLabel: '网格区间下限', gridCountLabel: '网格格子数量 (等差)', volatilityLabel: '预估年化波动率 (%)', simDaysLabel: '模拟持有天数', simRunsLabel: '随机模拟路径次数', runBacktestBtn: '⚡ 开始随机路径回测', loadingModel: '模型加载中...', emptyHistory: '暂无记录，记一笔吧！', confirmClear: '确定要清除所有本地赞助记录吗？', fillAllFields: '请填写完整的金额与币种！', noAddress: '请输入地址', querying: '🔍 查询中...', balanceText: '💵 余额: ', noHistory: '暂无记录，记一笔吧！', backtestReport: '📈 回测报告', expectedProfit: '🔹 预期网格套利收益', avgCumulativeReturn: '平均累积收益: ', annualizedReturn: '折合预估年化: ', gridBreakRisk: '⚠️ 网格区间破位风险', breakUpProb: '向上突破机率 (空仓): ', breakDownProb: '向下突破机率 (套牢): ', evmTab: 'EVM', btcTab: 'BTC', tronTab: 'TRON', memorialText: '🕯️ 勿忘六四．天安门悼念｜结束一党专政，打倒中国共产党 🕯️' },
     'en': { navTitle: '🛰️ Bogglo Multi-Chain Dashboard', explorerTitle: '🔍 Wallet Balance Quick Query', queryBtn: 'Query', addressPlaceholder: 'Enter wallet address...', donateTitle: '☕ Sponsor Coffee', warningTitle: 'STRONG WARNING: Partnership with Arkham Intelligence', warningLine1: 'This address accepts <b>voluntary donations ONLY</b>, not for commercial use', warningLine2: 'Developer has established partnership with <b>Arkham Intelligence</b> blockchain analysis platform', warningLine3: 'All transactions are under <b>24/7 blockchain surveillance</b>, illicit funds will be <b>real-time tagged and tracked</b>', warningLine4: 'STRICTLY PROHIBITED: gambling, fraud, black money, or any illicit funds', warningLine5: 'Suspicious funds will be <b>frozen immediately and reported to authorities</b>', warningLine6: 'You are SOLELY responsible for the consequences!', historyTitle: '📜 Donation History', clearHistoryBtn: 'Clear History', addRecordBtn: 'Add Record', amountPlaceholder: 'Amount', unitPlaceholder: 'Currency', sidebarTitle: '🎲 Monte Carlo Grid Backtest', sidebarDesc: 'Lightweight Geometric Brownian Motion (GBM) Path Backtest Model', backtestPairLabel: 'Select Backtest Trading Pair', initPriceLabel: 'Initial Price (Sync Binance Live)', gridUpperLabel: 'Grid Upper Bound', gridLowerLabel: 'Grid Lower Bound', gridCountLabel: 'Number of Grid Levels (Arithmetic)', volatilityLabel: 'Estimated Annual Volatility (%)', simDaysLabel: 'Simulation Holding Days', simRunsLabel: 'Random Simulation Paths', runBacktestBtn: '⚡ Start Monte Carlo Backtest', loadingModel: 'Model loading...', emptyHistory: 'No records yet, add one!', confirmClear: 'Are you sure to clear all local donation records?', fillAllFields: 'Please fill amount and currency!', noAddress: 'Please enter address', querying: '🔍 Querying...', balanceText: '💵 Balance: ', noHistory: 'No records yet, add one!', backtestReport: '📈 Backtest Report', expectedProfit: '🔹 Expected Grid Arbitrage Profit', avgCumulativeReturn: 'Average Cumulative Return: ', annualizedReturn: 'Annualized Return: ', gridBreakRisk: '⚠️ Grid Breakout Risk', breakUpProb: 'Break Up Probability (Empty): ', breakDownProb: 'Break Down Probability (Trapped): ', evmTab: 'EVM', btcTab: 'BTC', tronTab: 'TRON', memorialText: '🕯️ Remember June Fourth ． Tiananmen Square Massacre | End One-Party Dictatorship, Down with the CCP 🕯️' }
 };
 let currentLang = localStorage.getItem('bogglo_lang') || 'zh-TW';
@@ -236,48 +235,23 @@ function addDonateRecord() {
     localStorage.setItem("bogglo_donate_history", JSON.stringify(history)); document.getElementById("historyAmount").value = ""; loadDonateHistory();
 }
 function clearDonateHistory() { const t = translations[currentLang]; if(confirm(t.confirmClear)) { localStorage.removeItem("bogglo_donate_history"); loadDonateHistory(); } }
-
-// 🚀 全鏈架構核心配置對齊：全部導航至本站本地反向代理端點（配合 _redirects 消除 CORS）
 const CHAINS = {
-    ETH: { name: "Ethereum", type: "evm", symbol: "ETH", proxyUrl: "/api/eth" },
-    BSC: { name: "BNB Chain", type: "evm", symbol: "BNB", proxyUrl: "/api/bsc" },
-    ARB: { name: "Arbitrum", type: "evm", symbol: "ETH", proxyUrl: "/api/arb" },
-    MORPH: { name: "Morph L2", type: "evm", symbol: "ETH", proxyUrl: "/api/morph" },
-    TRON: { name: "TRON Network", type: "tron", symbol: "TRX", proxyUrl: "/api/tron" },
-    BTC: { name: "Bitcoin", type: "btc", symbol: "BTC", proxyUrl: "/api/btc" }
+    ETH: { name: "Ethereum", type: "evm", symbol: "ETH", rpcs: ["https://rpc.mevblocker.io", "https://eth.nodeconnect.org", "https://eth.drpc.org"] },
+    BSC: { name: "BNB Chain", type: "evm", symbol: "BNB", rpcs: ["https://binance.llamarpc.com", "https://bsc-dataseed.binance.org"] },
+    ARB: { name: "Arbitrum", type: "evm", symbol: "ETH", rpcs: ["https://arb1.arbitrum.io/rpc", "https://rpc.ankr.com/arbitrum"] },
+    MORPH: { name: "Morph L2", type: "evm", symbol: "ETH", rpcs: ["https://rpc.morphl2.io", "https://rpc-core.morphl2.io"] },
+    TRON: { name: "TRON Network", type: "tron", symbol: "TRX", rpcs: ["https://api.trongrid.io", "https://api.trxnodes.com"] },
+    BTC: { name: "Bitcoin", type: "btc", symbol: "BTC", rpcs: ["https://blockstream.info/api"] }
 };
-
-// 💎 獨家代幣解析矩陣（包含跨鏈小數點與獨創代幣 USD24）
-const TOKEN_MATRIX = {
-    ETH: [
-        { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 },
-        { symbol: "USDC", address: "0xA0b86991c6218b36c1d19D4a2e9Eb0CE3606eB48", decimals: 6 }
-    ],
-    BSC: [
-        { symbol: "USDT", address: "0x55d398326f99059fF775485246999027B3197955", decimals: 18 },
-        { symbol: "USDC", address: "0x8AC76a51cc950d9822D68b83fE1Ad97B32CD580d", decimals: 18 }
-    ],
-    ARB: [
-        { symbol: "USDC", address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", decimals: 6 },
-        { symbol: "USDT", address: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", decimals: 6 },
-        { symbol: "USD24", address: "0x39a1E5303c6Bc7b190Ef04A9d539a1E5303c6Bc7", decimals: 6 }
-    ],
-    MORPH: [
-        { symbol: "USDT", address: "0x452479e000000000000000000000000000000001", decimals: 6 },
-        { symbol: "USDC", address: "0x5300000000000000000000000000000000000002", decimals: 6 }
-    ]
-};
-
+let activeRpcIndex = { ETH: 0, BSC: 0, ARB: 0, MORPH: 0, TRON: 0, BTC: 0 };
 const DONATE_ADDRS = { EVM: { addr: "0x82a4ab5c42b8ea1d90ef04a9d539a1e5303c6bc7", defaultUnit: "USDT" }, BTC: { addr: "bc1qaq5m3yafrf2wagvd5qymgzhrs2m4xkzrrvkapa", defaultUnit: "BTC" }, TRON: { addr: "TMDnW7z167gs7BJCcAHh7XUskKTN2Qbkpg", defaultUnit: "TRX" } };
 let qrcodeInstance = null;
-
 function switchDonate(chain) {
     currentDonateChain = chain; document.querySelectorAll('.tab-btn').forEach(btn => btn.id === `tab-${chain}` ? btn.classList.add('active') : btn.classList.remove('active'));
     if (!qrcodeInstance) { qrcodeInstance = new QRCode(document.getElementById("qrcode"), { text: DONATE_ADDRS[chain].addr, width: 110, height: 110 }); } 
     else { qrcodeInstance.clear(); qrcodeInstance.makeCode(DONATE_ADDRS[chain].addr); }
     document.getElementById("donateAddrText").innerText = DONATE_ADDRS[chain].addr; document.getElementById("historyUnit").value = DONATE_ADDRS[chain].defaultUnit;
 }
-
 async function updatePrices() {
     try {
         const res = await fetch("https://api.binance.com/api/v3/ticker/price");
@@ -292,22 +266,17 @@ async function updatePrices() {
         }
     } catch (e) { }
 }
-
-// 🔥 全新超強穿透式邊緣反向代理引擎
 async function fetchWithFallback(chainKey, payload, urlSuffix = "") {
     const chain = CHAINS[chainKey];
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4500); // 4.5秒超時守護
-    let start = Date.now();
-    try {
-        let reqUrl = chain.proxyUrl + urlSuffix;
-        let response = chain.type === "evm" ? await fetch(reqUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal }) : await fetch(reqUrl + urlSuffix, { method: 'GET', signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (response.ok) { let data = await response.json(); return { data, ping: Date.now() - start, success: true }; }
-    } catch (e) { clearTimeout(timeoutId); }
+    for (let i = 0; i < chain.rpcs.length; i++) {
+        let currentIndex = (activeRpcIndex[chainKey] + i) % chain.rpcs.length; let rpcUrl = chain.rpcs[currentIndex]; let start = Date.now();
+        try {
+            let response = chain.type === "evm" ? await fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }) : await fetch(rpcUrl + urlSuffix, { method: 'GET' });
+            if (response.ok) { let data = await response.json(); activeRpcIndex[chainKey] = currentIndex; return { data, ping: Date.now() - start, success: true }; }
+        } catch (e) { }
+    }
     return { success: false };
 }
-
 async function updateMonitor() {
     const grid = document.getElementById("monitorGrid");
     for (let key in CHAINS) {
@@ -316,66 +285,51 @@ async function updateMonitor() {
             let card = document.getElementById(`card-${key}`) || document.createElement("div"); if(!card.id) { card.id = `card-${key}`; card.className = "card"; grid.appendChild(card); }
             if (CHAINS[key].type === "evm") {
                 let res = await fetchWithFallback(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 }); let gasRes = await fetchWithFallback(key, { jsonrpc: "2.0", method: "eth_gasPrice", params: [], id: 2 });
-                if (res?.success && res.data.result) { blockHeight = parseInt(res.data.result, 16); pingInfo = `🟢 ${res.ping}ms`; badgeColor = 'var(--green)'; }
-                if (gasRes?.success && gasRes.data.result) gasText = `⛽ Gas: ${(Number(BigInt(gasRes.data.result)) / 10**9).toFixed(2)} Gwei`;
+                if (res?.success) { blockHeight = parseInt(res.data.result, 16); pingInfo = `🟢 ${res.ping}ms`; badgeColor = 'var(--green)'; }
+                if (gasRes?.success) gasText = `⛽ Gas: ${(Number(BigInt(gasRes.data.result)) / 10**9).toFixed(2)} Gwei`;
             } else if (CHAINS[key].type === "btc") {
-                let res = await fetchWithFallback(key, null, "/blocks/tip"); let feeRes = await fetch("/api/btc/fee-estimates").catch(()=>null);
-                if (res?.success && res.data && res.data[0]) { blockHeight = res.data[0].height || "成功"; pingInfo = `🟢 ${res.ping}ms`; badgeColor = 'var(--green)'; }
-                if (feeRes?.ok) { let fee = await feeRes.json(); gasText = `📊 費率: ${(fee["1"] || 0).toFixed(1)} sat/vB`; } else { gasText = `📊 費率: ~16 sat/vB`; }
+                let res = await fetchWithFallback(key, null, "/blocks/tip"); let feeRes = await fetch("https://blockstream.info/api/fee-estimates").catch(()=>null);
+                if (res?.success) { blockHeight = res.data[0]?.height || "成功"; pingInfo = `🟢 ${res.ping}ms`; badgeColor = 'var(--green)'; }
+                if (feeRes?.ok) { let fee = await feeRes.json(); gasText = `📊 費率: ${(fee["1"] || 0).toFixed(1)} sat/vB`; }
             } else if (CHAINS[key].type === "tron") {
                 let res = await fetchWithFallback(key, null, "/wallet/getnowblock");
-                if (res?.success && res.data && res.data.block_header) { blockHeight = res.data.block_header.raw_data.number; pingInfo = `🟢 ${res.ping}ms`; badgeColor = 'var(--green)'; gasText = `⚡ 門檻: 420/1000 sun`; }
+                if (res?.success) { blockHeight = res.data.block_header.raw_data.number; pingInfo = `🟢 ${res.ping}ms`; badgeColor = 'var(--green)'; gasText = `⚡ 門檻: 420/1000 sun`; }
             }
             card.innerHTML = `<div class="badge" style="background-color: ${badgeColor}"></div><h3>${CHAINS[key].name}</h3><div class="status">${blockHeight}</div><div class="gas-info">${gasText}</div><div class="ping">${pingInfo}</div>`;
         } catch (e) { }
     }
 }
-
+async function queryBTCBalance(address) {
+    const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 10000);
+    try {
+        const response = await fetch(`https://blockstream.info/api/address/${address}`, { signal: controller.signal }); clearTimeout(timeoutId);
+        if (!response.ok) return { success: false, error: `HTTP ${response.status}` };
+        const data = await response.json(); return { success: true, balance: ((data.chain_stats.funded_txo_sum - data.chain_stats.spent_txo_sum) / 1e8).toFixed(8) };
+    } catch (error) { clearTimeout(timeoutId); return { success: false, error: '查詢失敗' }; }
+}
+async function queryTRONBalance(address) {
+    const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 10000);
+    try {
+        const response = await fetch('https://api.trongrid.io/wallet/getaccount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: address, visible: true }), signal: controller.signal });
+        clearTimeout(timeoutId); if (!response.ok) return { success: false, error: `HTTP ${response.status}` };
+        const data = await response.json(); return { success: true, balance: ((data.balance || 0) / 1e6).toFixed(6) };
+    } catch (error) { clearTimeout(timeoutId); return { success: false, error: '查詢失敗' }; }
+}
 async function queryBalance() {
     const t = translations[currentLang]; const chainKey = document.getElementById("chainSelect").value; const address = document.getElementById("addressInput").value.trim(); const resultDiv = document.getElementById("searchResult");
     if (!address) { alert(t.noAddress); return; } resultDiv.innerHTML = `<span style="color:var(--yellow)">${t.querying}</span>`;
     try {
         if (CHAINS[chainKey].type === "evm") {
-            // 1. 抓取原生資產
             let res = await fetchWithFallback(chainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [address, "latest"], id: 1 });
-            if (res?.success && res.data.result) { 
-                let nativeBal = (Number(BigInt(res.data.result)) / 1e18).toFixed(6);
-                let output = `${t.balanceText}\n  🔹 <span style="color:var(--yellow)">${CHAINS[chainKey].symbol} (Native)</span>: <span style="color:var(--accent)">${nativeBal}</span>`;
-                
-                // 2. 併發穿透解構 Token_Matrix 中的 ERC-20 代幣資產
-                const tokens = TOKEN_MATRIX[chainKey] || [];
-                for (let token of tokens) {
-                    const cleanAddr = address.replace('0x', '').toLowerCase().padStart(64, '0');
-                    const dataParam = "0x70a08231" + cleanAddr; // balanceOf 函數指紋
-                    let tokenRes = await fetchWithFallback(chainKey, { jsonrpc: "2.0", method: "eth_call", params: [{ to: token.address, data: dataParam }, "latest"], id: 2 });
-                    
-                    if (tokenRes?.success && tokenRes.data.result && tokenRes.data.result !== "0x") {
-                        const rawBal = new BigNumber(tokenRes.data.result, 16);
-                        const finalBal = rawBal.div(new BigNumber(10).pow(token.decimals)).toFixed(4);
-                        output += `\n  💵 <span style="color:var(--green)">${token.symbol}</span>: <span style="color:var(--accent)">${finalBal}</span>`;
-                    } else {
-                        output += `\n  ⚪ <span style="color:var(--text-muted)">${token.symbol}</span>: <span style="color:var(--text-muted)">0.0000</span>`;
-                    }
-                }
-                resultDiv.innerHTML = output;
-            } else { resultDiv.innerHTML = `<span style="color:var(--red)">❌ EVM 查詢失敗</span>`; }
+            if (res?.success) { resultDiv.innerHTML = `${t.balanceText} <span style="color:var(--accent)">${(Number(BigInt(res.data.result)) / 1e18).toFixed(6)} ${CHAINS[chainKey].symbol}</span>`; }
+            else { resultDiv.innerHTML = `<span style="color:var(--red)">❌ EVM 查詢失敗</span>`; }
         } else if (chainKey === "BTC") {
-            const res = await fetchWithFallback("BTC", null, `/address/${address}`);
-            if (res?.success && res.data && res.data.chain_stats) { 
-                let btcBal = ((res.data.chain_stats.funded_txo_sum - res.data.chain_stats.spent_txo_sum) / 1e8).toFixed(8);
-                resultDiv.innerHTML = `${t.balanceText} <span style="color:var(--accent)">${btcBal} BTC</span>`; 
-            } else { resultDiv.innerHTML = `<span style="color:var(--red)">❌ BTC 查詢失敗</span>`; }
+            const btcResult = await queryBTCBalance(address); if (btcResult.success) resultDiv.innerHTML = `${t.balanceText} <span style="color:var(--accent)">${btcResult.balance} BTC</span>`; else resultDiv.innerHTML = `<span style="color:var(--red)">❌ BTC 查詢失敗</span>`;
         } else if (chainKey === "TRON") {
-            // 穿透式代理向 TRON 節點提數據
-            const res = await fetchWithFallback("TRON", { address: address, visible: true }, "/wallet/getaccount");
-            if (res?.success) { 
-                let tronBal = ((res.data.balance || 0) / 1e6).toFixed(6);
-                resultDiv.innerHTML = `${t.balanceText} <span style="color:var(--accent)">${tronBal} TRX</span>`; 
-            } else { resultDiv.innerHTML = `<span style="color:var(--red)">❌ TRON 查詢失敗</span>`; }
+            const tronResult = await queryTRONBalance(address); if (tronResult.success) resultDiv.innerHTML = `${t.balanceText} <span style="color:var(--accent)">${tronResult.balance} TRX</span>`; else resultDiv.innerHTML = `<span style="color:var(--red)">❌ TRON 查詢失敗</span>`;
         }
-    } catch (err) { resultDiv.innerHTML = `<span style="color:var(--red)">⚠️ 查詢過程發生異常: ${err.message}</span>`; }
+    } catch (err) { resultDiv.innerHTML = `<span style="color:var(--red)">⚠️ 查詢過程發生異常</span>`; }
 }
-
 async function initDashboard() { switchLanguage(currentLang); checkMemorialDay(); await updatePrices(); updateMonitor(); syncLivePrice(); runMonteCarloGrid(); switchDonate('EVM'); loadDonateHistory(); }
 initDashboard();
 setInterval(updatePrices, 3000); setInterval(updateMonitor, 6000); setInterval(checkMemorialDay, 60000);
