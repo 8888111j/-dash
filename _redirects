@@ -1,6 +1,1 @@
-/api/eth/* https://rpc.mevblocker.io/:splat          200
-/api/bsc/* https://binance.llamarpc.com/:splat       200
-/api/arb/* https://arb1.arbitrum.io/rpc/:splat       200
-/api/morph/* https://rpc-core.morphl2.io/:splat      200
-/api/tron/* https://api.trongrid.io/:splat           200
-/api/btc/* https://blockstream.info/api/:splat       200
+
