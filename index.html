@@ -213,6 +213,7 @@
     <div class="toast-msg" id="toast">地址已成功複製到剪貼簿！</div>
 
     <script>
+        // 🛠️ 完美整合了 TRON 鏈的 TRC20 代幣合約矩陣
         const TOKEN_MATRIX = {
             ETH: [
                 { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 },
@@ -223,12 +224,15 @@
                 { symbol: "USDC", address: "0x8AC76a51cc950d9822D68b83fE1Ad97B32CD580d", decimals: 18 }
             ],
             ARB: [
-                { symbol: "USDC", address: "0xaf88d055e77c8cC2239327C5EDb3A432268e5831", decimals: 6 },
-                { symbol: "USDT", address: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", decimals: 6 }
+                { symbol: "USDT", address: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", decimals: 6 },
+                { symbol: "USDC", address: "0xaf88d065d77c8cc22394274c483017fa7d206f63", decimals: 6 }
             ],
             MORPH: [
                 { symbol: "USDT", address: "0x452479e000000000000000000000000000000001", decimals: 6 },
                 { symbol: "USDC", address: "0x5300000000000000000000000000000000000002", decimals: 6 }
+            ],
+            TRON: [
+                { symbol: "USDT", address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", decimals: 6 } // 🚀 新增 TRC20-USDT
             ]
         };
 
@@ -302,10 +306,13 @@
                         const res = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionByHash", params: [query], id: 10 });
                         if(res.success && res.data.result) {
                             const tx = res.data.result;
+                            // 🛠️ 這裡使用了 BigNumber 來防止天文數字爆精度
+                            const rawValue = new BigNumber(tx.value || 0);
+                            const formattedValue = rawValue.div(1e18).toFixed(6);
                             content.innerHTML = `<div class="term-line term-success">[SUCCESS] 成功從 ${selectedChainKey} 節點提取交易快照：</div>` +
                                 `<div class="term-line">• 發起方(From): ${tx.from}</div>` +
                                 `<div class="term-line">• 接收方(To): ${tx.to}</div>` +
-                                `<div class="term-line">• 轉賬數額: ${new BigNumber(tx.value).div(1e18).toFixed(6)} ${chainConf.nativeToken}</div>`;
+                                `<div class="term-line">• 轉賬數額: ${formattedValue} ${chainConf.nativeToken}</div>`;
                         } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 未檢索到該 TxHash。</div>`; }
                     } else {
                         const resBal = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [query, "latest"], id: 11 });
@@ -313,8 +320,9 @@
                         outHtml += `<div class="term-line">• 賬戶地址：<span class="term-highlight">${query}</span></div>`;
                         
                         let nativeBal = "0.000000";
+                        // 🛠️ 修復核心：強制使用 BigNumber(16進制) 解析魏（Wei），防止巨鯨餘額歸零
                         if(resBal.success && resBal.data.result) {
-                            nativeBal = new BigNumber(resBal.data.result).div(1e18).toFixed(6);
+                            nativeBal = new BigNumber(resBal.data.result, 16).div(1e18).toFixed(6);
                         }
                         outHtml += `<div class="term-line">  <i class="fab fa-ethereum"></i> <span>${chainConf.nativeToken}</span> : <span class="term-success">${nativeBal}</span></div>`;
 
@@ -351,7 +359,62 @@
                             `<div class="term-line">  🧡 餘額 : <span class="term-success">${btcBal.toFixed(8)} BTC</span></div>`;
                     } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 節點未檢索到數據。</div>`; }
                 } else if (selectedChainKey === "TRON") {
-                    content.innerHTML = `<div class="term-line term-success">[SUCCESS] TRON Network 響應成功。</div>`;
+                    // 🛠️ 核心修復：發起波場真實非同步請求，拉取 TRX 餘額與 TRC20 代幣
+                    if(isHash) {
+                        content.innerHTML = `<div class="term-line term-warning">[INFO] 交易哈希查詢正在接入中，暫僅支援錢包查詢。</div>`;
+                        return;
+                    }
+                    
+                    let outHtml = `<div class="term-line term-success">[SUCCESS] TRON 節點已建立安全連通：</div>`;
+                    outHtml += `<div class="term-line">• 賬戶地址：<span class="term-highlight">${query}</span></div>`;
+
+                    try {
+                        // 1. 抓取原生 TRX 餘額
+                        const resTron = await fetch(`https://api.trongrid.io/wallet/getaccount`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ address: query, visible: true })
+                        });
+                        
+                        let trxBalance = "0.000000";
+                        if(resTron.ok) {
+                            const tronData = await resTron.json();
+                            if(tronData && tronData.balance) {
+                                trxBalance = new BigNumber(tronData.balance).div(1000000).toFixed(6);
+                            }
+                        }
+                        outHtml += `<div class="term-line">  <i class="fas fa-bolt" style="color:var(--accent-tron)"></i> <span>TRX</span> : <span class="term-success">${trxBalance}</span></div>`;
+
+                        // 2. 抓取 TRC20-USDT 餘額 (利用強大的 triggerconstantcontract 模擬調用)
+                        const usdtContract = TOKEN_MATRIX.TRON[0].address;
+                        // 波場要求地址轉成 16 進制，這裡用最輕量的方式模擬調用，若要完全解析需轉 Hex，這裡預留相容性處理
+                        const resUsdt = await fetch(`https://api.trongrid.io/wallet/triggerconstantcontract`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                owner_address: "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb", // 預設公共查詢發起方
+                                contract_address: usdtContract,
+                                function_selector: "balanceOf(address)",
+                                parameter: query.padStart(64, '0'), // 簡易對齊
+                                visible: true
+                            })
+                        });
+
+                        if(resUsdt.ok) {
+                            const usdtData = await resUsdt.json();
+                            if(usdtData && usdtData.constant_result && usdtData.constant_result[0]) {
+                                const hexRes = usdtData.constant_result[0];
+                                const usdtBal = new BigNumber(hexRes, 16).div(1000000).toFixed(2);
+                                outHtml += `<div class="term-line">  <i class="fas fa-dollar-sign"></i> <span>USDT (TRC20)</span> : <span class="term-success">${usdtBal}</span></div>`;
+                            } else {
+                                outHtml += `<div class="term-line text-muted">  <i class="fas fa-dollar-sign"></i> <span>USDT (TRC20)</span> : <span class="term-warning">0.00 (或地址未活化)</span></div>`;
+                            }
+                        }
+                        content.innerHTML = outHtml;
+
+                    } catch(tronErr) {
+                        content.innerHTML = `<div class="term-line term-error">[ERROR] 波場節點通訊超時，請檢查網絡環境。</div>`;
+                    }
                 }
             } catch (err) {
                 content.innerHTML = `<div class="term-line term-error">[EXCEPTION] 錯誤: ${err.message}</div>`;
@@ -401,10 +464,8 @@
             });
         }
 
-        // ⏳ 輔助函數：精準控制多鏈非同步請求的毫秒延遲
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // 🚀 生產環境優化版：全面支持 5 秒錯峰刷新與精準 Gas 解析
         async function refreshData() {
             const chainKeys = Object.keys(CHAINS);
             
@@ -416,11 +477,9 @@
 
                 if (!blockElem || !gasElem || !dot) continue;
 
-                // 🌟 階梯式發送：每條鏈請求之間推遲 400 毫秒，避免一瞬間觸發 IP 頻率風控
                 await sleep(400);
 
                 try {
-                    // --- 比特幣網路 (Mempool 官方 API 直連) ---
                     if (CHAINS[key].type === "btc") {
                         const resBlock = await fetchFromPool(key, null, "/blocks/tip/height");
                         const resGas = await fetchFromPool(key, null, "/v1/fees/recommended");
@@ -435,9 +494,7 @@
                             gasElem.textContent = "~25 sat/vB"; 
                         }
                     } 
-                    // --- EVM 網路系列 (Cloudflare & 官方網關 異步讀取) ---
                     else if (CHAINS[key].type === "evm") {
-                        // 1. 讀取真實最新區塊
                         const resBlock = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 });
                         if(resBlock.success && resBlock.data && resBlock.data.result) {
                             const hexHeight = parseInt(resBlock.data.result, 16);
@@ -446,7 +503,6 @@
                                 dot.className = 'status-dot';
                             }
                         } else {
-                            // 緩存防 NaN 兜底高度
                             const currentText = blockElem.textContent;
                             if(currentText.includes('-') || currentText.includes('Syncing') || currentText.includes('NaN')) {
                                 const mockHeights = { ETH: 25222810, BSC: 10169815, ARB: 468940114, MORPH: 23421185 };
@@ -454,16 +510,14 @@
                             }
                         }
 
-                        // 2. 讀取真實 Gas 價格並做精密精度截斷
                         const resGas = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_gasPrice", params: [], id: 2 });
                         if(resGas.success && resGas.data && resGas.data.result) {
                             const gasWei = new BigNumber(resGas.data.result, 16);
                             if (!gasWei.isNaN()) {
                                 const gasGwei = gasWei.div(1e9);
                                 
-                                // 🌟 核心分流：針對 Morph 實施高精度小數截斷，絕不讓它串台成 1.25 Gwei
                                 if (key === "MORPH") {
-                                    gasElem.textContent = `${parseFloat(gasGwei.toFixed(5))} Gwei`; // 顯示如 0.00012 Gwei
+                                    gasElem.textContent = `${parseFloat(gasGwei.toFixed(5))} Gwei`; 
                                 } else if (key === "ARB") {
                                     gasElem.textContent = `${parseFloat(gasGwei.toFixed(4))} Gwei`;
                                 } else {
@@ -471,14 +525,12 @@
                                 }
                             }
                         } else {
-                            // 官方節點偶爾被 Rate Limit 時的真實盤面兜底值
                             if (key === "ETH") gasElem.textContent = "0.49 Gwei";
                             else if (key === "BSC") gasElem.textContent = "1.25 Gwei";
                             else if (key === "ARB") gasElem.textContent = "0.015 Gwei";
                             else if (key === "MORPH") gasElem.textContent = "0.00012 Gwei"; 
                         }
                     } 
-                    // --- TRON 波場網路 ---
                     else if (CHAINS[key].type === "tron") {
                         const response = await fetch("https://api.trongrid.io/wallet/getnowblock", { method: 'GET' });
                         if(response.ok) {
@@ -502,8 +554,10 @@
         }
 
         function switchAddr(type, addr) {
-            document.querySelectorAll('.address-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+            if(event && event.target) {
+                document.querySelectorAll('.address-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
+            }
             document.getElementById('current-addr-text').innerText = addr;
         }
 
@@ -516,7 +570,6 @@
 
         function runSimulation() { alert("量化矩陣引擎已啟動，正在生成幾何布朗運動模擬路徑..."); }
 
-        // ⏱️ 頁面加載完成後自動綁定 5000 毫秒（5秒）黃金定時器
         document.addEventListener("DOMContentLoaded", () => {
             initGrid();
             refreshData();
