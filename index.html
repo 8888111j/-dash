@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bogglo 全鏈監控 & 策略回測 Dashboard</title>
+    <title>Bogglo 全鏈監控 & 策略量化 Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --bg: #0d1117;
@@ -24,119 +25,111 @@
             margin: 0;
             padding: 20px;
         }
-        .june-fourth-mourning {
-            filter: grayscale(100%) !important;
-        }
+        .june-fourth-mourning { filter: grayscale(100%) !important; }
         .memorial-banner {
-            display: none;
-            background: #000;
-            color: #fff;
-            text-align: center;
-            padding: 10px;
-            font-weight: bold;
-            font-size: 14px;
-            border-bottom: 2px solid var(--danger);
-            margin: -20px -20px 20px -20px;
+            display: none; background: #000; color: #fff; text-align: center;
+            padding: 10px; font-weight: bold; font-size: 14px;
+            border-bottom: 2px solid var(--danger); margin: -20px -20px 20px -20px;
         }
         .navbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #30363d;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #30363d; padding-bottom: 10px; margin-bottom: 20px;
         }
         .navbar h1 { margin: 0; font-size: 20px; color: #fff; }
-        
-        /* 頂部即時行情 */
-        .ticker-container {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn {
+            background: #21262d; border: 1px solid #30363d; color: var(--text);
+            padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;
         }
+        .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        
+        /* 行情 */
+        .ticker-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
         .ticker-card {
-            background: var(--card-bg);
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px;
+            padding: 12px; display: flex; justify-content: space-between; align-items: center;
         }
         .ticker-price { font-weight: bold; color: #fff; font-size: 16px; }
         .ticker-api-status { font-size: 10px; color: #8b949e; text-align: right; margin-top: -15px; margin-bottom: 15px;}
 
+        /* 面板切換 */
+        .panel { display: none; }
+        .panel.active { display: block; }
+
         /* 監控網格 */
-        .monitor-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .monitor-card {
-            background: var(--card-bg);
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 15px;
-            position: relative;
-        }
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
+        .monitor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .monitor-card { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 15px; position: relative; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .card-title { font-weight: bold; color: #fff; font-size: 16px; }
         .block-number { font-size: 22px; font-weight: bold; color: var(--accent); margin: 10px 0; font-family: monospace; }
         .meta-line { font-size: 12px; color: #8b949e; margin: 4px 0; display: flex; justify-content: space-between; align-items: center; }
         
-        /* 🔥 全新：正方形健康度指示器樣式 */
-        .rpc-pool-status {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px dashed #30363d;
-            font-size: 11px;
-            color: #8b949e;
-        }
-        .rpc-current-url {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-family: monospace;
-            color: #58a6ff;
-            margin-top: 4px;
-        }
-        .pool-pixel-container {
-            display: flex;
-            gap: 4px;
-        }
-        .status-pixel {
-            width: 8px;
-            height: 8px;
-            border-radius: 1.5px;
-            background-color: var(--muted);
-            transition: all 0.3s ease;
-        }
-        .status-pixel.active {
-            background-color: var(--success-glow);
-            box-shadow: 0 0 6px var(--success-glow);
-        }
-        .status-pixel.dead {
-            background-color: var(--danger);
-            box-shadow: 0 0 4px var(--danger);
-        }
+        /* 指示器 */
+        .rpc-pool-status { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #30363d; font-size: 11px; color: #8b949e; }
+        .rpc-current-url { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; color: #58a6ff; margin-top: 4px; }
+        .pool-pixel-container { display: flex; gap: 4px; }
+        .status-pixel { width: 8px; height: 8px; border-radius: 1.5px; background-color: var(--muted); transition: all 0.3s ease; }
+        .status-pixel.active { background-color: var(--success-glow); box-shadow: 0 0 6px var(--success-glow); }
+        .status-pixel.dead { background-color: var(--danger); box-shadow: 0 0 4px var(--danger); }
 
-        .interactive-section { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 15px; }
-        .donate-box {
-            background: linear-gradient(135deg, #da3637 0%, #b62324 100%);
-            border-radius: 6px; padding: 15px; color: #fff; margin-top: 20px;
+        /* 蒙地卡羅面板專用 */
+        .mc-layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+        .mc-form { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 12px; color: #8b949e; margin-bottom: 5px; }
+        .form-group input, .form-group select {
+            width: 100%; background: #0d1117; border: 1px solid #30363d; color: #fff;
+            padding: 8px; border-radius: 6px; box-sizing: border-box;
         }
+        .btn-run {
+            width: 100%; background: var(--success); color: #fff; border: none; padding: 10px;
+            border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px;
+        }
+        .btn-run:hover { background: #2ea043; }
+        .mc-chart-area { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 15px; position: relative; }
+        canvas { background: #0d1117; width: 100%; height: 350px; border-radius: 4px; border: 1px solid #21262d; }
+        .mc-results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px; }
+        .res-box { background: #0d1117; border: 1px solid #30363d; padding: 10px; border-radius: 6px; text-align: center; }
+        .res-val { font-size: 18px; font-weight: bold; margin-top: 5px; font-family: monospace; }
+
+        /* 模塊通用背景 */
+        .interactive-section { background: var(--card-bg); border: 1px solid #30363d; border-radius: 6px; padding: 15px; margin-top: 20px;}
+        
+        /* ⚙️ 智能鏈上瀏覽器矩陣樣式 */
+        .search-box-container { display: flex; gap: 10px; margin-top: 10px; }
+        .search-input {
+            flex: 1; background: #0d1117; border: 1px solid #30363d; color: #fff;
+            padding: 12px; border-radius: 6px; font-family: monospace; font-size: 14px;
+        }
+        .type-badge {
+            display: inline-block; padding: 3px 8px; font-size: 11px; border-radius: 4px;
+            margin-top: 5px; background: #21262d; color: #8b949e; font-weight: bold;
+        }
+        .explorer-matrix { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 15px; }
+        .matrix-btn {
+            background: #21262d; border: 1px solid #30363d; color: #fff; padding: 12px;
+            border-radius: 6px; cursor: pointer; text-align: center; font-weight: bold; font-size: 13px;
+            transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        .matrix-btn:hover { border-color: var(--accent); background: rgba(56, 139, 253, 0.1); }
+        .matrix-btn span.chain-lbl { font-size: 10px; color: #8b949e; font-weight: normal; }
+
+        /* 贊助盒子與多鏈切換 */
+        .donate-box { background: linear-gradient(135deg, #da3637 0%, #b62324 100%); border-radius: 6px; padding: 15px; color: #fff; margin-top: 20px; }
         .donate-title { font-weight: bold; display: flex; align-items: center; gap: 5px; margin-bottom: 8px; }
         .donate-body { font-size: 12px; line-height: 1.6; }
-        .address-box {
-            background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px;
-            margin-top: 10px; font-family: monospace; font-size: 11px; word-break: break-all;
+        .address-box { background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin-top: 10px; font-family: monospace; font-size: 11px; word-break: break-all; }
+        
+        .chain-selector { display: flex; gap: 8px; margin: 12px 0 8px 0; }
+        .chain-sub-btn {
+            background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255,255,255,0.2);
+            color: #fff; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;
+        }
+        .chain-sub-btn.active { background: #fff; color: #b62324; border-color: #fff; }
+        
+        .qr-wrapper {
+            background: #fff; padding: 8px; width: 110px; height: 110px; 
+            border-radius: 4px; margin-top: 10px; display: flex; justify-content: center; align-items: center;
         }
     </style>
 </head>
@@ -147,8 +140,13 @@
     </div>
 
     <div class="navbar">
-        <h1>Bogglo 全鏈監控 Panel</h1>
-        <div><span id="global-status" style="color: var(--success)">● System Operational</span></div>
+        <h1>Bogglo 策略終端</h1>
+        <div><span id="global-status" style="color: var(--success)">● Operational</span></div>
+    </div>
+
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('monitor')">🛰️ 全鏈監控大盤</button>
+        <button class="tab-btn" onclick="switchTab('montecarlo')">📈 蒙地卡羅量化模擬</button>
     </div>
 
     <div>
@@ -157,37 +155,113 @@
             <div class="ticker-card"><span>🔷 ETH</span><span id="price-eth" class="ticker-price">$--</span></div>
             <div class="ticker-card"><span>🔶 BNB</span><span id="price-bnb" class="ticker-price">$--</span></div>
         </div>
-        <div id="binance-api-source" class="ticker-api-status">行情數據源: 正在探測網路定位...</div>
+        <div id="binance-api-source" class="ticker-api-status">行情數據源: 正在探測網絡定位...</div>
     </div>
 
-    <div class="main-layout" style="margin-top: 15px;">
+    <div id="panel-monitor" class="panel active">
         <div class="monitor-grid" id="monitorGrid"></div>
+    </div>
 
-        <div class="interactive-section">
-            <h3>🧲 鏈上安全運作配置</h3>
-            <p style="font-size: 13px; color: #8b949e;">全鏈數據已自動切換至動態容災節點池。動態像素指示器實時反映節點池池健康度（🟩 存活發光 / 🟥 熔斷斷連）。</p>
-            
-            <div class="donate-box">
-                <div class="donate-title">⚠️ 鄭重聲明：與 Arkham Intelligence 合作打擊非法資金</div>
-                <div class="donate-body">
-                    * 本地址僅接受 <b>自願贊助</b>，非商業用途。<br>
-                    * 本開發者已與 <b>Arkham Intelligence</b> 區塊鏈分析平台建立合作關係。<br>
-                    * 所有交易均受 <b>24/7 區塊鏈監控</b>，非法資金將被 <b>實時標記與追蹤</b>。<br>
-                    * 嚴禁轉入 <b>涉賭、涉詐、黑錢、贓款</b> 等任何非法資金！<br>
-                    * 一經發現可疑資金，將 <b>立即凍結並向執法機關報告</b>。後果自負，絕不姑息！
-                    <div class="address-box" id="walletAddress">0x82a4ab5c42b8eA1d90Ef04A9d539a1E5303c6Bc7</div>
+    <div id="panel-montecarlo" class="panel">
+        <div class="mc-layout">
+            <div class="mc-form">
+                <h3 style="margin-top:0; font-size: 16px; color:#fff;">GBM 幾何布朗運動配置</h3>
+                <div class="form-group">
+                    <label>選擇模擬標的</label>
+                    <select id="mc-target" onchange="syncInitialPrice()">
+                        <option value="btc">BTC / USDT</option>
+                        <option value="eth">ETH / USDT</option>
+                        <option value="bnb">BNB / USDT</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>初始資產價格 ($S_0$)</label>
+                    <input type="number" id="mc-price" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>預期年化收益率 $\mu$ (%)</label>
+                    <input type="number" id="mc-drift" value="10">
+                </div>
+                <div class="form-group">
+                    <label>預期年化波動率 $\sigma$ (%)</label>
+                    <input type="number" id="mc-vol" value="65">
+                </div>
+                <div class="form-group">
+                    <label>模擬時間天數 ($T$)</label>
+                    <input type="number" id="mc-days" value="30">
+                </div>
+                <button class="btn-run" onclick="runMonteCarlo()">🚀 啟動隨機路徑模擬</button>
+            </div>
+            <div class="mc-chart-area">
+                <canvas id="mcCanvas"></canvas>
+                <div class="mc-results">
+                    <div class="res-box" style="border-color: var(--danger);">
+                        <label style="font-size:11px; color:#8b949e;">🔥 95% 悲觀極限低點</label>
+                        <div class="res-val" id="res-low" style="color: var(--danger);">$--</div>
+                    </div>
+                    <div class="res-box" style="border-color: var(--accent);">
+                        <label style="font-size:11px; color:#8b949e;">📊 數學期望值 (中位數)</label>
+                        <div class="res-val" id="res-mid" style="color: var(--accent);">$--</div>
+                    </div>
+                    <div class="res-box" style="border-color: var(--success);">
+                        <label style="font-size:11px; color:#8b949e;">🚀 樂觀極限高點</label>
+                        <div class="res-val" id="res-high" style="color: var(--success);">$--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="interactive-section">
+        <h3 style="margin-top:0; color:#fff;">🔍 全鏈智能瀏覽器交叉查詢矩陣</h3>
+        <p style="font-size:12px; color:#8b949e; margin:0;">輸入任意鏈的錢包地址、交易哈希(TxID)或代幣合約(如USDT/Meme)，系統將智能組裝跳轉路由：</p>
+        
+        <div class="search-box-container">
+            <input type="text" id="explorerQuery" class="search-input" placeholder="粘貼 地址 / 交易哈希 / 代幣合約地址..." oninput="analyzeQueryType()">
+        </div>
+        <div id="queryTypeBadge" class="type-badge">輸入類型: 等待輸入...</div>
+
+        <div class="explorer-matrix">
+            <button class="matrix-btn" onclick="openExplorer('BTC')">🧡 Bitcoin<span class="chain-lbl">Mempool.space</span></button>
+            <button class="matrix-btn" onclick="openExplorer('ETH')">🔷 Ethereum<span class="chain-lbl">Etherscan</span></button>
+            <button class="matrix-btn" onclick="openExplorer('BSC')">🔶 BNB Chain<span class="chain-lbl">BscScan</span></button>
+            <button class="matrix-btn" onclick="openExplorer('ARB')">💙 Arbitrum<span class="chain-lbl">Arbiscan</span></button>
+            <button class="matrix-btn" onclick="openExplorer('TRON')">❤️ TRON<span class="chain-lbl">Tronscan</span></button>
+            <button class="matrix-btn" onclick="openExplorer('MORPH')">🟢 Morph L2<span class="chain-lbl">Morphscan</span></button>
+        </div>
+    </div>
+
+    <div class="interactive-section">
+        <h3>🧲 終端矩陣配置安全聲明</h3>
+        <p style="font-size: 13px; color: #8b949e;">本終端集成全鏈異步監控池與輕量級隨機過程波動模擬模型。所有計算均在用戶瀏覽器內本地沙盒化執行，不依賴任何外部量化服務器。</p>
+        
+        <div class="donate-box">
+            <div class="donate-title">⚠️ 鄭重聲明：與 Arkham Intelligence 合作打擊非法資金</div>
+            <div class="donate-body">
+                * 本地址僅接受 <b>自願贊助</b>，非商業用途。<br>
+                * 本開發者已與 <b>Arkham Intelligence</b> 建立合作關係，所有交易均受 <b>24/7 區塊鏈監控</b>。<br>
+                * 嚴禁轉入涉賭、涉詐、黑錢等任何非法資金！後果自負，絕不姑息！
+                
+                <div class="chain-selector">
+                    <button class="chain-sub-btn active" onclick="switchDonateChain('EVM')">EVM (ETH/BSC/ARB)</button>
+                    <button class="chain-sub-btn" onclick="switchDonateChain('BTC')">BTC (Native SegWit)</button>
+                    <button class="chain-sub-btn" onclick="switchDonateChain('TRON')">TRON (TRC20)</button>
+                </div>
+
+                <div class="address-box" id="walletAddress">0x82a4ab5c42b8eA1d90Ef04A9d539a1E5303c6Bc7</div>
+                
+                <div class="qr-wrapper">
+                    <div id="qrcode"></div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // 64 政治防禦自動觸發
+        // 政治防禦
         function checkMemorialDay() {
             const now = new Date();
-            const month = now.getMonth() + 1;
-            const date = now.getDate();
-            if (month === 6 && date === 4) {
+            if (now.getMonth() + 1 === 6 && now.getDate() === 4) {
                 document.body.classList.add('june-fourth-mourning');
                 document.getElementById('memorialBanner').style.display = 'block';
             }
@@ -195,9 +269,128 @@
         setInterval(checkMemorialDay, 1000);
         checkMemorialDay();
 
-        let CURRENT_BINANCE_API = "https://api.binance.com";
+        // 🔍 智能特徵解析器
+        function analyzeQueryType() {
+            const val = document.getElementById('explorerQuery').value.trim();
+            const badge = document.getElementById('queryTypeBadge');
+            
+            if(!val) { badge.textContent = "輸入類型: 等待輸入..."; badge.style.color = "#8b949e"; return; }
 
-        // 多鏈節點池
+            // 1. 波場特徵分析
+            if(val.startsWith('T') && val.length === 34) {
+                badge.textContent = "識別類型: 🔴 TRON 錢包地址"; badge.style.color = "var(--accent)";
+                return;
+            }
+            
+            // 2. 比特幣特徵分析
+            if((val.startsWith('bc1') || val.startsWith('1') || val.startsWith('3')) && (val.length >= 26 && val.length <= 62)) {
+                badge.textContent = "識別類型: 🟠 Bitcoin 錢包地址"; badge.style.color = "var(--warning)";
+                return;
+            }
+
+            // 3. EVM 鏈特徵分析（地址或合約）
+            if(val.startsWith('0x')) {
+                if(val.length === 42) {
+                    // EVM 合約與普通錢包長度相同，在此提示為「智能混查」
+                    badge.textContent = "識別類型: ⚙️ EVM 錢包地址 / 代幣合約地址"; badge.style.color = "var(--success-glow)";
+                } else if(val.length === 66) {
+                    badge.textContent = "識別類型: ⚡ 全鏈通用 交易哈希 (TxHash)"; badge.style.color = "var(--accent)";
+                } else {
+                    badge.textContent = "識別類型: ❓ 未知 0x 格式"; badge.style.color = "var(--danger)";
+                }
+                return;
+            }
+
+            // 4. 純哈希（非0x開頭，如波場或比特幣TxID）
+            if(val.length === 64) {
+                badge.textContent = "識別類型: 📝 TxID / 交易哈希"; badge.style.color = "var(--accent)";
+                return;
+            }
+
+            badge.textContent = "識別類型: 🔎 模糊匹配模式 (直接點擊對應鏈查詢)"; badge.style.color = "#8b949e";
+        }
+
+        // 🚀 多鏈路由組裝跳轉
+        function openExplorer(chain) {
+            const query = document.getElementById('explorerQuery').value.trim();
+            if(!query) { alert("請先粘貼輸入需要查詢的內容！"); return; }
+
+            let url = "";
+            const is0x = query.startsWith('0x');
+            const isHash = query.length === 66 || (query.length === 64 && !query.startsWith('T'));
+            const isAddress = (is0x && query.length === 42) || (query.startsWith('T') && query.length === 34) || query.startsWith('bc1');
+
+            // 這裡做了一手絕活：非主流代幣合約與地址在 EVM 鏈上普通查詢時基本能交叉兼容，
+            // 但如果用戶明確查的是 Token，部分瀏覽器有單獨優化，這裡針對代幣、地址、哈希做動態路由。
+            switch(chain) {
+                case 'BTC':
+                    url = isHash ? `https://mempool.space/tx/${query}` : `https://mempool.space/address/${query}`;
+                    break;
+                case 'ETH':
+                    if(isHash) url = `https://etherscan.io/tx/${query}`;
+                    else url = `https://etherscan.io/token/${query}`; // 使用 token 路由可兼查普通地址與自定義幣種
+                    break;
+                case 'BSC':
+                    if(isHash) url = `https://bscscan.com/tx/${query}`;
+                    else url = `https://bscscan.com/token/${query}`;
+                    break;
+                case 'ARB':
+                    if(isHash) url = `https://arbiscan.io/tx/${query}`;
+                    else url = `https://arbiscan.io/token/${query}`;
+                    break;
+                case 'TRON':
+                    if(query.startsWith('T') && query.length === 34) url = `https://tronscan.org/#/address/${query}`;
+                    else if(query.length === 64) url = `https://tronscan.org/#/transaction/${query}`;
+                    else url = `https://tronscan.org/#/token20/${query}`; // 支持波場 TRC20 智能幣種代碼查詢
+                    break;
+                case 'MORPH':
+                    if(isHash) url = `https://explorer.morphl2.io/tx/${query}`;
+                    else url = `https://explorer.morphl2.io/address/${query}`;
+                    break;
+            }
+
+            if(url) window.open(url, '_blank');
+        }
+
+        // 贊助多鏈配置數據
+        const WALLETS = {
+            EVM: "0x82a4ab5c42b8eA1d90Ef04A9d539a1E5303c6Bc7",
+            BTC: "bc1qaq5m3yafrf2wagvd5qymgzhrs2m4xkzrrvkapa",
+            TRON: "TMDnW7z167gs7BJCcAHh7XUskKTN2Qbkpg"
+        };
+        let qrcodeInstance = null;
+
+        function switchDonateChain(chainKey) {
+            document.querySelectorAll('.chain-sub-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if(btn.textContent.includes(chainKey)) btn.classList.add('active');
+            });
+            const addr = WALLETS[chainKey];
+            document.getElementById('walletAddress').textContent = addr;
+            document.getElementById('qrcode').innerHTML = "";
+            qrcodeInstance = new QRCode(document.getElementById("qrcode"), {
+                text: addr, width: 110, height: 110, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M
+            });
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(`panel-${tabId}`).classList.add('active');
+            if(tabId === 'montecarlo') {
+                syncInitialPrice();
+                setTimeout(runMonteCarlo, 100);
+            }
+        }
+
+        let rawPrices = { btc: 73000, eth: 2000, bnb: 700 };
+        function syncInitialPrice() {
+            const target = document.getElementById('mc-target').value;
+            document.getElementById('mc-price').value = rawPrices[target].toFixed(2);
+        }
+
+        let CURRENT_BINANCE_API = "https://api.binance.com";
         const RPC_POOL = {
             BTC: [
                 { url: "https://blockstream.info/api", ping: 0, status: true, failures: 0 },
@@ -206,8 +399,8 @@
             ],
             ETH: [
                 { url: "https://rpc.mevblocker.io", ping: 0, status: true, failures: 0 },
-                { url: "https://cloudflare-eth.com", ping: 0, status: true, failures: 0 },
-                { url: "https://eth.drpc.org", ping: 0, status: true, failures: 0 }
+                { url: "https://1rpc.io/eth", ping: 0, status: true, failures: 0 },
+                { url: "https://rpc.ankr.com/eth", ping: 0, status: true, failures: 0 }
             ],
             BSC: [
                 { url: "https://binance.llamarpc.com", ping: 0, status: true, failures: 0 },
@@ -238,234 +431,153 @@
             TRON: { name: "TRON Network", type: "tron", color: "#ec0928" }
         };
 
-        // 調度引擎
-        async function fetchFromPool(chainKey, payload, urlSuffix = "") {
-            const pool = RPC_POOL[chainKey];
-            let healthyNodes = pool.filter(n => n.status && n.failures < 3);
-            if (healthyNodes.length === 0) {
-                pool.forEach(n => { n.status = true; n.failures = 0; });
-                healthyNodes = pool;
+        function runMonteCarlo() {
+            const S0 = parseFloat(document.getElementById('mc-price').value) || 100;
+            const drift = (parseFloat(document.getElementById('mc-drift').value) || 0) / 100;
+            const volatility = (parseFloat(document.getElementById('mc-vol').value) || 0) / 100;
+            const days = parseInt(document.getElementById('mc-days').value) || 30;
+            const paths = 100; const dt = 1 / 365;
+            let allPathsResults = []; let finalPrices = [];
+
+            for (let i = 0; i < paths; i++) {
+                let path = [S0]; let currentPrice = S0;
+                for (let d = 0; d < days; d++) {
+                    let u1 = Math.random(); let u2 = Math.random();
+                    let Z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                    currentPrice = currentPrice * Math.exp((drift - 0.5 * volatility * volatility) * dt + volatility * Math.sqrt(dt) * Z);
+                    path.push(currentPrice);
+                }
+                allPathsResults.push(path); finalPrices.push(currentPrice);
             }
+            finalPrices.sort((a, b) => a - b);
+            const low95 = finalPrices[Math.floor(paths * 0.05)];
+            const median = finalPrices[Math.floor(paths * 0.5)];
+            const high95 = finalPrices[Math.floor(paths * 0.95)];
 
+            document.getElementById('res-low').textContent = `$${low95.toLocaleString(undefined,{maximumFractionDigits:2})}`;
+            document.getElementById('res-mid').textContent = `$${median.toLocaleString(undefined,{maximumFractionDigits:2})}`;
+            document.getElementById('res-high').textContent = `$${high95.toLocaleString(undefined,{maximumFractionDigits:2})}`;
+            drawChart(allPathsResults, days);
+        }
+
+        function drawChart(pathsData, days) {
+            const canvas = document.getElementById('mcCanvas'); const ctx = canvas.getContext('2d'); const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio; canvas.height = 350 * window.devicePixelRatio; ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            const W = rect.width; const H = 350; ctx.clearRect(0, 0, W, H);
+            let maxP = -Infinity; let minP = Infinity;
+            pathsData.forEach(path => { path.forEach(p => { if (p > maxP) maxP = p; if (p < minP) minP = p; }); });
+            const padding = 40; const chartW = W - padding * 2; const chartH = H - padding * 2;
+            ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
+            for(let i=0; i<=5; i++) { let y = padding + (chartH / 5) * i; ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(W - padding, y); ctx.stroke(); }
+            pathsData.forEach((path, index) => {
+                ctx.beginPath(); ctx.lineWidth = index === 50 ? 2 : 0.6; ctx.strokeStyle = index === 50 ? 'rgba(88,166,255,0.9)' : 'rgba(139,148,158,0.25)';
+                for (let d = 0; d <= days; d++) {
+                    let x = padding + (d / days) * chartW; let y = H - padding - ((path[d] - minP) / (maxP - minP || 1)) * chartH;
+                    if (d === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            });
+            ctx.fillStyle = '#8b949e'; ctx.font = '10px monospace';
+            ctx.fillText(`0天`, padding, H - 15); ctx.fillText(`${days}天(未來預測)`, W - padding - 60, H - 15);
+            ctx.fillText(`Max: $${Math.round(maxP)}`, padding, padding - 10); ctx.fillText(`Min: $${Math.round(minP)}`, padding, H - padding + 20);
+        }
+
+        async function fetchFromPool(chainKey, payload, urlSuffix = "") {
+            const pool = RPC_POOL[chainKey]; let healthyNodes = pool.filter(n => n.status && n.failures < 3);
+            if (healthyNodes.length === 0) { pool.forEach(n => { n.status = true; n.failures = 0; }); healthyNodes = pool; }
             const sortedNodes = healthyNodes.sort((a, b) => a.ping - b.ping);
-
             for (let node of sortedNodes) {
-                const start = Date.now();
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2200);
-
+                const start = Date.now(); const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 2200);
                 try {
                     let response;
                     if (CHAINS[chainKey].type === "evm") {
-                        response = await fetch(node.url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload),
-                            signal: controller.signal
-                        });
-                    } else {
-                        response = await fetch(node.url + urlSuffix, { method: 'GET', signal: controller.signal });
-                    }
-
+                        response = await fetch(node.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal });
+                    } else { response = await fetch(node.url + urlSuffix, { method: 'GET', signal: controller.signal }); }
                     clearTimeout(timeoutId);
-
                     if (response.ok) {
-                        const data = await response.json();
-                        node.ping = Date.now() - start;
-                        node.failures = 0;
-                        return { data, ping: node.ping, success: true, activeRpc: node.url };
-                    } else {
-                        node.failures++;
-                    }
-                } catch (e) {
-                    clearTimeout(timeoutId);
-                    node.failures++;
-                    if (node.failures >= 3) node.status = false;
-                }
+                        const data = await response.json(); if (CHAINS[chainKey].type === "evm" && (!data || !data.result)) { node.failures++; continue; }
+                        node.ping = Date.now() - start; node.failures = 0; return { data, ping: node.ping, success: true, activeRpc: node.url };
+                    } else { node.failures++; }
+                } catch (e) { clearTimeout(timeoutId); node.failures++; if (node.failures >= 3) node.status = false; }
             }
             return { success: false };
         }
 
-        // 初始化卡片
         function initGrid() {
-            const grid = document.getElementById('monitorGrid');
-            grid.innerHTML = '';
+            const grid = document.getElementById('monitorGrid'); grid.innerHTML = '';
             Object.keys(CHAINS).forEach(key => {
-                const chain = CHAINS[key];
-                const card = document.createElement('div');
-                card.className = 'monitor-card';
-                card.id = `card-${key}`;
-                card.style.borderTop = `3px solid ${chain.color}`;
+                const chain = CHAINS[key]; const card = document.createElement('div'); card.className = 'monitor-card'; card.style.borderTop = `3px solid ${chain.color}`;
                 card.innerHTML = `
-                    <div class="card-header">
-                        <span class="card-title">${chain.name}</span>
-                        <span id="dot-${key}" style="color: var(--danger); font-size:12px;">●</span>
-                    </div>
+                    <div class="card-header"><span class="card-title">${chain.name}</span><span id="dot-${key}" style="color: var(--danger); font-size:12px;">●</span></div>
                     <div class="block-number" id="block-${key}">-------</div>
                     <div class="meta-line"><span>${key === 'BTC' ? '手續費率' : 'Gas 價格'}:</span><span id="gas-${key}">--</span></div>
                     <div class="meta-line"><span>網絡延遲:</span><span id="ping-${key}">-- ms</span></div>
-                    <div class="rpc-pool-status">
-                        <div class="meta-line" style="margin:0;">
-                            <span>池狀態:</span>
-                            <div class="pool-pixel-container" id="pixels-${key}"></div>
-                        </div>
-                        <div class="rpc-current-url" id="url-${key}">initializing pool...</div>
-                    </div>
+                    <div class="rpc-pool-status"><div class="meta-line" style="margin:0;"><span>池狀態:</span><div class="pool-pixel-container" id="pixels-${key}"></div></div><div class="rpc-current-url" id="url-${key}">initializing pool...</div></div>
                 `;
                 grid.appendChild(card);
             });
         }
 
-        // 🔥 全新重構：動態正方形像素方塊渲染函數
         function updatePoolUI(chainKey, activeRpc) {
-            const pool = RPC_POOL[chainKey];
-            const container = document.getElementById(`pixels-${chainKey}`);
-            
+            const pool = RPC_POOL[chainKey]; const container = document.getElementById(`pixels-${chainKey}`);
             if (container) {
-                container.innerHTML = ''; // 清空舊的
-                pool.forEach(node => {
-                    const pixel = document.createElement('div');
-                    if (node.status && node.failures < 3) {
-                        pixel.className = 'status-pixel active'; // 亮綠色發光
-                    } else {
-                        pixel.className = 'status-pixel dead'; // 熔斷紅色
-                    }
-                    container.appendChild(pixel);
-                });
+                container.innerHTML = '';
+                pool.forEach(node => { const pixel = document.createElement('div'); pixel.className = (node.status && node.failures < 3) ? 'status-pixel active' : 'status-pixel dead'; container.appendChild(pixel); });
             }
-
-            const urlElem = document.getElementById(`url-${chainKey}`);
-            if (urlElem && activeRpc) {
-                urlElem.textContent = activeRpc.replace('https://', '').replace('http://', '');
-            }
+            const urlElem = document.getElementById(`url-${chainKey}`); if (urlElem && activeRpc) urlElem.textContent = activeRpc.replace('https://','').replace('http://','');
         }
 
-        // 中美 IP 行情自動探測
         async function detectAndFetchBinancePrices() {
             const statusElem = document.getElementById("binance-api-source");
             try {
-                const controller = new AbortController();
-                const id = setTimeout(() => controller.abort(), 2000);
-
-                const res = await fetch(`${CURRENT_BINANCE_API}/api/v3/ticker/price?symbols=[%22BTCUSDT%22,%22ETHUSDT%22,%22BNBUSDT%22]`, { signal: controller.signal });
-                clearTimeout(id);
-
-                if (res.ok) {
-                    const prices = await res.json();
-                    renderPrices(prices);
-                    statusElem.textContent = `行情數據源: 🟢 Binance 國際服務器 (${CURRENT_BINANCE_API})`;
-                    statusElem.style.color = "var(--success)";
-                    return;
-                }
-            } catch (e) {
-                console.warn("切換備用行情節點...");
-            }
-
+                const res = await fetch(`${CURRENT_BINANCE_API}/api/v3/ticker/price?symbols=[%22BTCUSDT%22,%22ETHUSDT%22,%22BNBUSDT%22]`);
+                if (res.ok) { const prices = await res.json(); renderPrices(prices); statusElem.textContent = `行情數據源: 🟢 Binance 國際服務器 (${CURRENT_BINANCE_API})`; statusElem.style.color = "var(--success)"; return; }
+            } catch (e) {}
             CURRENT_BINANCE_API = (CURRENT_BINANCE_API === "https://api.binance.com") ? "https://api.binance.us" : "https://api.binance.com";
-
             try {
                 const res = await fetch(`${CURRENT_BINANCE_API}/api/v3/ticker/price?symbols=[%22BTCUSDT%22,%22ETHUSDT%22,%22BNBUSDT%22]`);
-                if (res.ok) {
-                    const prices = await res.json();
-                    renderPrices(prices);
-                    statusElem.textContent = `行情數據源: ⚠️ 美區 IP 觸發容災機制 -> 已切換至 Binance US (${CURRENT_BINANCE_API})`;
-                    statusElem.style.color = "var(--warning)";
-                }
-            } catch (err) {
-                statusElem.textContent = "行情數據源: ❌ 幣安兩端 API 被阻斷";
-                statusElem.style.color = "var(--danger)";
-            }
+                if (res.ok) { const prices = await res.json(); renderPrices(prices); statusElem.textContent = `行情數據源: ⚠️ 美區 IP 觸發容災機制 -> 已切換至 Binance US (${CURRENT_BINANCE_API})`; statusElem.style.color = "var(--warning)"; }
+            } catch (err) { statusElem.textContent = "行情數據源: ❌ 幣安兩端 API 被阻斷"; statusElem.style.color = "var(--danger)"; }
         }
 
         function renderPrices(prices) {
-            prices.forEach(p => {
-                const symbol = p.symbol.replace('USDT', '').toLowerCase();
-                const elem = document.getElementById(`price-${symbol}`);
-                if (elem) elem.textContent = `$${parseFloat(p.price).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-            });
+            prices.forEach(p => { const symbol = p.symbol.replace('USDT', '').toLowerCase(); const priceVal = parseFloat(p.price); rawPrices[symbol] = priceVal; const elem = document.getElementById(`price-${symbol}`); if (elem) elem.textContent = `$${priceVal.toLocaleString(undefined, {minimumFractionDigits: 2})}`; });
         }
 
-        // 循環刷新總閘
         async function refreshData() {
             detectAndFetchBinancePrices();
-
             for (let key of Object.keys(CHAINS)) {
-                const dot = document.getElementById(`dot-${key}`);
-                const blockElem = document.getElementById(`block-${key}`);
-                const pingElem = document.getElementById(`ping-${key}`);
-                const gasElem = document.getElementById(`gas-${key}`);
-
+                const dot = document.getElementById(`dot-${key}`); const blockElem = document.getElementById(`block-${key}`); const pingElem = document.getElementById(`ping-${key}`); const gasElem = document.getElementById(`gas-${key}`);
                 if (CHAINS[key].type === "btc") {
                     const res = await fetchFromPool(key, null, "/blocks/tip/height");
-                    if (res.success) {
-                        blockElem.textContent = res.data;
-                        pingElem.textContent = `${res.ping} ms`;
-                        gasElem.textContent = "~15 sat/vB";
-                        dot.style.color = 'var(--success)';
-                        updatePoolUI(key, res.activeRpc);
-                    } else {
+                    if (res.success) { blockElem.textContent = res.data; pingElem.textContent = `${res.ping} ms`; gasElem.textContent = "~15 sat/vB"; dot.style.color = 'var(--success)'; updatePoolUI(key, res.activeRpc); } 
+                    else {
                         const resBackup = await fetchFromPool(key, null, "/q/getblockcount");
-                        if (resBackup.success) {
-                            blockElem.textContent = resBackup.data;
-                            pingElem.textContent = `${resBackup.ping} ms`;
-                            gasElem.textContent = "~18 sat/vB";
-                            dot.style.color = 'var(--success)';
-                            updatePoolUI(key, resBackup.activeRpc);
-                        } else {
-                            dot.style.color = 'var(--danger)';
-                            blockElem.textContent = "All Nodes Down";
-                            updatePoolUI(key, null);
-                        }
+                        if (resBackup.success) { blockElem.textContent = resBackup.data; pingElem.textContent = `${resBackup.ping} ms`; gasElem.textContent = "~18 sat/vB"; dot.style.color = 'var(--success)'; updatePoolUI(key, resBackup.activeRpc); } 
+                        else { dot.style.color = 'var(--danger)'; blockElem.textContent = "All Nodes Down"; updatePoolUI(key, null); }
                     }
                 } else if (CHAINS[key].type === "evm") {
-                    const payload = { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 };
-                    const res = await fetchFromPool(key, payload);
-                    
-                    if (res.success) {
-                        const blockNum = parseInt(res.data.result, 16);
-                        blockElem.textContent = isNaN(blockNum) ? "Error" : blockNum;
-                        pingElem.textContent = `${res.ping} ms`;
-                        dot.style.color = 'var(--success)';
-                        getEvmGas(key, res.activeRpc, gasElem);
-                        updatePoolUI(key, res.activeRpc);
-                    } else {
-                        dot.style.color = 'var(--danger)';
-                        blockElem.textContent = "All Nodes Down";
-                        updatePoolUI(key, null);
-                    }
+                    const res = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 });
+                    if (res.success) { const blockNum = parseInt(res.data.result, 16); blockElem.textContent = isNaN(blockNum) ? "Error" : blockNum; pingElem.textContent = `${res.ping} ms`; dot.style.color = 'var(--success)'; getEvmGas(key, res.activeRpc, gasElem); updatePoolUI(key, res.activeRpc); } 
+                    else { dot.style.color = 'var(--danger)'; blockElem.textContent = "All Nodes Down"; updatePoolUI(key, null); }
                 } else if (CHAINS[key].type === "tron") {
                     const res = await fetchFromPool(key, null, "/wallet/getnowblock");
-                    if (res.success && res.data.block_header) {
-                        blockElem.textContent = res.data.block_header.raw_data.number;
-                        pingElem.textContent = `${res.ping} ms`;
-                        gasElem.textContent = "420 sun";
-                        dot.style.color = 'var(--success)';
-                        updatePoolUI(key, res.activeRpc);
-                    } else {
-                        dot.style.color = 'var(--danger)';
-                        blockElem.textContent = "All Nodes Down";
-                        updatePoolUI(key, null);
-                    }
+                    if (res.success && res.data.block_header) { blockElem.textContent = res.data.block_header.raw_data.number; pingElem.textContent = `${res.ping} ms`; gasElem.textContent = "420 sun"; dot.style.color = 'var(--success)'; updatePoolUI(key, res.activeRpc); } 
+                    else { dot.style.color = 'var(--danger)'; blockElem.textContent = "All Nodes Down"; updatePoolUI(key, null); }
                 }
             }
         }
 
         async function getEvmGas(chainKey, rpcUrl, gasElem) {
             try {
-                const res = await fetch(rpcUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ jsonrpc: "2.0", method: "eth_gasPrice", params: [], id: 2 })
-                });
-                const data = await res.json();
-                const gasGwei = new BigNumber(data.result).div(1e9).toFixed(2);
-                gasElem.textContent = `${gasGwei} Gwei`;
+                const res = await fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: "2.0", method: "eth_gasPrice", params: [], id: 2 }) });
+                const data = await res.json(); if (!data || !data.result) { gasElem.textContent = "Fetch Error"; return; }
+                const gasGwei = new BigNumber(data.result).div(1e9).toFixed(2); gasElem.textContent = `${gasGwei} Gwei`;
             } catch(e) { gasElem.textContent = "Fetch Error"; }
         }
 
-        initGrid();
-        refreshData();
-        setInterval(refreshData, 3500);
+        initGrid(); refreshData(); setInterval(refreshData, 3500);
+        setTimeout(() => switchDonateChain('EVM'), 500);
     </script>
 </body>
 </html>
