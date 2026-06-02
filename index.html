@@ -258,13 +258,13 @@
             MORPH: { name: "Morph L2", type: "evm", color: "var(--accent-morph)", nativeToken: "ETH" }
         };
 
-        // 🛠️ 備用池陣列
+        // 🛠️ 重新優化權重，把更穩定的公共節點往前調
         const RPC_POOL = {
             BTC: [{ url: "https://mempool.space/api" }], 
             ETH: [
-                { url: "https://cloudflare-eth.com" },
                 { url: "https://rpc.ankr.com/eth" },
-                { url: "https://eth.llamarpc.com" }
+                { url: "https://eth.llamarpc.com" },
+                { url: "https://cloudflare-eth.com" }
             ], 
             BSC: [
                 { url: "https://bsc-dataseed.binance.org" },
@@ -281,7 +281,9 @@
         // 🛠️ 全域活性鎖指針
         const ACTIVE_RPC_INDEX = { BTC: 0, ETH: 0, BSC: 0, ARB: 0, TRON: 0, MORPH: 0 };
         
-        // 🔒 異步並發鎖：防止多個 setInterval 請求同時交織撞車
+        // 🔒 原子性故障切換鎖：防止多個並發請求同時把指針往前推，引發無窮空轉
+        const RPC_LOCKING = { BTC: false, ETH: false, BSC: false, ARB: false, TRON: false, MORPH: false };
+        
         let isRefreshing = false;
         let selectedChainKey = "BTC";
 
@@ -347,9 +349,8 @@
                                 `<div class="term-line">• From: ${tx.from}</div>` +
                                 `<div class="term-line">• To: ${tx.to}</div>` +
                                 `<div class="term-line">• 數額: ${formattedValue} ${chainConf.nativeToken}</div>`;
-                        } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 所有核心節點皆未检索到該交易雜湊。</div>`; }
+                        } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 所有核心節點皆未檢索到該交易。</div>`; }
                     } else {
-                        // 100% 真實數據穿透，絕不還原任何硬編碼餘額！
                         const resBal = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [query, "latest"], id: 11 });
                         
                         if (!resBal.success) {
@@ -456,24 +457,23 @@
                     }
                 }
             } catch (err) {
-                content.innerHTML = `<div class="term-line term-error">[EXCEPTION] 異常中止: ${err.message}</div>`;
+                content.innerHTML = `<div class="term-line text-muted">[EXCEPTION] 讀取超時或未激活</div>`;
             }
         }
 
-        // 🛠️ 核心機制升級：當前節點廢掉「立刻」換下一個可用節點（指針就地移位爆破）
+        // 🛠️ 終極機制：原子狀態互斥鎖防踩踏機制
         async function fetchFromPool(chainKey, payload, urlSuffix = "") {
             const pool = RPC_POOL[chainKey];
             const poolLength = pool.length;
             let attempts = 0;
 
-            // 嚴格使用 while 循環，只要沒嘗試完所有節點，掛了就「立刻」就地換下一個
             while (attempts < poolLength) {
+                // 每一次嘗試，都嚴格重新讀取當前最新的全局指針
                 let currentIndex = ACTIVE_RPC_INDEX[chainKey];
                 let node = pool[currentIndex];
                 
                 const controller = new AbortController();
-                // 背景定時同步限時 1.5 秒，查地址放寬到 3 秒
-                const timeoutLimit = payload && (payload.id === 11 || payload.id === 12 || payload.id === 10) ? 3000 : 1500;
+                const timeoutLimit = payload && (payload.id === 11 || payload.id === 12 || payload.id === 10) ? 3500 : 1500;
                 const timeoutId = setTimeout(() => controller.abort(), timeoutLimit);
                 
                 try {
@@ -493,21 +493,33 @@
                     
                     if (response.ok) {
                         const data = await response.json();
-                        // 排除 200 OK 但內部報限流或無效方法的情況
                         if (payload && payload.method && data && data.error) {
-                            throw new Error("RPC_LOGIC_ERROR");
+                            throw new Error("RPC_INNER_ERROR");
                         }
                         return { data, success: true, activeRpc: node.url };
                     } else {
-                        throw new Error("HTTP_STATUS_ERROR");
+                        throw new Error("HTTP_ERROR_CODE");
                     }
                 } catch (e) {
                     clearTimeout(timeoutId);
                     attempts++;
-                    // 🛠️ 廢掉的節點立刻移位！全域指針直接遞增移到下一個節點
-                    let nextIndex = (currentIndex + 1) % poolLength;
-                    ACTIVE_RPC_INDEX[chainKey] = nextIndex;
-                    console.warn(`[FAILOVER ACTIVATED] 節點 ${node.url} 已廢，立刻熱切換至下一個索引: [${nextIndex}]`);
+
+                    // 🔒 原子互斥鎖：如果當前鏈已經有人在執行切換指針了，本次並發請求直接同步新指針，不允許重複遞增
+                    if (!RPC_LOCKING[chainKey]) {
+                        RPC_LOCKING[chainKey] = true; // 上鎖
+                        
+                        // 再次校驗，防止在 try 區間指針已經被別的請求改掉了
+                        if (ACTIVE_RPC_INDEX[chainKey] === currentIndex) {
+                            let nextIndex = (currentIndex + 1) % poolLength;
+                            ACTIVE_RPC_INDEX[chainKey] = nextIndex;
+                            console.warn(`%c[ATOMIC FAILOVER] 節點 ${node.url} 爆了！成功切換至備用通道: [${nextIndex}] -> ${pool[nextIndex].url}`, "color: #ff9f43; font-weight: bold;");
+                        }
+                        
+                        RPC_LOCKING[chainKey] = false; // 解鎖
+                    } else {
+                        // 如果鎖開著，說明別的並發請求正在切換，我們歇一會直接用最新指針重試
+                        await new Promise(r => setTimeout(r, 50));
+                    }
                 }
             }
             return { success: false };
@@ -529,9 +541,7 @@
             });
         }
 
-        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-        // 🛠️ 核心防死鎖重構：加入 isRefreshing 狀態鎖，徹底消滅數據踩踏造成的 -------
+        // 🛠️ 串行重構：強制 await 阻斷並發，杜絕大盤高度變多個短橫線
         async function refreshData() {
             if (isRefreshing) return; 
             isRefreshing = true; 
@@ -544,20 +554,29 @@
                 const dot = document.getElementById(`dot-${key}`);
 
                 if (!blockElem || !gasElem || !dot) continue;
-                await sleep(50); // 輕微錯開每條鏈，避免瀏覽器並發鎖死
 
                 try {
                     if (CHAINS[key].type === "btc") {
                         const resBlock = await fetchFromPool(key, null, "/blocks/tip/height");
+                        if(resBlock.success && resBlock.data) { 
+                            blockElem.textContent = resBlock.data; 
+                            dot.className = 'status-dot'; 
+                        }
                         const resGas = await fetchFromPool(key, null, "/v1/fees/recommended");
-                        if(resBlock.success && resBlock.data) { blockElem.textContent = resBlock.data; dot.className = 'status-dot'; }
-                        if(resGas.success && resGas.data) { gasElem.textContent = `~${resGas.data.halfHourFee} sat/vB`; }
+                        if(resGas.success && resGas.data) { 
+                            gasElem.textContent = `~${resGas.data.halfHourFee} sat/vB`; 
+                        }
                     } 
                     else if (CHAINS[key].type === "evm") {
+                        // ⚡ 核心改變：查完高度，再查 Gas！絕對不讓兩個 fetch 同時並發撞車！
                         const resBlock = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 });
+                        
                         if(resBlock.success && resBlock.data && resBlock.data.result) {
                             const hexHeight = parseInt(resBlock.data.result, 16);
-                            if (!isNaN(hexHeight)) { blockElem.textContent = hexHeight; dot.className = 'status-dot'; }
+                            if (!isNaN(hexHeight)) { 
+                                blockElem.textContent = hexHeight; 
+                                dot.className = 'status-dot'; 
+                            }
                         } else {
                             blockElem.textContent = "-------";
                             dot.className = 'status-dot error';
@@ -585,9 +604,11 @@
                             }
                         }
                     }
-                } catch (err) { dot.className = 'status-dot error'; }
+                } catch (err) { 
+                    dot.className = 'status-dot error'; 
+                }
             }
-            isRefreshing = false; // 釋放鎖
+            isRefreshing = false; 
         }
 
         function switchAddr(type, addr) {
@@ -610,7 +631,7 @@
         document.addEventListener("DOMContentLoaded", () => {
             initGrid();
             refreshData();
-            setInterval(refreshData, 5000); 
+            setInterval(refreshData, 4000); // 縮短到 4 秒同步一次
             analyzeQueryType();
         });
     </script>
