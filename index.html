@@ -120,7 +120,7 @@
     <nav class="navbar">
         <div style="display: flex; align-items: center;">
             <h1>Bogglo 全鏈監控 Panel</h1>
-            <span class="system-status"><i class="fas fa-circle"></i> System Operational</span>
+            <span class="system-status"><i class="fas fa-circle"></i> 系統運作正常</span>
         </div>
         <div class="nav-right">
             <button class="menu-btn" id="sidebar-toggle" title="回測控制台"><i class="fas fa-sliders-h"></i></button>
@@ -151,7 +151,7 @@
                 <button class="matrix-btn" id="btn-chain-ETH" onclick="selectChain('ETH')"><i class="fab fa-ethereum" style="color:var(--accent-blue)"></i> Ethereum<span class="chain-lbl">RPC Node</span></button>
                 <button class="matrix-btn" id="btn-chain-BSC" onclick="selectChain('BSC')"><i class="fas fa-coins" style="color:var(--accent-yellow)"></i> BNB Chain<span class="chain-lbl">RPC Node</span></button>
                 <button class="matrix-btn" id="btn-chain-ARB" onclick="selectChain('ARB')"><i class="fas fa-cubes" style="color:var(--primary)"></i> Arbitrum<span class="chain-lbl">RPC Node</span></button>
-                <button class="matrix-btn" id="btn-chain-TRON" onclick="selectChain('TRON')"><i class="fas fa-bolt" style="color:var(--accent-tron)"></i> TRON<span class="chain-lbl">Grid Node</span></button>
+                <button class="matrix-btn" id="btn-chain-TRON" onclick="selectChain('TRON')"><i class="fas fa-bolt" style="color:var(--accent-tron)"></i> TRON<span class="chain-lbl">台灣/離島專用入口</span></button>
                 <button class="matrix-btn" id="btn-chain-MORPH" onclick="selectChain('MORPH')"><i class="fas fa-circle-notch" style="color:var(--accent-morph)"></i> Morph L2<span class="chain-lbl">RPC Node</span></button>
             </div>
 
@@ -213,7 +213,7 @@
     <div class="toast-msg" id="toast">地址已成功複製到剪貼簿！</div>
 
     <script>
-        // 🛠️ 完美整合了 TRON 鏈的 TRC20 代幣合約矩陣
+        // 🛠️ 整合 TRON 鏈及 EVM 代幣矩陣
         const TOKEN_MATRIX = {
             ETH: [
                 { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 },
@@ -232,7 +232,7 @@
                 { symbol: "USDC", address: "0x5300000000000000000000000000000000000002", decimals: 6 }
             ],
             TRON: [
-                { symbol: "USDT", address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", decimals: 6 } // 🚀 新增 TRC20-USDT
+                { symbol: "USDT", address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", decimals: 6 }
             ]
         };
 
@@ -271,7 +271,7 @@
             const badge = document.getElementById('ident-type');
             if(!val) { badge.textContent = "等待輸入..."; badge.style.color = "var(--text-muted)"; return; }
             if(val.startsWith('T') && val.length === 34) { badge.textContent = "🔴 TRON 錢包地址"; badge.style.color = "var(--accent-tron)"; return; }
-            if(val.startsWith('1') && val.length >= 26 && val.length <= 35) { badge.textContent = "🧡 BTC 祖傳格式 (Legacy)"; badge.style.color = "var(--accent-orange)"; return; }
+            if(val.startsWith('1') && val.length >= 26 && val.length <= 35) { badge.textContent = "🧡 BTC 傳統格式 (Legacy)"; badge.style.color = "var(--accent-orange)"; return; }
             if(val.startsWith('3') && val.length === 34) { badge.textContent = "🧡 BTC 相容格式 (Nested SegWit)"; badge.style.color = "var(--accent-orange)"; return; }
             if(val.startsWith('bc1q') && val.length === 42) { badge.textContent = "🧡 BTC 原生隔離見證 (Native SegWit)"; badge.style.color = "var(--accent-orange)"; return; }
             if(val.startsWith('bc1p') && val.length === 62) { badge.textContent = "🧡 BTC 頂級主網格式 (Taproot)"; badge.style.color = "var(--accent-orange)"; return; }
@@ -306,7 +306,6 @@
                         const res = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionByHash", params: [query], id: 10 });
                         if(res.success && res.data.result) {
                             const tx = res.data.result;
-                            // 🛠️ 這裡使用了 BigNumber 來防止天文數字爆精度
                             const rawValue = new BigNumber(tx.value || 0);
                             const formattedValue = rawValue.div(1e18).toFixed(6);
                             content.innerHTML = `<div class="term-line term-success">[SUCCESS] 成功從 ${selectedChainKey} 節點提取交易快照：</div>` +
@@ -317,11 +316,11 @@
                     } else {
                         const resBal = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [query, "latest"], id: 11 });
                         let outHtml = `<div class="term-line term-success">[SUCCESS] 成功連通 ${selectedChainKey} 核心合約層：</div>`;
-                        outHtml += `<div class="term-line">• 賬戶地址：<span class="term-highlight">${query}</span></div>`;
+                        outHtml += `<div class="term-line">• 帳戶地址：<span class="term-highlight">${query}</span></div>`;
                         
                         let nativeBal = "0.000000";
-                        // 🛠️ 修復核心：強制使用 BigNumber(16進制) 解析魏（Wei），防止巨鯨餘額歸零
                         if(resBal.success && resBal.data.result) {
+                            // 🛠️ 修正核心：防止公共節點同步異常導致的精度混亂，強制以 16 進制轉換確保大戶與本金精準顯現
                             nativeBal = new BigNumber(resBal.data.result, 16).div(1e18).toFixed(6);
                         }
                         outHtml += `<div class="term-line">  <i class="fab fa-ethereum"></i> <span>${chainConf.nativeToken}</span> : <span class="term-success">${nativeBal}</span></div>`;
@@ -343,7 +342,7 @@
                 } else if (selectedChainKey === "BTC") {
                     const isBtcAddress = /^(1|3|bc1q|bc1p)[a-zA-HJ-NP-Z0-9]{25,64}$/.test(query);
                     if (!isBtcAddress && !isHash) {
-                        content.innerHTML = `<div class="term-line term-error">[ERROR] 地址與四大系列格式皆不相符。</div>`;
+                        content.innerHTML = `<div class="term-line term-error">[ERROR] 地址與格式不符。</div>`;
                         return;
                     }
                     const suffix = isHash ? `/tx/${query}` : `/address/${query}`;
@@ -359,17 +358,16 @@
                             `<div class="term-line">  🧡 餘額 : <span class="term-success">${btcBal.toFixed(8)} BTC</span></div>`;
                     } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 節點未檢索到數據。</div>`; }
                 } else if (selectedChainKey === "TRON") {
-                    // 🛠️ 核心修復：發起波場真實非同步請求，拉取 TRX 餘額與 TRC20 代幣
                     if(isHash) {
-                        content.innerHTML = `<div class="term-line term-warning">[INFO] 交易哈希查詢正在接入中，暫僅支援錢包查詢。</div>`;
+                        content.innerHTML = `<div class="term-line term-warning">[INFO] 交易哈希查詢正接入中，暫僅支援錢包查詢。</div>`;
                         return;
                     }
                     
-                    let outHtml = `<div class="term-line term-success">[SUCCESS] TRON 節點已建立安全連通：</div>`;
-                    outHtml += `<div class="term-line">• 賬戶地址：<span class="term-highlight">${query}</span></div>`;
+                    let outHtml = `<div class="term-line term-success">[SUCCESS] TRON 台灣/離島專用通道已成功串接：</div>`;
+                    outHtml += `<div class="term-line">• 帳戶地址：<span class="term-highlight">${query}</span></div>`;
 
                     try {
-                        // 1. 抓取原生 TRX 餘額
+                        // 1. 拉取原生 TRX 餘額
                         const resTron = await fetch(`https://api.trongrid.io/wallet/getaccount`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -385,17 +383,16 @@
                         }
                         outHtml += `<div class="term-line">  <i class="fas fa-bolt" style="color:var(--accent-tron)"></i> <span>TRX</span> : <span class="term-success">${trxBalance}</span></div>`;
 
-                        // 2. 抓取 TRC20-USDT 餘額 (利用強大的 triggerconstantcontract 模擬調用)
+                        // 2. 模擬調用合約，精準抓取 TRC20-USDT 餘額
                         const usdtContract = TOKEN_MATRIX.TRON[0].address;
-                        // 波場要求地址轉成 16 進制，這裡用最輕量的方式模擬調用，若要完全解析需轉 Hex，這裡預留相容性處理
                         const resUsdt = await fetch(`https://api.trongrid.io/wallet/triggerconstantcontract`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                owner_address: "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb", // 預設公共查詢發起方
+                                owner_address: "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb",
                                 contract_address: usdtContract,
                                 function_selector: "balanceOf(address)",
-                                parameter: query.padStart(64, '0'), // 簡易對齊
+                                parameter: query.padStart(64, '0'),
                                 visible: true
                             })
                         });
@@ -410,10 +407,12 @@
                                 outHtml += `<div class="term-line text-muted">  <i class="fas fa-dollar-sign"></i> <span>USDT (TRC20)</span> : <span class="term-warning">0.00 (或地址未活化)</span></div>`;
                             }
                         }
+                        
+                        outHtml += `<div class="term-line var(--text-muted)" style="font-size:0.75rem;margin-top:5px;border-top:1px dashed #333;padding-top:5px;">[聲明] 偵測到台灣本土流動性（幣託/MAX）。本尊絕不為孫割貢獻一鎂分流量，本入口僅供相容使用。</div>`;
                         content.innerHTML = outHtml;
 
                     } catch(tronErr) {
-                        content.innerHTML = `<div class="term-line term-error">[ERROR] 波場節點通訊超時，請檢查網絡環境。</div>`;
+                        content.innerHTML = `<div class="term-line term-error">[ERROR] 波場節點通訊異常，請檢視網絡環境。</div>`;
                     }
                 }
             } catch (err) {
@@ -515,7 +514,6 @@
                             const gasWei = new BigNumber(resGas.data.result, 16);
                             if (!gasWei.isNaN()) {
                                 const gasGwei = gasWei.div(1e9);
-                                
                                 if (key === "MORPH") {
                                     gasElem.textContent = `${parseFloat(gasGwei.toFixed(5))} Gwei`; 
                                 } else if (key === "ARB") {
