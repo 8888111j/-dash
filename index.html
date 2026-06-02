@@ -258,6 +258,7 @@
             MORPH: { name: "Morph L2", type: "evm", color: "var(--accent-morph)", nativeToken: "ETH" }
         };
 
+        // 🛠️ 備用池陣列
         const RPC_POOL = {
             BTC: [{ url: "https://mempool.space/api" }], 
             ETH: [
@@ -277,16 +278,11 @@
             MORPH: [{ url: "https://rpc.morphl2.io" }]
         };
 
-        // 🛠️ 核心全局活性鎖：記錄每條鏈當前確定可用的節點索引，拒絕每次循環撞牆
-        const ACTIVE_RPC_INDEX = {
-            BTC: 0,
-            ETH: 0,
-            BSC: 0,
-            ARB: 0,
-            TRON: 0,
-            MORPH: 0
-        };
-
+        // 🛠️ 全域活性鎖指針
+        const ACTIVE_RPC_INDEX = { BTC: 0, ETH: 0, BSC: 0, ARB: 0, TRON: 0, MORPH: 0 };
+        
+        // 🔒 異步並發鎖：防止多個 setInterval 請求同時交織撞車
+        let isRefreshing = false;
         let selectedChainKey = "BTC";
 
         function selectChain(key) {
@@ -313,7 +309,7 @@
             if(val.startsWith('0x')) {
                 if(val.length === 42) badge.textContent = `⚙️ EVM 錢包地址 (${selectedChainKey} 模式)`;
                 else if(val.length === 66) badge.textContent = "⚡ 全鏈通用交易哈希 TxHash";
-                else badge.textContent = "❓ 0x 數據流（長度異常，請檢視防截斷提示）";
+                else badge.textContent = "❓ 0x 數據流（長度異常）";
                 badge.style.color = "var(--primary)"; return;
             }
             badge.textContent = "🔎 自適應通用查詢模式"; badge.style.color = "var(--text-muted)";
@@ -334,7 +330,7 @@
 
             termBox.classList.add('active');
             title.textContent = `>_ RPC ASSET TERMINAL (${selectedChainKey})`;
-            content.innerHTML = `<div class="term-line">[Connecting] 正在發起活性鏈上穿透...</div>`;
+            content.innerHTML = `<div class="term-line">[Connecting] 正在穿透鏈上真實資產數據...</div>`;
 
             try {
                 const isHash = query.length === 66 || query.length === 64;
@@ -347,20 +343,21 @@
                             const tx = res.data.result;
                             const rawValue = new BigNumber(tx.value || 0);
                             const formattedValue = rawValue.div(1e18).toFixed(6);
-                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 成功從活性能道 (${res.activeRpc}) 提取交易：</div>` +
-                                `<div class="term-line">• 發起方(From): ${tx.from}</div>` +
-                                `<div class="term-line">• 接收方(To): ${tx.to}</div>` +
-                                `<div class="term-line">• 轉賬數額: ${formattedValue} ${chainConf.nativeToken}</div>`;
-                        } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 所有節點未檢索到該 TxHash。</div>`; }
+                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 成功從高可用節點 (${res.activeRpc}) 提取交易：</div>` +
+                                `<div class="term-line">• From: ${tx.from}</div>` +
+                                `<div class="term-line">• To: ${tx.to}</div>` +
+                                `<div class="term-line">• 數額: ${formattedValue} ${chainConf.nativeToken}</div>`;
+                        } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 所有核心節點皆未检索到該交易雜湊。</div>`; }
                     } else {
+                        // 100% 真實數據穿透，絕不還原任何硬編碼餘額！
                         const resBal = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [query, "latest"], id: 11 });
                         
                         if (!resBal.success) {
-                            content.innerHTML = `<div class="term-line term-error">[CRITICAL] 所有 RPC 節點皆趴窩或被限流，連線失敗。</div>`;
+                            content.innerHTML = `<div class="term-line term-error">[CRITICAL] 節點全線阻塞，無法讀取資產。</div>`;
                             return;
                         }
 
-                        let outHtml = `<div class="term-line term-success">[SUCCESS] 成功連通活性節點 [${resBal.activeRpc}]：</div>`;
+                        let outHtml = `<div class="term-line term-success">[SUCCESS] 活性節點連通成功 [${resBal.activeRpc}]：</div>`;
                         outHtml += `<div class="term-line">• 帳戶地址：<span class="term-highlight">${query}</span></div>`;
                         
                         let nativeBal = "0.000000";
@@ -390,7 +387,7 @@
                 } else if (selectedChainKey === "BTC") {
                     const isBtcAddress = /^(1|3|bc1q|bc1p)[a-zA-HJ-NP-Z0-9]{25,64}$/.test(query);
                     if (!isBtcAddress && !isHash) {
-                        content.innerHTML = `<div class="term-line term-error">[ERROR] 地址與格式不符。</div>`;
+                        content.innerHTML = `<div class="term-line term-error">[ERROR] 比特格式不匹配。</div>`;
                         return;
                     }
                     const suffix = isHash ? `/tx/${query}` : `/address/${query}`;
@@ -401,17 +398,17 @@
                             const stats = res.data.chain_stats;
                             btcBal = stats ? (stats.funded_txo_sum - stats.spent_txo_sum) / 1e8 : 0;
                         }
-                        content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈解構成功：</div>` +
+                        content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特主網穿透完成：</div>` +
                             `<div class="term-line">• 地址: <span class="term-highlight">${query}</span></div>` +
                             `<div class="term-line">  🧡 餘額 : <span class="term-success">${btcBal.toFixed(8)} BTC</span></div>`;
-                    } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 節點未檢索到數據。</div>`; }
+                    } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 比特鏈核心無數據反饋。</div>`; }
                 } else if (selectedChainKey === "TRON") {
                     if(isHash) {
-                        content.innerHTML = `<div class="term-line term-warning">[INFO] 交易哈希查詢暫僅支援錢包查詢。</div>`;
+                        content.innerHTML = `<div class="term-line term-warning">[INFO] 交易哈希查詢暫未開放。</div>`;
                         return;
                     }
                     
-                    let outHtml = `<div class="term-line term-success">[SUCCESS] TRON 專用通道已成功串接：</div>`;
+                    let outHtml = `<div class="term-line term-success">[SUCCESS] TRON 核心網絡對接完成：</div>`;
                     outHtml += `<div class="term-line">• 帳戶地址：<span class="term-highlight">${query}</span></div>`;
 
                     try {
@@ -450,34 +447,34 @@
                                 const usdtBal = new BigNumber(hexRes, 16).div(1000000).toFixed(2);
                                 outHtml += `<div class="term-line">  <i class="fas fa-dollar-sign"></i> <span>USDT (TRC20)</span> : <span class="term-success">${usdtBal}</span></div>`;
                             } else {
-                                outHtml += `<div class="term-line text-muted">  <i class="fas fa-dollar-sign"></i> <span>USDT (TRC20)</span> : <span class="term-warning">0.00 (或地址未活化)</span></div>`;
+                                outHtml += `<div class="term-line text-muted">  <i class="fas fa-dollar-sign"></i> <span>USDT (TRC20)</span> : <span class="term-warning">0.00</span></div>`;
                             }
                         }
                         content.innerHTML = outHtml;
                     } catch(tronErr) {
-                        content.innerHTML = `<div class="term-line term-error">[ERROR] 波場節點通訊異常，請檢視網絡環境。</div>`;
+                        content.innerHTML = `<div class="term-line term-error">[ERROR] 波場網關阻斷。</div>`;
                     }
                 }
             } catch (err) {
-                content.innerHTML = `<div class="term-line term-error">[EXCEPTION] 錯誤: ${err.message}</div>`;
+                content.innerHTML = `<div class="term-line term-error">[EXCEPTION] 異常中止: ${err.message}</div>`;
             }
         }
 
-        // 🛠️ 究極指針鎖定與動態 Failover 輪詢機制
+        // 🛠️ 核心機制升級：當前節點廢掉「立刻」換下一個可用節點（指針就地移位爆破）
         async function fetchFromPool(chainKey, payload, urlSuffix = "") {
             const pool = RPC_POOL[chainKey];
             const poolLength = pool.length;
-            
-            // 從上一次鎖定的活性索引（全域變數）開始嘗試
-            let startIndex = ACTIVE_RPC_INDEX[chainKey];
+            let attempts = 0;
 
-            for (let i = 0; i < poolLength; i++) {
-                // 用取模運算實現安全的順序無縫輪詢
-                let currentIndex = (startIndex + i) % poolLength;
+            // 嚴格使用 while 循環，只要沒嘗試完所有節點，掛了就「立刻」就地換下一個
+            while (attempts < poolLength) {
+                let currentIndex = ACTIVE_RPC_INDEX[chainKey];
                 let node = pool[currentIndex];
                 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2000); // 縮短超時判定到 2s，加速故障轉移
+                // 背景定時同步限時 1.5 秒，查地址放寬到 3 秒
+                const timeoutLimit = payload && (payload.id === 11 || payload.id === 12 || payload.id === 10) ? 3000 : 1500;
+                const timeoutId = setTimeout(() => controller.abort(), timeoutLimit);
                 
                 try {
                     let response;
@@ -496,24 +493,21 @@
                     
                     if (response.ok) {
                         const data = await response.json();
-                        
-                        // 防禦部分節點返回 200 OK 卻暗帶邏輯錯誤（如限流通知）
+                        // 排除 200 OK 但內部報限流或無效方法的情況
                         if (payload && payload.method && data && data.error) {
-                            console.warn(`[Failover] 節點 ${node.url} 返回 RPC 內部代碼錯誤，自動秒切下一家...`);
-                            continue; 
+                            throw new Error("RPC_LOGIC_ERROR");
                         }
-                        
-                        // 🛠️ 核心突破點：成功拿到真實數據！立刻鎖定全域索引指針，下次直接用它！
-                        if (ACTIVE_RPC_INDEX[chainKey] !== currentIndex) {
-                            console.log(`%c[Pointer Lock] 成功抓到活性通道，指針已鎖定至索引 [${currentIndex}]: ${node.url}`, "color: #2ea44f; font-weight: bold;");
-                            ACTIVE_RPC_INDEX[chainKey] = currentIndex;
-                        }
-                        
                         return { data, success: true, activeRpc: node.url };
+                    } else {
+                        throw new Error("HTTP_STATUS_ERROR");
                     }
-                } catch (e) { 
+                } catch (e) {
                     clearTimeout(timeoutId);
-                    console.warn(`[Node Failed] 節點 ${node.url} 響應超時或掛掉，立刻執行 Hot-swap 切換...`);
+                    attempts++;
+                    // 🛠️ 廢掉的節點立刻移位！全域指針直接遞增移到下一個節點
+                    let nextIndex = (currentIndex + 1) % poolLength;
+                    ACTIVE_RPC_INDEX[chainKey] = nextIndex;
+                    console.warn(`[FAILOVER ACTIVATED] 節點 ${node.url} 已廢，立刻熱切換至下一個索引: [${nextIndex}]`);
                 }
             }
             return { success: false };
@@ -537,7 +531,11 @@
 
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+        // 🛠️ 核心防死鎖重構：加入 isRefreshing 狀態鎖，徹底消滅數據踩踏造成的 -------
         async function refreshData() {
+            if (isRefreshing) return; 
+            isRefreshing = true; 
+
             const chainKeys = Object.keys(CHAINS);
             for(let i = 0; i < chainKeys.length; i++) {
                 const key = chainKeys[i];
@@ -546,7 +544,7 @@
                 const dot = document.getElementById(`dot-${key}`);
 
                 if (!blockElem || !gasElem || !dot) continue;
-                await sleep(150);
+                await sleep(50); // 輕微錯開每條鏈，避免瀏覽器並發鎖死
 
                 try {
                     if (CHAINS[key].type === "btc") {
@@ -589,6 +587,7 @@
                     }
                 } catch (err) { dot.className = 'status-dot error'; }
             }
+            isRefreshing = false; // 釋放鎖
         }
 
         function switchAddr(type, addr) {
