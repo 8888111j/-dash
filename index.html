@@ -86,7 +86,6 @@
         .query-box { display: flex; flex-direction: column; gap: 12px; }
         .input-group { display: flex; gap: 8px; width: 100%; }
         
-        /* 🛠️ 核心修復：強制輸入框滾動、不換行、不截斷，字體大小優化完美適配手機 */
         input#wallet-address { 
             background-color: var(--bg); 
             border: 1px solid var(--border); 
@@ -259,11 +258,22 @@
             MORPH: { name: "Morph L2", type: "evm", color: "var(--accent-morph)", nativeToken: "ETH" }
         };
 
+        // 🛠️ 備用機制優化：擴充 ETH / EVM 多節點備用池，幹掉單點便秘
         const RPC_POOL = {
             BTC: [{ url: "https://mempool.space/api" }], 
-            ETH: [{ url: "https://cloudflare-eth.com" }], 
-            BSC: [{ url: "https://bsc-dataseed.binance.org" }], 
-            ARB: [{ url: "https://arb1.arbitrum.io/rpc" }],
+            ETH: [
+                { url: "https://cloudflare-eth.com" },
+                { url: "https://rpc.ankr.com/eth" },
+                { url: "https://eth.llamarpc.com" }
+            ], 
+            BSC: [
+                { url: "https://bsc-dataseed.binance.org" },
+                { url: "https://rpc.ankr.com/bsc" }
+            ], 
+            ARB: [
+                { url: "https://arb1.arbitrum.io/rpc" },
+                { url: "https://rpc.ankr.com/arbitrum" }
+            ],
             TRON: [{ url: "https://api.trongrid.io" }],
             MORPH: [{ url: "https://rpc.morphl2.io" }]
         };
@@ -304,11 +314,9 @@
             let query = document.getElementById('wallet-address').value.trim();
             if(!query) return alert("請先輸入地址或交易哈希！");
 
-            // 🛠️ 終極修復：全自動去重、去空格、強力阻斷重複貼上的 70 位畸形怪胎長地址！
             if (query.startsWith('0x') && query.length > 42 && query.length !== 66) {
-                // 如果用戶不小心貼了兩次地址，自動裁剪保留前 42 位合規 EVM 地址
                 query = query.substring(0, 42);
-                document.getElementById('wallet-address').value = query; // 反向清洗輸入框
+                document.getElementById('wallet-address').value = query;
             }
 
             const termBox = document.getElementById('term-box');
@@ -336,8 +344,9 @@
                                 `<div class="term-line">• 轉賬數額: ${formattedValue} ${chainConf.nativeToken}</div>`;
                         } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 未檢索到該 TxHash。</div>`; }
                     } else {
-                        // 🛠️ 核心修復：發起標準資產穿透，強制加上超時和異常捕捉
+                        // 🛠️ 100% 真實資料穿透：不再使用任何寫死的假餘額
                         const resBal = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [query, "latest"], id: 11 });
+                        
                         let outHtml = `<div class="term-line term-success">[SUCCESS] 成功連通 ${selectedChainKey} 核心合約層：</div>`;
                         outHtml += `<div class="term-line">• 帳戶地址：<span class="term-highlight">${query}</span></div>`;
                         
@@ -347,17 +356,12 @@
                             if (rawHex !== "0x" && rawHex !== "0x00" && rawHex !== "0") {
                                 nativeBal = new BigNumber(rawHex, 16).div(1e18).toFixed(6);
                             }
+                        } else {
+                            nativeBal = "節點連線失敗";
                         }
                         
-                        // 🛠️ 終極防禦：如果是 V 哥地址且節點擺擺爛返回 0 或是 NaN，直接觸發備用真相常數
-                        if (query.toLowerCase() === "0xd8da6bf26964af9d7eed9e03e53415d37aa96045" && (nativeBal === "0.000000" || nativeBal === "NaN")) {
-                            nativeBal = "245120.1542"; 
-                            outHtml += `<div class="term-line">  <i class="fab fa-ethereum"></i> <span>${chainConf.nativeToken}</span> : <span class="term-success">${nativeBal}</span> <span class="term-warning">(已穿透 API 緩存阻塞，強制還原真實持倉)</span></div>`;
-                        } else {
-                            outHtml += `<div class="term-line">  <i class="fab fa-ethereum"></i> <span>${chainConf.nativeToken}</span> : <span class="term-success">${nativeBal}</span></div>`;
-                        }
+                        outHtml += `<div class="term-line">  <i class="fab fa-ethereum"></i> <span>${chainConf.nativeToken}</span> : <span class="term-success">${nativeBal}</span></div>`;
 
-                        // 遍歷代幣合約
                         const tokens = TOKEN_MATRIX[selectedChainKey] || [];
                         for (let token of tokens) {
                             const cleanAddr = query.replace('0x', '').toLowerCase().padStart(64, '0');
@@ -448,11 +452,13 @@
             }
         }
 
+        // 🛠️ 備用池輪詢機制核心重構
         async function fetchFromPool(chainKey, payload, urlSuffix = "") {
             const pool = RPC_POOL[chainKey];
+            // 遍歷節點池，一個掛了換下一個
             for (let node of pool) {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2500); 
+                const timeoutId = setTimeout(() => controller.abort(), 3500); // 略微放寬超時時間到 3.5s
                 try {
                     let response;
                     if (CHAINS[chainKey].type === "evm") {
@@ -468,9 +474,17 @@
                     clearTimeout(timeoutId);
                     if (response.ok) {
                         const data = await response.json();
+                        // 確保傳回的 jsonrpc 有實質內容
+                        if (payload && payload.method && data && data.error) {
+                            console.warn(`${node.url} 返回 RPC 邏輯錯誤，切換下一個。`);
+                            continue; 
+                        }
                         return { data, success: true, activeRpc: node.url };
                     }
-                } catch (e) { clearTimeout(timeoutId); }
+                } catch (e) { 
+                    clearTimeout(timeoutId);
+                    console.warn(`${node.url} 節點連線超時或異常，正在切換備用節點...`);
+                }
             }
             return { success: false };
         }
@@ -502,7 +516,7 @@
                 const dot = document.getElementById(`dot-${key}`);
 
                 if (!blockElem || !gasElem || !dot) continue;
-                await sleep(400);
+                await sleep(200);
 
                 try {
                     if (CHAINS[key].type === "btc") {
@@ -516,7 +530,11 @@
                         if(resBlock.success && resBlock.data && resBlock.data.result) {
                             const hexHeight = parseInt(resBlock.data.result, 16);
                             if (!isNaN(hexHeight)) { blockElem.textContent = hexHeight; dot.className = 'status-dot'; }
+                        } else {
+                            blockElem.textContent = "-------";
+                            dot.className = 'status-dot error';
                         }
+                        
                         const resGas = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_gasPrice", params: [], id: 2 });
                         if(resGas.success && resGas.data && resGas.data.result) {
                             const gasWei = new BigNumber(resGas.data.result, 16);
@@ -524,6 +542,8 @@
                                 const gasGwei = gasWei.div(1e9);
                                 gasElem.textContent = `${parseFloat(gasGwei.toFixed(2))} Gwei`;
                             }
+                        } else {
+                            gasElem.textContent = "節點阻塞...";
                         }
                     } 
                     else if (CHAINS[key].type === "tron") {
