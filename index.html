@@ -178,7 +178,6 @@
         };
 
         const RPC_POOL = {
-            // 切換為 Blockstream 官方大盤核心高速網關與 Mempool 互為備用，規避公共節點被牆限制
             BTC: [{ url: "https://blockstream.info/api" }, { url: "https://mempool.space/api" }],
             ETH: [{ url: "https://rpc.flashbots.net" }, { url: "https://ethereum-rpc.publicnode.com" }],
             BSC: [{ url: "https://binance.llamarpc.com" }, { url: "https://bsc-rpc.publicnode.com" }],
@@ -303,16 +302,14 @@
                         content.innerHTML = outHtml;
                     }
                 } else if (selectedChainKey === "BTC") {
-                    content.innerHTML = `<div class="term-line">[Connecting] 正在嘗試從 Blockstream 核心矩陣拉取底層快照...</div>`;
+                    content.innerHTML = `<div class="term-line">[Connecting] 正在發起安全底層快照同步...</div>`;
                     let urlSuffix = isHash ? `/tx/${query}` : `/address/${query}`;
                     
-                    // 使用 5 秒異步超時控制進行 GET 請求
                     const resBtc = await fetchFromPool("BTC", null, urlSuffix, "GET");
 
                     if (resBtc.success && resBtc.data) {
                         const data = resBtc.data;
                         if(!isHash) {
-                            // 兼容 Blockstream / Mempool 數據對象結構
                             let funded = data.chain_stats ? data.chain_stats.funded_txo_sum : 0;
                             let spent = data.chain_stats ? data.chain_stats.spent_txo_sum : 0;
                             let btcBal = (funded - spent) / 1e8;
@@ -334,7 +331,7 @@
                                 `<div class="term-line">• 交易體積: ${data.size} bytes | 權重: ${data.weight} vB</div>`;
                         }
                     } else { 
-                        content.innerHTML = `<div class="term-line term-error">[ERROR] 比特幣網關全線超時。提示：請更換或臨時斷開你的 VPN 節點再試一次，目前公共接口對你的 IP 存在限流。</div>`; 
+                        content.innerHTML = `<div class="term-line term-error">[ERROR] 比特幣節點網關拒絕通訊。請檢查你的 VPN 代理路由規則，確保公共 API 沒有被完全阻斷。</div>`; 
                     }
                 } else if (selectedChainKey === "TRON") {
                     if (isHash) {
@@ -425,25 +422,21 @@
         async function fetchFromPool(chainKey, payload, urlSuffix = "", method = "POST") {
             const pool = RPC_POOL[chainKey];
             for (let node of pool) {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000); 
                 try {
                     let fetchOptions = { 
                         method: method, 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        signal: controller.signal 
+                        headers: { 'Content-Type': 'application/json' }
                     };
                     if (method === "POST" && payload) {
                         fetchOptions.body = JSON.stringify(payload);
                     }
 
                     let response = await fetch(node.url + urlSuffix, fetchOptions);
-                    clearTimeout(timeoutId);
                     if (response.ok) {
                         const data = await response.json();
                         return { data, success: true, activeRpc: node.url };
                     }
-                } catch (e) { clearTimeout(timeoutId); }
+                } catch (e) { }
             }
             return { success: false };
         }
@@ -496,7 +489,6 @@
                             const feeRes = await fetch("https://blockstream.info/api/fee-estimates");
                             if (feeRes.ok) { 
                                 const feeData = await feeRes.json(); 
-                                // Blockstream 返回的是一個包含多個確認區塊手續費的對象，取 2 區塊確認（最快）的手續費
                                 if(feeData && feeData["2"]) {
                                     gasElem.textContent = `~${Math.round(feeData["2"])} sat/vB`; 
                                 } else { gasElem.textContent = "-- sat/vB"; }
