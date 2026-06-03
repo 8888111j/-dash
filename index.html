@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
+    <script src="https://widgets.coingecko.com/gecko-coin-price-marquee-widget.js"></script>
     
     <style>
         :root {
@@ -49,10 +50,14 @@
 
         .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; display: flex; flex-direction: column; gap: 20px; }
         
-        .ticker-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
-        .ticker-card { background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; }
-        .ticker-info { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 500; }
-        .ticker-price { font-family: 'Share Tech Mono', monospace; font-weight: bold; font-size: 1.1rem; }
+        /* 幣虎跑馬燈容器自定義外觀 */
+        .marquee-wrapper {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            padding: 2px;
+        }
         .data-source-hint { font-size: 0.75rem; color: var(--text-muted); text-align: right; margin-top: -5px; padding-right: 5px; }
 
         .network-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
@@ -125,21 +130,16 @@
 
     <div class="container">
         
-        <div class="ticker-bar">
-            <div class="ticker-card">
-                <div class="ticker-info"><i class="fab fa-bitcoin" style="color:var(--accent-orange)"></i> BTC</div>
-                <div class="ticker-price" id="price-btc">$--</div>
-            </div>
-            <div class="ticker-card">
-                <div class="ticker-info"><i class="fab fa-ethereum" style="color:var(--accent-blue)"></i> ETH</div>
-                <div class="ticker-price" id="price-eth">$--</div>
-            </div>
-            <div class="ticker-card">
-                <div class="ticker-info"><i class="fas fa-coins" style="color:var(--accent-yellow)"></i> BNB</div>
-                <div class="ticker-price" id="price-bnb">$--</div>
-            </div>
+        <div class="marquee-wrapper">
+            <gecko-coin-price-marquee-widget 
+                locale="zh-tw" 
+                dark-mode="true" 
+                outlined="false" 
+                coin-ids="bitcoin,ethereum,binancecoin,solana,ripple,tron" 
+                initial-currency="usd">
+            </gecko-coin-price-marquee-widget>
         </div>
-        <div class="data-source-hint" id="binance-api-source">正在加載幣安行情流...</div>
+        <div class="data-source-hint">數據源：CoinGecko 實時資產矩陣流</div>
 
         <div class="network-grid" id="monitorGrid"></div>
 
@@ -247,12 +247,12 @@
             ETH: [{ url: "https://rpc.flashbots.net" }, { url: "https://ethereum-rpc.publicnode.com" }, { url: "https://1rpc.io/eth" }],
             BSC: [{ url: "https://binance.llamarpc.com" }, { url: "https://bsc-rpc.publicnode.com" }],
             ARB: [{ url: "https://arbitrum-one-rpc.publicnode.com" }, { url: "https://1rpc.io/arb" }],
-            TRON: [{ url: "https://api.trongrid.io" }],
+            // 🔥 更換為穩定的公共免密 Stack 節點，防止 2.5s 高頻刷新限流
+            TRON: [{ url: "https://api.tronstack.io" }],
             MORPH: [{ url: "https://rpc.morphl2.io" }]
         };
 
         let selectedChainKey = "BTC";
-        let rawPrices = { btc: 73000, eth: 2000, bnb: 700 };
         let isRefreshing = false;
 
         function selectChain(key) {
@@ -368,12 +368,14 @@
             const pool = RPC_POOL[chainKey];
             for (let node of pool) {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2000); // 縮短超時適應 2.5s 高頻輪詢
+                const timeoutId = setTimeout(() => controller.abort(), 2000); 
                 try {
                     let response;
                     if (CHAINS[chainKey].type === "evm") {
                         response = await fetch(node.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal });
-                    } else { response = await fetch(node.url + urlSuffix, { method: 'GET', signal: controller.signal }); }
+                    } else { 
+                        response = await fetch(node.url + urlSuffix, { method: 'GET', signal: controller.signal }); 
+                    }
                     clearTimeout(timeoutId);
                     if (response.ok) {
                         const data = await response.json();
@@ -400,24 +402,11 @@
             });
         }
 
-        // 🔥 核心修復引擎：2.5秒高實時節點高度 & 精確 Gas 解析
+        // 🔥 核心實時監控更新模組 (2.5秒重新整理)
         async function refreshData() {
             if (isRefreshing) return;
             isRefreshing = true;
 
-            // 1. 異步更新大盤幣安價格流
-            fetch(`https://api.binance.com/api/v3/ticker/price?symbols=[%22BTCUSDT%22,%22ETHUSDT%22,%22BNBUSDT%22]`)
-                .then(res => res.json())
-                .then(data => {
-                    data.forEach(p => {
-                        const sym = p.symbol.replace('USDT','').toLowerCase();
-                        rawPrices[sym] = parseFloat(p.price);
-                        document.getElementById(`price-${sym}`).textContent = `$${parseFloat(p.price).toLocaleString(undefined,{minimumFractionDigits:2})}`;
-                    });
-                    document.getElementById("binance-api-source").innerHTML = `行情數據源：<span class="status-dot" style="width:6px;height:6px;"></span> Binance 國際節點`;
-                }).catch(() => { document.getElementById("binance-api-source").textContent = "行情流對接限流中"; });
-
-            // 2. 遍歷網絡網格更新實時區塊與精確 Gas
             for (let key of Object.keys(CHAINS)) {
                 const blockElem = document.getElementById(`height-${key}`);
                 const gasElem = document.getElementById(`gas-${key}`);
@@ -426,7 +415,6 @@
 
                 try {
                     if (CHAINS[key].type === "btc") {
-                        // 比特幣高度與動態 Feerate
                         const res = await fetchFromPool(key, null, "/v1/fees/recommended");
                         const blockRes = await fetchFromPool(key, null, "/blocks/tip/height");
                         if(blockRes.success) blockElem.textContent = Number(blockRes.data).toLocaleString();
@@ -436,7 +424,6 @@
                         }
                     } 
                     else if (CHAINS[key].type === "evm") {
-                        // EVM 高速並發：同時讀取區塊號與實時 GasPrice
                         const resBlock = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 });
                         const resGas = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_gasPrice", params: [], id: 2 });
                         
@@ -448,20 +435,27 @@
                         }
 
                         if(resGas.success && resGas.data.result) {
-                            // 🤖 精確換算算法：Wei -> Gwei (除以 10^9)
                             const gweiVal = new BigNumber(resGas.data.result, 16).div(1e9).toFixed(2);
                             gasElem.textContent = `${gweiVal} Gwei`;
                         }
                     } 
                     else if (CHAINS[key].type === "tron") {
-                        // 波場實時最新區塊高度
+                        // 🟢 【修復成功】調用公共 Tronstack 節點並精確解構高度資料
                         const resBlock = await fetchFromPool(key, null, "/v1/blocks/latest");
-                        if (resBlock.success && resBlock.data && resBlock.data.block_header) {
-                            const blockHeight = resBlock.data.block_header.raw_data.number;
+                        if (resBlock.success && resBlock.data && resBlock.data.data && resBlock.data.data[0]) {
+                            const blockHeight = resBlock.data.data[0].block_header.raw_data.number;
                             blockElem.textContent = parseInt(blockHeight).toLocaleString();
                             dot.className = 'status-dot';
+                        } else {
+                            // 降級備用解構方案
+                            const fallbackBlock = await fetchFromPool(key, null, "/wallet/getnowblock");
+                            if (fallbackBlock.success && fallbackBlock.data.block_header) {
+                                blockElem.textContent = parseInt(fallbackBlock.data.block_header.raw_data.number).toLocaleString();
+                                dot.className = 'status-dot';
+                            } else {
+                                dot.className = 'status-dot error';
+                            }
                         }
-                        // 波場動態基礎費率
                         gasElem.textContent = "420 sun/Gas"; 
                     }
                 } catch (err) {
@@ -486,11 +480,10 @@
 
         function runSimulation() { alert("量化矩陣引擎已啟動，正在生成幾何布朗運動模擬路徑..."); }
 
-        // 🚀 初始化並將同步間隔牢牢鎖死在 2.5 秒 (2500ms)
         document.addEventListener("DOMContentLoaded", () => {
             initGrid(); 
             refreshData(); 
-            setInterval(refreshData, 2500);
+            setInterval(refreshData, 2500); // 鎖定 2.5 秒高頻刷新
         });
     </script>
 </body>
