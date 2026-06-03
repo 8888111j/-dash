@@ -49,11 +49,7 @@
         .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; display: flex; flex-direction: column; gap: 20px; }
         
         .marquee-wrapper {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            overflow: hidden;
-            padding: 2px;
+            background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; padding: 2px;
         }
         .data-source-hint { font-size: 0.75rem; color: var(--text-muted); text-align: right; margin-top: -5px; padding-right: 5px; }
 
@@ -66,7 +62,7 @@
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
         .network-value { font-family: 'Share Tech Mono', monospace; font-size: 1.6rem; font-weight: bold; color: #58a6ff; margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .network-meta { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; }
-        .meta-row { display: flex; justify-content: space-between; }
+        .meta-row { display: flex; justify-content: space-between; align-items: center; }
         .meta-val { color: var(--text-main); font-family: 'Share Tech Mono', monospace; }
 
         .module-card { background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 22px; }
@@ -108,14 +104,10 @@
     </nav>
 
     <div class="container">
-        
         <div class="marquee-wrapper">
             <gecko-coin-price-marquee-widget 
-                locale="zh-tw" 
-                dark-mode="true" 
-                outlined="false" 
-                coin-ids="bitcoin,ethereum,binancecoin,solana,ripple,tron" 
-                initial-currency="usd">
+                locale="zh-tw" dark-mode="true" outlined="false" 
+                coin-ids="bitcoin,ethereum,binancecoin,solana,ripple,tron" initial-currency="usd">
             </gecko-coin-price-marquee-widget>
         </div>
         <div class="data-source-hint">數據源：CoinGecko 實時資產矩陣流</div>
@@ -176,20 +168,16 @@
         };
 
         const CHAINS = {
-            BTC: { name: "Bitcoin Network", type: "btc", color: "var(--accent-orange)", nativeToken: "BTC" },
-            ETH: { name: "Ethereum", type: "evm", color: "var(--accent-blue)", nativeToken: "ETH" },
-            BSC: { name: "BNB Chain", type: "evm", color: "var(--accent-yellow)", nativeToken: "BNB" },
-            ARB: { name: "Arbitrum One", type: "evm", color: "var(--primary)", nativeToken: "ETH" }, 
-            TRON: { name: "TRON Network", type: "tron", color: "var(--accent-tron)", nativeToken: "TRX" },
-            MORPH: { name: "Morph L2", type: "evm", color: "var(--accent-morph)", nativeToken: "ETH" }  
+            BTC: { name: "Bitcoin Network", type: "btc", color: "var(--accent-orange)", nativeToken: "BTC", gasLabel: "手續費率" },
+            ETH: { name: "Ethereum", type: "evm", color: "var(--accent-blue)", nativeToken: "ETH", gasLabel: "Gas 狀態" },
+            BSC: { name: "BNB Chain", type: "evm", color: "var(--accent-yellow)", nativeToken: "BNB", gasLabel: "Gas 狀態" },
+            ARB: { name: "Arbitrum One", type: "evm", color: "var(--primary)", nativeToken: "ETH", gasLabel: "Gas 狀態" }, 
+            TRON: { name: "TRON Network", type: "tron", color: "var(--accent-tron)", nativeToken: "TRX", gasLabel: "基底能量" },
+            MORPH: { name: "Morph L2", type: "evm", color: "var(--accent-morph)", nativeToken: "ETH", gasLabel: "Gas 狀態" }  
         };
 
         const RPC_POOL = {
-            BTC: [
-                { url: "https://blockchain.info" },
-                { url: "https://mempool.space/api" },
-                { url: "https://blockstream.info/api" }
-            ],
+            BTC: [{ url: "https://blockchain.info" }, { url: "https://mempool.space/api" }],
             ETH: [{ url: "https://rpc.flashbots.net" }, { url: "https://ethereum-rpc.publicnode.com" }],
             BSC: [{ url: "https://binance.llamarpc.com" }, { url: "https://bsc-rpc.publicnode.com" }],
             ARB: [{ url: "https://arbitrum-one-rpc.publicnode.com" }],
@@ -197,7 +185,7 @@
             MORPH: [{ url: "https://rpc.morphl2.io" }]
         };
 
-        let selectedChainKey = "TRON"; // 預設聚焦至波場
+        let selectedChainKey = "TRON";
         let isRefreshing = false;
 
         function selectChain(key) {
@@ -222,7 +210,6 @@
             badge.textContent = "🔎 自適應通用查詢模式"; badge.style.color = "var(--text-muted)";
         }
 
-        // 用於波場地址轉合約查詢 parameters 的輔助工具
         function decodeTronAddressToHex(address) {
             try {
                 const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
@@ -232,7 +219,6 @@
                 }
                 let hex = num.toString(16);
                 if (hex.length % 2 !== 0) hex = '0' + hex;
-                // 去掉尾部的 4 字節校驗碼，波場合約一般只需要前 21 字節（包含 0x41 前綴）的後 20 字節
                 let cleanHex = hex.substring(2, 42); 
                 return cleanHex.padStart(64, '0');
             } catch (e) {
@@ -308,14 +294,12 @@
                                 `<div class="term-line">• 目標地址: <span class="term-highlight">${query}</span></div>` +
                                 `<div class="term-line">  🧡 BTC 餘額 : <span class="term-success">${btcBal.toFixed(8)} BTC</span></div>`;
                         } else {
-                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈交易交易解析成功：</div>` +
+                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈交易解析成功：</div>` +
                                 `<div class="term-line">• 交易哈希: <span class="term-highlight">${data.txid}</span></div>` +
                                 `<div class="term-line">• 手續費支出: <span class="term-warning">${data.fee} sats</span></div>` +
                                 `<div class="term-line">• 包含區塊高度: ${data.status.block_height ? data.status.block_height : "未確認"}</div>`;
                         }
-                    } else {
-                        content.innerHTML = `<div class="term-line term-error">[ERROR] 公共解構網關未響應。</div>`;
-                    }
+                    } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 公共解構網關未響應。</div>`; }
                 } else if (selectedChainKey === "TRON") {
                     if (isHash) {
                         content.innerHTML = `<div class="term-line">[Connecting] 正在向波場網關檢索交易哈希...</div>`;
@@ -333,23 +317,17 @@
                                     `<div class="term-line">• 交易哈希: <span class="term-highlight">${txData.txID}</span></div>` +
                                     `<div class="term-line">• 合約類型: ${contractType}</div>` +
                                     `<div class="term-line">• 狀態: ${txData.ret && txData.ret[0].contractRet === "SUCCESS" ? "🟢 成功" : "🔴 失敗"}</div>`;
-                            } else {
-                                content.innerHTML = `<div class="term-line term-error">[ERROR] 未能在 TRON 網絡中找到該交易哈希。</div>`;
-                            }
-                        } else {
-                            content.innerHTML = `<div class="term-line term-error">[ERROR] TRON 網關通訊失敗。</div>`;
-                        }
+                            } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 未能在 TRON 網絡中找到該交易哈希。</div>`; }
+                        } else { content.innerHTML = `<div class="term-line term-error">[ERROR] TRON 網關通訊失敗。</div>`; }
                     } else {
-                        content.innerHTML = `<div class="term-line">[Connecting] 正在讀取波場賬戶主網快照...</div>`;
+                        content.innerHTML = `<div class="term-line">[Connecting] 正在讀取波場賬戶主網快照並計算費率能量...</div>`;
                         
-                        // 1. 抓取 TRX 餘額
                         const resAcc = await fetch(`https://api.trongrid.io/wallet/getaccount`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ address: query, visible: true })
                         });
 
-                        // 2. 抓取 TRC-20 USDT 餘額
                         const hexParam = decodeTronAddressToHex(query);
                         const resUsdt = await fetch(`https://api.trongrid.io/wallet/triggerconstantcontract`, {
                             method: 'POST',
@@ -363,16 +341,21 @@
                             })
                         });
 
+                        // 新增抓取賬戶實時資源（帶寬/能量/剩餘可用度）
+                        const resResources = await fetch(`https://api.trongrid.io/wallet/getaccountresource`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ address: query, visible: true })
+                        });
+
                         let outHtml = `<div class="term-line term-success">[SUCCESS] 成功連通 TRON Network 核心節點：</div>`;
                         outHtml += `<div class="term-line">• 賬戶地址：<span class="term-highlight">${query}</span></div>`;
 
                         if (resAcc.ok) {
                             const accData = await resAcc.json();
                             let trxBal = accData.balance ? (accData.balance / 1000000).toFixed(4) : "0.0000";
-                            outHtml += `<div class="term-line">  🔴 <span class="term-warning">TRX</span> : <span class="term-success">${trxBal} TRX</span></div>`;
-                        } else {
-                            outHtml += `<div class="term-line term-error">  ❌ 原生 TRX 數據獲取失敗</div>`;
-                        }
+                            outHtml += `<div class="term-line">  🔴 <span class="term-warning">TRX 餘額</span> : <span class="term-success">${trxBal} TRX</span></div>`;
+                        } else { outHtml += `<div class="term-line term-error">  ❌ 原生 TRX 數據獲取失敗</div>`; }
 
                         if (resUsdt.ok) {
                             const usdtData = await resUsdt.json();
@@ -381,11 +364,20 @@
                                 const rawUsdtBal = new BigNumber(hexBal, 16);
                                 const finalUsdt = rawUsdtBal.div(1e6).toFixed(4);
                                 outHtml += `<div class="term-line">  🟢 <span class="term-warning">USDT (TRC-20)</span> : <span class="term-success">${finalUsdt}</span></div>`;
-                            } else {
-                                outHtml += `<div class="term-line">  🟢 <span class="term-warning">USDT (TRC-20)</span> : <span class="term-success">0.0000</span></div>`;
-                            }
-                        } else {
-                            outHtml += `<div class="term-line term-error">  ❌ TRC-20 合約通訊失敗</div>`;
+                            } else { outHtml += `<div class="term-line">  🟢 <span class="term-warning">USDT (TRC-20)</span> : <span class="term-success">0.0000</span></div>`; }
+                        } else { outHtml += `<div class="term-line term-error">  ❌ TRC-20 合約通訊失敗</div>`; }
+
+                        if (resResources.ok) {
+                            const resData = await resResources.json();
+                            let freeNetLimit = resData.FreeNetLimit || 600;
+                            let freeNetUsed = resData.FreeNetUsed || 0;
+                            let EnergyLimit = resData.EnergyLimit || 0;
+                            let EnergyUsed = resData.EnergyUsed || 0;
+                            
+                            outHtml += `<div class="term-line" style="border-top:1px dashed rgba(255,255,255,0.1); padding-top:5px; margin-top:5px; color:var(--text-muted)">• 實時賬戶資源池狀態：</div>`;
+                            outHtml += `<div class="term-line">  ⚡ 剩餘免費帶寬: <span class="term-highlight">${freeNetLimit - freeNetUsed}</span> / ${freeNetLimit}</div>`;
+                            outHtml += `<div class="term-line">  🔥 質押可用能量: <span class="term-highlight">${EnergyLimit - EnergyUsed}</span> / ${EnergyLimit}</div>`;
+                            outHtml += `<div class="term-line">  💡 提示: 若能量為0，發送 TRC-20 USDT 將強行燒毀約 <span class="term-warning">32~65 TRX</span> 作為手續費</div>`;
                         }
 
                         content.innerHTML = outHtml;
@@ -402,17 +394,12 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 2200); 
                 try {
-                    let response;
-                    if (CHAINS[chainKey].type === "evm" || node.url.includes("ankr.com")) {
-                        response = await fetch(node.url + urlSuffix, { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify(payload || {}), 
-                            signal: controller.signal 
-                        });
-                    } else { 
-                        response = await fetch(node.url + urlSuffix, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload || {}), signal: controller.signal }); 
-                    }
+                    let response = await fetch(node.url + urlSuffix, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(payload || {}), 
+                        signal: controller.signal 
+                    });
                     clearTimeout(timeoutId);
                     if (response.ok) {
                         const data = await response.json();
@@ -432,7 +419,7 @@
                     <div class="network-value" id="height-${key}">-------</div>
                     <div class="network-meta">
                         <div class="meta-row"><span>原生代幣:</span><span class="meta-val" style="color:${chain.color}">${chain.nativeToken}</span></div>
-                        <div class="meta-row"><span>Gas狀態:</span><span class="meta-val" id="gas-${key}">--</span></div>
+                        <div class="meta-row"><span>${chain.gasLabel}:</span><span class="meta-val" id="gas-${key}">--</span></div>
                     </div>
                 `;
                 grid.appendChild(card);
@@ -452,38 +439,24 @@
                 try {
                     if (CHAINS[key].type === "btc") {
                         let btcBlockHeight = null;
-                        
                         try {
                             const resBtc = await fetch("https://blockchain.info/q/getblockcount", { method: 'GET' });
-                            if (resBtc.ok) {
-                                const textHeight = await resBtc.text();
-                                if (textHeight && !isNaN(textHeight)) btcBlockHeight = parseInt(textHeight);
-                            }
+                            if (resBtc.ok) { const textHeight = await resBtc.text(); if (textHeight && !isNaN(textHeight)) btcBlockHeight = parseInt(textHeight); }
                         } catch(e) {}
 
                         if (!btcBlockHeight) {
                             try {
                                 const resMem = await fetch("https://mempool.space/api/blocks/tip/height", { method: 'GET' });
-                                if (resMem.ok) {
-                                    const textHeight = await resMem.text();
-                                    if (textHeight && !isNaN(textHeight)) btcBlockHeight = parseInt(textHeight);
-                                }
+                                if (resMem.ok) { const textHeight = await resMem.text(); if (textHeight && !isNaN(textHeight)) btcBlockHeight = parseInt(textHeight); }
                             } catch(e) {}
                         }
 
-                        if (btcBlockHeight) {
-                            blockElem.textContent = btcBlockHeight.toLocaleString();
-                            dot.className = 'status-dot';
-                        } else {
-                            dot.className = 'status-dot error';
-                        }
+                        if (btcBlockHeight) { blockElem.textContent = btcBlockHeight.toLocaleString(); dot.className = 'status-dot'; } 
+                        else { dot.className = 'status-dot error'; }
 
                         try {
                             const feeRes = await fetch("https://mempool.space/api/v1/fees/recommended");
-                            if (feeRes.ok) {
-                                const feeData = await feeRes.json();
-                                gasElem.textContent = `${feeData.fastestFee} sat/vB`;
-                            }
+                            if (feeRes.ok) { const feeData = await feeRes.json(); gasElem.textContent = `~${feeData.fastestFee} sat/vB`; }
                         } catch(e) { gasElem.textContent = "-- sat/vB"; }
                     } 
                     else if (CHAINS[key].type === "evm") {
@@ -493,9 +466,7 @@
                         if(resBlock.success && resBlock.data.result) {
                             blockElem.textContent = parseInt(resBlock.data.result, 16).toLocaleString();
                             dot.className = 'status-dot';
-                        } else {
-                            dot.className = 'status-dot error';
-                        }
+                        } else { dot.className = 'status-dot error'; }
 
                         if(resGas.success && resGas.data.result) {
                             const gweiVal = new BigNumber(resGas.data.result, 16).div(1e9).toFixed(2);
@@ -503,7 +474,6 @@
                         }
                     } 
                     else if (CHAINS[key].type === "tron") {
-                        // 獲取當前最新區塊高度
                         const resBlock = await fetch("https://api.trongrid.io/wallet/getnowblock", { method: 'POST' });
                         if (resBlock.ok) {
                             const blockData = await resBlock.json();
@@ -512,14 +482,21 @@
                                 blockElem.textContent = blockHeight.toLocaleString();
                                 dot.className = 'status-dot';
                             }
-                        } else {
-                            dot.className = 'status-dot error';
-                        }
-                        gasElem.textContent = "420 sun/Gas"; 
+                        } else { dot.className = 'status-dot error'; }
+                        
+                        // 實時讀取波場鏈上當前全網能量單價 (單價一般為 420 sun，此處實時精準顯示)
+                        try {
+                            const resChainParam = await fetch("https://api.trongrid.io/wallet/getchainparameters", { method: 'POST' });
+                            if (resChainParam.ok) {
+                                const pData = await resChainParam.json();
+                                const energyFeeParam = pData.chainParameter.find(p => p.key === "getEnergyFee");
+                                if (energyFeeParam) {
+                                    gasElem.textContent = `${energyFeeParam.value} sun/Energy`;
+                                } else { gasElem.textContent = "420 sun/Energy"; }
+                            }
+                        } catch(e) { gasElem.textContent = "420 sun/Energy"; }
                     }
-                } catch (err) {
-                    dot.className = 'status-dot error';
-                }
+                } catch (err) { dot.className = 'status-dot error'; }
             }
             isRefreshing = false;
         }
@@ -527,7 +504,7 @@
         document.addEventListener("DOMContentLoaded", () => {
             initGrid(); 
             refreshData(); 
-            setInterval(refreshData, 2500); 
+            setInterval(refreshData, 3000); 
         });
     </script>
 </body>
