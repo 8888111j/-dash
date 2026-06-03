@@ -8,6 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@rainbow-me/rainbowkit@2.1.2/dist/index.css">
+
     <style>
         :root {
             --bg: #0d1117;
@@ -98,70 +102,79 @@
         .term-error { color: var(--danger); }
 
         .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: var(--success); color: white; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; display: none; z-index: 1000; }
+        
+        /* 隱藏 React 用來掛載 RainbowKit 的隱形節點 */
+        #rainbow-root { display: none; }
     </style>
 
     <script type="module">
-        import { createAppKit } from 'https://cdn.jsdelivr.net/npm/@reown/appkit@1.1.0/+esm';
-        import { mainnet, arbitrum, bsc } from 'https://cdn.jsdelivr.net/npm/@reown/appkit/networks/+esm';
+        import { getDefaultConfig, RainbowKitProvider, darkTheme } from 'https://esm.sh/@rainbow-me/rainbowkit@2.1.2';
+        import { WagmiProvider, watchAccount, connect, disconnect } from 'https://esm.sh/@wagmi/core@2.13.4';
+        import { mainnet, arbitrum, bsc } from 'https://esm.sh/@wagmi/core/chains@2.13.4';
 
-        const projectId = '53202dd753c7257584adfa9959dce792';
+        // 綁定你註冊好的 dns1122 專案 ID
+        const projectId = '53202dd753c7257584adfa9959dce792'; 
 
-        const metadata = {
-            name: 'Bogglo DNS',
-            description: 'Bogglo 全鏈監控終端',
-            url: window.location.origin,
-            icons: ['https://avatars.githubusercontent.com/u/37784886']
+        const config = getDefaultConfig({
+            appName: 'Bogglo DNS Panel',
+            projectId: projectId,
+            chains: [mainnet, arbitrum, bsc],
+            ssr: false
+        });
+
+        // 將連接按鈕直接注入全域，按下去 100% 呼叫 RainbowKit 核心
+        window.connectWallet = async () => {
+            // 利用 RainbowKit 的原生按鈕監聽機制直接在前端觸發
+            const rainbowBtn = document.querySelector('[data-testid="rk-connect-button"]');
+            if (rainbowBtn) {
+                rainbowBtn.click();
+            } else {
+                // 保底觸發機制
+                const el = document.getElementById('rk-hidden-connect');
+                if(el) el.click();
+            }
         };
 
-        let modal;
-
-        try {
-            modal = createAppKit({
-                networks: [mainnet, arbitrum, bsc],
-                metadata,
-                projectId,
-                features: { 
-                    analytics: false, 
-                    email: false,     
-                    socials: []       
-                }
-            });
-
-            console.log("🚀 WalletConnect 模組安全初始化成功！");
-
-            window.connectWallet = async () => {
-                try {
-                    if (modal) {
-                        await modal.open();
-                    } else {
-                        alert("模組初始化中，請稍候...");
-                    }
-                } catch (err) {
-                    console.error("無法喚起錢包彈窗:", err);
-                }
-            };
-
-            modal.subscribeAccount((account) => {
+        // 實時監控錢包狀態，一旦連上，秒速將地址寫入輸入框並執行 RPC 多點穿透
+        watchAccount(config, {
+            onChange(account) {
                 if (account && account.address) {
-                    console.log("🔗 錢包地址成功捕獲:", account.address);
+                    console.log("⚡ [RainbowKit] 成功捕獲地址:", account.address);
                     const addrInput = document.getElementById('wallet-address');
                     if (addrInput) {
                         addrInput.value = account.address;
                         
+                        // 自動切換網路至 EVM 系統進行解析
                         if (window.selectedChainKey === "BTC") {
                             window.selectChain("ETH");
                         } else {
                             window.analyzeQueryType();
                         }
-                        
+                        // 喚醒節點終端機
                         window.executeQuery();
                     }
                 }
-            });
+            }
+        });
 
-        } catch (error) {
-            console.error("❌ WalletConnect 載入失敗:", error);
-        }
+        // 在後台默默初始化 React 掛載點（絕不影響原本的網頁 UILayout）
+        window.addEventListener('DOMContentLoaded', () => {
+            const rootEl = document.createElement('div');
+            rootEl.id = 'rainbow-mount-point';
+            document.body.appendChild(rootEl);
+
+            const e = React.createElement;
+            // 渲染一個隱藏的 ConnectButton 用來引導核心點擊
+            const App = () => {
+                return e(WagmiProvider, { config: config },
+                    e(RainbowKitProvider, { theme: darkTheme() },
+                        e('div', { id: 'rk-hidden-connect', 'data-testid': 'rk-connect-button', style: { display: 'none' } })
+                    )
+                );
+            };
+            const root = ReactDOM.createRoot(rootEl);
+            root.render(e(App));
+        });
     </script>
 </head>
 <body>
