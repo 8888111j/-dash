@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bogglo 全鏈監控 & 策略回測 Dashboard</title>
+    <title>Bogglo 全鏈監控 Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
@@ -45,8 +45,6 @@
             background: rgba(46, 164, 79, 0.1); padding: 4px 10px; border-radius: 12px; margin-left: 10px;
         }
         .system-status i { margin-right: 5px; font-size: 0.7rem; }
-        .nav-right { display: flex; align-items: center; gap: 15px; }
-        .menu-btn { background: none; border: none; color: var(--text-main); font-size: 1.2rem; cursor: pointer; }
 
         .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; display: flex; flex-direction: column; gap: 20px; }
         
@@ -98,21 +96,6 @@
         .term-success { color: #4af626; }
         .term-warning { color: var(--warning); }
         .term-highlight { color: #58a6ff; }
-
-        .alert-banner { background: linear-gradient(135deg, #8b0000 0%, #4a0000 100%); border: 1px solid var(--danger); border-radius: 6px; padding: 18px; }
-        .alert-title { color: #fff; font-weight: bold; font-size: 1.05rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-        .alert-content { font-size: 0.88rem; color: #f0f0f0; display: flex; flex-direction: column; gap: 6px; }
-        .crypto-address-box { background-color: rgba(0,0,0,0.4); border: 1px dashed rgba(255,255,255,0.2); padding: 10px; border-radius: 4px; margin-top: 12px; font-family: 'Share Tech Mono', monospace; display: flex; flex-direction: column; gap: 8px; }
-        .address-tabs { display: flex; gap: 6px; }
-        .tab-btn { background-color: rgba(255,255,255,0.08); border: 1px solid var(--border); color: var(--text-main); padding: 4px 10px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; }
-        .tab-btn.active { background-color: #fff; color: #000; border-color: #fff; }
-
-        .floating-menu { position: fixed; top: 15%; right: -280px; width: 280px; background-color: var(--card-bg); border: 1px solid var(--border); border-top-left-radius: 8px; border-bottom-left-radius: 8px; box-shadow: -4px 4px 16px rgba(0,0,0,0.4); transition: right 0.3s; z-index: 999; padding: 20px; }
-        .floating-menu.open { right: 0; }
-        .floating-trigger { position: absolute; left: -45px; top: 20px; width: 45px; height: 45px; background-color: var(--card-bg); border: 1px solid var(--border); border-right: none; border-top-left-radius: 8px; border-bottom-left-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--warning); font-size: 1.2rem; }
-        .sim-input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; font-size: 0.85rem; }
-        .sim-input-group input, .sim-input-group select { padding: 6px 10px; font-size: 0.85rem; background: var(--bg); border: 1px solid var(--border); color: #fff; border-radius: 4px; }
-        .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: var(--success); color: white; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; display: none; z-index: 1000; }
     </style>
 </head>
 <body>
@@ -121,9 +104,6 @@
         <div style="display: flex; align-items: center;">
             <h1>Bogglo 全鏈監控 Panel</h1>
             <span class="system-status"><i class="fas fa-circle"></i> System Operational</span>
-        </div>
-        <div class="nav-right">
-            <button class="menu-btn" id="sidebar-toggle" title="回測控制台"><i class="fas fa-sliders-h"></i></button>
         </div>
     </nav>
 
@@ -173,44 +153,7 @@
                 <div id="term-content">等待節點通訊發起...</div>
             </div>
         </div>
-
-        <div class="module-card" style="padding: 0; overflow: hidden; border: none;">
-            <div class="alert-banner">
-                <div class="alert-title"><i class="fas fa-shield-alt"></i> 鄭重聲明：與 Arkham Intelligence 合作打擊非法資金</div>
-                <div class="alert-content">
-                    <ul>
-                        <li>本地地址僅接受自願贊助，非商業用途。交易受 24/7 區塊鏈監控，嚴禁黑錢轉入！</li>
-                    </ul>
-                    <div class="crypto-address-box">
-                        <div class="address-tabs">
-                            <button class="tab-btn active" onclick="switchAddr('EVM', '0x82a44b5c42b8eA1d90Ef04A9d539a1E5303c6Bc7')">EVM (ETH/BSC/ARB/MORPH)</button>
-                            <button class="tab-btn" onclick="switchAddr('BTC', 'bc1qaq5m3yafrf2wagvd5qymgzhrs2m4xkzrrvkapa')">BTC (Native SegWit)</button>
-                            <button class="tab-btn" onclick="switchAddr('TRON', 'TMDnW7z167gs7BJCcAHh7XUskKTN2Qbkpg')">TRON (TRC20)</button>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
-                            <span id="current-addr-text" style="color: #ff6b6b; font-weight: bold;">0x82a44b5c42b8eA1d90Ef04A9d539a1E5303c6Bc7</span>
-                            <button class="tab-btn" style="background:var(--border);" onclick="copyAddress()"><i class="fas fa-copy"></i> 複製</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
-
-    <div class="floating-menu" id="sidebar-menu">
-        <div class="floating-trigger" id="sidebar-btn" onclick="toggleSidebar()"><i class="fas fa-chart-line"></i></div>
-        <h3 style="font-size:1.1rem; margin-bottom:15px; color:var(--warning); border-bottom:1px solid var(--border); padding-bottom:8px;"><i class="fas fa-brain"></i> 蒙特卡羅網格回測</h3>
-        <div class="sim-input-group">
-            <label>量化模擬標的</label>
-            <select id="sim-pair"><option value="BTC">BTC / USDT</option><option value="ETH">ETH / USDT</option><option value="BNB">BNB / USDT</option></select>
-        </div>
-        <div class="sim-input-group"><label>預估年化波動率 (%)</label><input type="number" id="sim-volatility" value="65"></div>
-        <div class="sim-input-group"><label>模擬持有天數</label><input type="number" id="sim-days" value="7"></div>
-        <div class="sim-input-group"><label>隨機模擬路徑次數</label><input type="number" id="sim-paths" value="100"></div>
-        <button class="btn-action" style="width:100%; background-color:var(--primary); margin-top:10px;" onclick="runSimulation()"><i class="fas fa-play"></i> 執行矩陣模擬</button>
-    </div>
-
-    <div class="toast-msg" id="toast">地址已成功複製到剪貼簿！</div>
 
     <script>
         const TOKEN_MATRIX = {
@@ -242,7 +185,6 @@
         };
 
         const RPC_POOL = {
-            // 🟢 【優化】BTC 端點池全部整合為跨域友善的公共通道
             BTC: [
                 { url: "https://blockchain.info" },
                 { url: "https://mempool.space/api" },
@@ -264,9 +206,6 @@
             document.getElementById(`btn-chain-${key}`).classList.add('active');
             analyzeQueryType();
         }
-
-        function toggleSidebar() { document.getElementById('sidebar-menu').classList.toggle('open'); }
-        document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebar);
 
         function analyzeQueryType() {
             const val = document.getElementById('wallet-address').value.trim();
@@ -336,7 +275,6 @@
                         content.innerHTML = outHtml;
                     }
                 } else if (selectedChainKey === "BTC") {
-                    // 🟢 【修復】BTC 終端查詢改用純前端相容格式
                     let btcAddrUrl = `https://mempool.space/api/address/${query}`;
                     if(isHash) btcAddrUrl = `https://mempool.space/api/tx/${query}`;
 
@@ -375,7 +313,6 @@
                 const timeoutId = setTimeout(() => controller.abort(), 2200); 
                 try {
                     let response;
-                    // EVM 和 Ankr TRON 走 POST
                     if (CHAINS[chainKey].type === "evm" || node.url.includes("ankr.com")) {
                         response = await fetch(node.url + urlSuffix, { 
                             method: 'POST', 
@@ -384,7 +321,6 @@
                             signal: controller.signal 
                         });
                     } else { 
-                        // BTC 或者是其餘 REST 降級通道走 GET
                         response = await fetch(node.url + urlSuffix, { method: 'GET', signal: controller.signal }); 
                     }
                     clearTimeout(timeoutId);
@@ -413,7 +349,6 @@
             });
         }
 
-        // 實時監控更新模組
         async function refreshData() {
             if (isRefreshing) return;
             isRefreshing = true;
@@ -426,10 +361,8 @@
 
                 try {
                     if (CHAINS[key].type === "btc") {
-                        // 🟢 【終極修復】BTC 高度輪詢直接改用高容錯、免 CORS 的大廠 REST 公共 API 進行並行穿透
                         let btcBlockHeight = null;
                         
-                        // 嘗試 1: Blockchain.info q2 接口 (純文字高度返還，最不容易出錯)
                         try {
                             const resBtc = await fetch("https://blockchain.info/q/getblockcount", { method: 'GET' });
                             if (resBtc.ok) {
@@ -438,7 +371,6 @@
                             }
                         } catch(e) {}
 
-                        // 嘗試 2: Mempool.space 降級備份
                         if (!btcBlockHeight) {
                             try {
                                 const resMem = await fetch("https://mempool.space/api/blocks/tip/height", { method: 'GET' });
@@ -452,11 +384,13 @@
                         if (btcBlockHeight) {
                             blockElem.textContent = btcBlockHeight.toLocaleString();
                             dot.className = 'status-dot';
+                            
+                            // 連動修改網頁標題
+                            document.title = `[₿ ${btcBlockHeight.toLocaleString()}] Bogglo 全鏈監控`;
                         } else {
                             dot.className = 'status-dot error';
                         }
 
-                        // 抓取推薦手續費
                         try {
                             const feeRes = await fetch("https://mempool.space/api/v1/fees/recommended");
                             if (feeRes.ok) {
@@ -505,21 +439,6 @@
             }
             isRefreshing = false;
         }
-
-        function switchAddr(type, addr) {
-            document.querySelectorAll('.address-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('current-addr-text').innerText = addr;
-        }
-
-        function copyAddress() {
-            navigator.clipboard.writeText(document.getElementById('current-addr-text').innerText).then(() => {
-                const toast = document.getElementById('toast'); toast.style.display = 'block';
-                setTimeout(() => toast.style.display = 'none', 2000);
-            });
-        }
-
-        function runSimulation() { alert("量化矩陣引擎已啟動，正在生成幾何布朗運動模擬路徑..."); }
 
         document.addEventListener("DOMContentLoaded", () => {
             initGrid(); 
