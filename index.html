@@ -8,11 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
     
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
-    <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-    
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@rainbow-me/rainbowkit@2.1.2/dist/index.css">
+    <script src="https://unpkg.com/@web3modal/ethers5@5.1.11/dist/index.umd.js"></script>
 
     <style>
         :root {
@@ -104,88 +100,7 @@
         .term-error { color: var(--danger); }
 
         .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: var(--success); color: white; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; display: none; z-index: 1000; }
-        
-        /* 🔵 覆蓋 RainbowKit 內建樣式，使其深度適應你網站的酷黑風格 */
-        :root {
-            --rk-colors-modalBackground: #161b22 !important;
-            --rk-colors-modalBorder: #30363d !important;
-            --rk-colors-modalText: #c9d1d9 !important;
-            --rk-colors-modalTextSecondary: #8b949e !important;
-            --rk-colors-connectionIndicator: #2ea44f !important;
-        }
     </style>
-
-    <script type="module">
-        import { getDefaultConfig, RainbowKitProvider, darkTheme, ConnectButton } from 'https://esm.sh/@rainbow-me/rainbowkit@2.1.2?bundle';
-        import { WagmiProvider, watchAccount } from 'https://esm.sh/@wagmi/core@2.13.4?bundle';
-        import { QueryClient, QueryClientProvider } from 'https://esm.sh/@tanstack/react-query@5.51.1?bundle';
-        import { mainnet, arbitrum, bsc } from 'https://esm.sh/@wagmi/core/chains@2.13.4?bundle';
-
-        const projectId = '53202dd753c7257584adfa9959dce792'; 
-        const queryClient = new QueryClient();
-
-        // 建立與 Uniswap 等級一致的 Wagmi 全配置
-        const config = getDefaultConfig({
-            appName: 'Bogglo DNS Terminal',
-            projectId: projectId,
-            chains: [mainnet, arbitrum, bsc],
-            ssr: false
-        });
-
-        // 綁定全域點擊事件，當用戶點擊導航欄的按鈕時，強行點擊 React 內部的 Uniswap 同款核心
-        window.connectWallet = () => {
-            const rkBtn = document.querySelector('.rk-uniswap-bridge-target button');
-            if (rkBtn) {
-                rkBtn.click();
-            } else {
-                alert("錢包生態加載中，請再試一次...");
-            }
-        };
-
-        // 異步捕獲高級面板回傳的錢包地址
-        watchAccount(config, {
-            onChange(account) {
-                if (account && account.address) {
-                    console.log("🔥 [Uniswap UI] 地址成功解碼:", account.address);
-                    const addrInput = document.getElementById('wallet-address');
-                    if (addrInput) {
-                        addrInput.value = account.address;
-                        
-                        // 自動轉換監控模式
-                        if (window.selectedChainKey === "BTC") {
-                            window.selectChain("ETH");
-                        } else {
-                            window.analyzeQueryType();
-                        }
-                        // 啟動終端機
-                        window.executeQuery();
-                    }
-                }
-            }
-        });
-
-        // 將 React 渲染層與你的靜態 HTML 完全對接
-        window.addEventListener('DOMContentLoaded', () => {
-            const mount = document.createElement('div');
-            mount.className = 'rk-uniswap-bridge-target';
-            mount.style.display = 'none'; // 隱形橋接點，不干擾你原本的導航按鈕樣式
-            document.body.appendChild(mount);
-
-            const e = React.createElement;
-            const App = () => {
-                return e(WagmiProvider, { config: config },
-                    e(QueryClientProvider, { client: queryClient },
-                        e(RainbowKitProvider, { theme: darkTheme(), modalSize: 'wide' }, // wide 模式就是 Uniswap 的多列佈局
-                            e(ConnectButton)
-                        )
-                    )
-                );
-            };
-
-            const root = ReactDOM.createRoot(mount);
-            root.render(e(App));
-        });
-    </script>
 </head>
 <body>
 
@@ -194,7 +109,7 @@
             <h1>Bogglo 全鏈監控 Panel</h1>
             <span class="system-status"><i class="fas fa-circle"></i> 核心網絡對接正常</span>
         </div>
-        <button class="btn-action" style="background-color: var(--primary); padding: 8px 16px; font-size: 0.85rem;" onclick="window.connectWallet()">
+        <button id="connect-btn" class="btn-action" style="background-color: var(--primary); padding: 8px 16px; font-size: 0.85rem;" onclick="toggleWalletModal()">
             <i class="fas fa-wallet"></i> 連接錢包
         </button>
     </nav>
@@ -209,7 +124,7 @@
         <div class="network-grid" id="monitorGrid"></div>
 
         <div class="module-card">
-            <div class="module-header"><i class="fas fa-search"></i> 本站 RPC 全鏈多資產解隔引擎</div>
+            <div class="module-header"><i class="fas fa-search"></i> 本站 RPC 全鏈多資產解構引擎</div>
             <div class="module-desc">安全隔離穿透底層 RPC。請選擇對應鏈，輸入地址獲取即時鏈上數據：</div>
             
             <div class="chain-matrix-selector">
@@ -245,6 +160,89 @@
     <div class="toast-msg" id="toast">地址已成功複製！</div>
 
     <script>
+        let modalInstance = null;
+        const projectId = '53202dd753c7257584adfa9959dce792'; 
+
+        // 初始化正統 Web3Modal 獨立實例
+        function initWeb3Modal() {
+            if (window.Web3ModalEthers5) {
+                try {
+                    // 配置跟 Uniswap 核心完全看齊的鏈網陣列
+                    const mainnet = { chainId: 1, name: 'Ethereum', currency: 'ETH', rpcUrl: 'https://rpc.flashbots.net' };
+                    const bsc = { chainId: 56, name: 'BNB Chain', currency: 'BNB', rpcUrl: 'https://binance.llamarpc.com' };
+                    const arbitrum = { chainId: 42161, name: 'Arbitrum One', currency: 'ETH', rpcUrl: 'https://arbitrum-one-rpc.publicnode.com' };
+
+                    modalInstance = window.Web3ModalEthers5.createWeb3Modal({
+                        ethersConfig: window.Web3ModalEthers5.defaultConfig({
+                            metadata: {
+                                name: 'Bogglo DNS Panel',
+                                description: 'Terminal Dashboard',
+                                url: window.location.href,
+                                icons: []
+                            }
+                        }),
+                        chains: [mainnet, bsc, arbitrum],
+                        projectId: projectId,
+                        themeMode: 'dark' // 自動完美適應黑客風格
+                    });
+
+                    // 實時追蹤錢包地址狀態更新
+                    modalInstance.subscribeProvider((state) => {
+                        if (state && state.address) {
+                            console.log("🎯 正統核心成功解鎖錢包:", state.address);
+                            syncWalletState(state.address);
+                        } else if (state && !state.isConnected) {
+                            resetWalletState();
+                        }
+                    });
+
+                    // 初始檢查狀態
+                    if (modalInstance.getAddress()) {
+                        syncWalletState(modalInstance.getAddress());
+                    }
+                } catch (e) {
+                    console.error("Web3Modal 核心實例掛載失敗:", e);
+                }
+            }
+        }
+
+        // 當點擊連接錢包按鈕時，直接呼叫官方正統彈窗
+        window.toggleWalletModal = async function() {
+            if (!modalInstance) initWeb3Modal();
+            if (modalInstance) {
+                await modalInstance.open();
+            } else {
+                alert("底層核心載入中，請再試一次。");
+            }
+        }
+
+        function syncWalletState(address) {
+            const addrInput = document.getElementById('wallet-address');
+            if (addrInput) {
+                addrInput.value = address;
+                if (window.selectedChainKey === "BTC") {
+                    window.selectChain("ETH");
+                } else {
+                    window.analyzeQueryType();
+                }
+                window.executeQuery();
+            }
+            const connBtn = document.getElementById('connect-btn');
+            if (connBtn) {
+                connBtn.innerHTML = `<i class="fas fa-check-circle" style="color:#4af626"></i> ${address.substring(0,6)}...${address.substring(address.length-4)}`;
+                connBtn.style.backgroundColor = "rgba(46, 164, 79, 0.2)";
+            }
+        }
+
+        function resetWalletState() {
+            const connBtn = document.getElementById('connect-btn');
+            if (connBtn) {
+                connBtn.innerHTML = `<i class="fas fa-wallet"></i> 連接錢包`;
+                connBtn.style.backgroundColor = "var(--primary)";
+            }
+        }
+
+        // 下方保留你最穩定的 RPC 高活性穿透引擎邏輯
         const TOKEN_MATRIX = {
             ETH: [{ symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 }],
             BSC: [{ symbol: "USDT", address: "0x55d398326f99059fF775485246999027B3197955", decimals: 18 }],
@@ -319,7 +317,7 @@
             try {
                 const chainConf = CHAINS[window.selectedChainKey];
                 if (chainConf.type === "evm") {
-                    const resBal = await fetchFromPool(window.selectedChainKey, { jsonrpc: "2.0", method: "eth_balance", params: [query, "latest"], id: 11 });
+                    const resBal = await fetchFromPool(window.selectedChainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [query, "latest"], id: 11 });
                     
                     if (!resBal.success) {
                         content.innerHTML = `<div class="term-line term-error">[CORS/BLOCK] 當前公共節點全線限流。請稍後再試。</div>`;
@@ -448,6 +446,9 @@
             refreshData();
             setInterval(refreshData, 5000); 
             window.analyzeQueryType();
+            
+            // 延時初始化驅動，確保不卡 DOM 渲染
+            setTimeout(initWeb3Modal, 300);
         });
     </script>
 </body>
