@@ -8,9 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@rainbow-me/rainbowkit@2.1.2/dist/index.css">
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.14.0/dist/index.umd.min.js"></script>
 
     <style>
         :root {
@@ -102,80 +100,7 @@
         .term-error { color: var(--danger); }
 
         .toast-msg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: var(--success); color: white; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; display: none; z-index: 1000; }
-        
-        /* 隱藏 React 用來掛載 RainbowKit 的隱形節點 */
-        #rainbow-root { display: none; }
     </style>
-
-    <script type="module">
-        import { getDefaultConfig, RainbowKitProvider, darkTheme } from 'https://esm.sh/@rainbow-me/rainbowkit@2.1.2';
-        import { WagmiProvider, watchAccount, connect, disconnect } from 'https://esm.sh/@wagmi/core@2.13.4';
-        import { mainnet, arbitrum, bsc } from 'https://esm.sh/@wagmi/core/chains@2.13.4';
-
-        // 綁定你註冊好的 dns1122 專案 ID
-        const projectId = '53202dd753c7257584adfa9959dce792'; 
-
-        const config = getDefaultConfig({
-            appName: 'Bogglo DNS Panel',
-            projectId: projectId,
-            chains: [mainnet, arbitrum, bsc],
-            ssr: false
-        });
-
-        // 將連接按鈕直接注入全域，按下去 100% 呼叫 RainbowKit 核心
-        window.connectWallet = async () => {
-            // 利用 RainbowKit 的原生按鈕監聽機制直接在前端觸發
-            const rainbowBtn = document.querySelector('[data-testid="rk-connect-button"]');
-            if (rainbowBtn) {
-                rainbowBtn.click();
-            } else {
-                // 保底觸發機制
-                const el = document.getElementById('rk-hidden-connect');
-                if(el) el.click();
-            }
-        };
-
-        // 實時監控錢包狀態，一旦連上，秒速將地址寫入輸入框並執行 RPC 多點穿透
-        watchAccount(config, {
-            onChange(account) {
-                if (account && account.address) {
-                    console.log("⚡ [RainbowKit] 成功捕獲地址:", account.address);
-                    const addrInput = document.getElementById('wallet-address');
-                    if (addrInput) {
-                        addrInput.value = account.address;
-                        
-                        // 自動切換網路至 EVM 系統進行解析
-                        if (window.selectedChainKey === "BTC") {
-                            window.selectChain("ETH");
-                        } else {
-                            window.analyzeQueryType();
-                        }
-                        // 喚醒節點終端機
-                        window.executeQuery();
-                    }
-                }
-            }
-        });
-
-        // 在後台默默初始化 React 掛載點（絕不影響原本的網頁 UILayout）
-        window.addEventListener('DOMContentLoaded', () => {
-            const rootEl = document.createElement('div');
-            rootEl.id = 'rainbow-mount-point';
-            document.body.appendChild(rootEl);
-
-            const e = React.createElement;
-            // 渲染一個隱藏的 ConnectButton 用來引導核心點擊
-            const App = () => {
-                return e(WagmiProvider, { config: config },
-                    e(RainbowKitProvider, { theme: darkTheme() },
-                        e('div', { id: 'rk-hidden-connect', 'data-testid': 'rk-connect-button', style: { display: 'none' } })
-                    )
-                );
-            };
-            const root = ReactDOM.createRoot(rootEl);
-            root.render(e(App));
-        });
-    </script>
 </head>
 <body>
 
@@ -184,7 +109,7 @@
             <h1>Bogglo 全鏈監控 Panel</h1>
             <span class="system-status"><i class="fas fa-circle"></i> 核心網絡對接正常</span>
         </div>
-        <button class="btn-action" style="background-color: var(--primary); padding: 8px 16px; font-size: 0.85rem;" onclick="window.connectWallet()">
+        <button id="connect-btn" class="btn-action" style="background-color: var(--primary); padding: 8px 16px; font-size: 0.85rem;" onclick="connectWallet()">
             <i class="fas fa-wallet"></i> 連接錢包
         </button>
     </nav>
@@ -235,6 +160,88 @@
     <div class="toast-msg" id="toast">地址已成功複製！</div>
 
     <script>
+        let provider = null;
+        const projectId = '53202dd753c7257584adfa9959dce792'; 
+
+        // 初始化原生不破壞網頁結構的 WalletConnect 驅動庫
+        async function initWalletProvider() {
+            if (window.EthereumProvider) {
+                try {
+                    provider = await window.EthereumProvider.EthereumProvider.init({
+                        projectId: projectId,
+                        showQrModal: true, // 核心：直接調用 WalletConnect 官方自帶的最穩定原生彈窗
+                        chains: [1],       // 預設主網
+                        optionalChains: [56, 42161], // BSC, Arbitrum One
+                        qrModalOptions: { themeMode: "dark" }
+                    });
+
+                    // 監聽連接成功狀態
+                    provider.on("connect", (info) => {
+                        handleAccounts(provider.accounts);
+                    });
+
+                    // 監聽帳戶切換
+                    provider.on("accountsChanged", (accounts) => {
+                        handleAccounts(accounts);
+                    });
+
+                    // 如果以前連過，自動保持狀態
+                    if (provider.connected && provider.accounts.length > 0) {
+                        handleAccounts(provider.accounts);
+                    }
+                } catch (err) {
+                    console.error("WalletConnect Provider 初始化失敗:", err);
+                }
+            }
+        }
+
+        // 處理拿到的帳戶地址
+        function handleAccounts(accounts) {
+            if (accounts && accounts.length > 0) {
+                const address = accounts[0];
+                console.log("🔗 連接成功，獲取地址:", address);
+                
+                // 寫入輸入框
+                const addrInput = document.getElementById('wallet-address');
+                if (addrInput) {
+                    addrInput.value = address;
+                    
+                    // 修正狀態，自動切換成 ETH 解析模式
+                    if (window.selectedChainKey === "BTC") {
+                        window.selectChain("ETH");
+                    } else {
+                        window.analyzeQueryType();
+                    }
+                    // 自動觸發終端 RPC 查詢
+                    window.executeQuery();
+                }
+
+                // 更改按鈕狀態為已連接
+                const connBtn = document.getElementById('connect-btn');
+                if (connBtn) {
+                    connBtn.innerHTML = `<i class="fas fa-check-circle" style="color:#4af626"></i> 已連接`;
+                    connBtn.style.backgroundColor = "rgba(46, 164, 79, 0.2)";
+                }
+            }
+        }
+
+        // 按鈕點擊事件：直接強行拉起彈窗
+        async function connectWallet() {
+            if (!provider) {
+                await initWalletProvider();
+            }
+            if (provider) {
+                try {
+                    await provider.connect();
+                } catch (err) {
+                    console.warn("用戶取消了錢包連接或彈窗被阻斷");
+                }
+            } else {
+                alert("錢包通訊驅動加載失敗，請檢查網路。");
+            }
+        }
+
+        // 以下為你原本穩定的 RPC 核心監控邏輯，原封不動焊死在下方
         const TOKEN_MATRIX = {
             ETH: [{ symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 }],
             BSC: [{ symbol: "USDT", address: "0x55d398326f99059fF775485246999027B3197955", decimals: 18 }],
@@ -433,11 +440,15 @@
             isRefreshing = false; 
         }
 
+        // 頁面加載完成後自動初始化
         document.addEventListener("DOMContentLoaded", () => {
             initGrid();
             refreshData();
             setInterval(refreshData, 5000); 
             window.analyzeQueryType();
+            
+            // 延遲 500ms 初始化錢包通訊，確保 UMD 腳本加載完畢
+            setTimeout(initWalletProvider, 500);
         });
     </script>
 </body>
