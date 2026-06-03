@@ -178,7 +178,8 @@
         };
 
         const RPC_POOL = {
-            BTC: [{ url: "https://mempool.space/api" }, { url: "https://blockchain.info" }],
+            // 切換為 Blockstream 官方大盤核心高速網關與 Mempool 互為備用，規避公共節點被牆限制
+            BTC: [{ url: "https://blockstream.info/api" }, { url: "https://mempool.space/api" }],
             ETH: [{ url: "https://rpc.flashbots.net" }, { url: "https://ethereum-rpc.publicnode.com" }],
             BSC: [{ url: "https://binance.llamarpc.com" }, { url: "https://bsc-rpc.publicnode.com" }],
             ARB: [{ url: "https://arbitrum-one-rpc.publicnode.com" }],
@@ -253,7 +254,7 @@
 
                         if(resTx.success && resTx.data.result) {
                             const tx = resTx.data.result;
-                            let statusText = "⚡ 讀起中";
+                            let statusText = "⚡ 讀取中";
                             let gasUsedText = "--";
 
                             if (resReceipt.success && resReceipt.data.result) {
@@ -302,16 +303,20 @@
                         content.innerHTML = outHtml;
                     }
                 } else if (selectedChainKey === "BTC") {
-                    content.innerHTML = `<div class="term-line">[Connecting] 正在向比特幣數據矩陣請求節點通訊...</div>`;
+                    content.innerHTML = `<div class="term-line">[Connecting] 正在嘗試從 Blockstream 核心矩陣拉取底層快照...</div>`;
                     let urlSuffix = isHash ? `/tx/${query}` : `/address/${query}`;
                     
-                    // 使用改良後的 6 秒超時節點池進行 GET 請求
+                    // 使用 5 秒異步超時控制進行 GET 請求
                     const resBtc = await fetchFromPool("BTC", null, urlSuffix, "GET");
 
                     if (resBtc.success && resBtc.data) {
                         const data = resBtc.data;
                         if(!isHash) {
-                            let btcBal = data.chain_stats ? (data.chain_stats.funded_txo_sum - data.chain_stats.spent_txo_sum) / 1e8 : 0;
+                            // 兼容 Blockstream / Mempool 數據對象結構
+                            let funded = data.chain_stats ? data.chain_stats.funded_txo_sum : 0;
+                            let spent = data.chain_stats ? data.chain_stats.spent_txo_sum : 0;
+                            let btcBal = (funded - spent) / 1e8;
+                            
                             content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈原生數據解構成功：</div>` +
                                 `<div class="term-line">• 目標地址: <span class="term-highlight">${query}</span></div>` +
                                 `<div class="term-line">  🧡 BTC 餘額 : <span class="term-success">${btcBal.toFixed(8)} BTC</span></div>`;
@@ -322,14 +327,14 @@
                             
                             content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈 RPC 核心交易解析成功：</div>` +
                                 `<div class="term-line">• 交易哈希 (TxID): <span class="term-highlight">${data.txid}</span></div>` +
-                                `<div class="term-line">• 交易狀態: <span class="term-highlight">${data.status.confirmed ? "🟢 已確認" : "🔴 未確認 (Mempool 排隊中)"}</span></div>` +
-                                `<div class="term-line">• 包含區塊高度: ${data.status.block_height ? data.status.block_height : "未打包"}</div>` +
+                                `<div class="term-line">• 交易狀態: <span class="term-highlight">${data.status && data.status.confirmed ? "🟢 已確認" : "🔴 未確認 (Mempool 排隊中)"}</span></div>` +
+                                `<div class="term-line">• 包含區塊高度: ${(data.status && data.status.block_height) ? data.status.block_height : "未打包"}</div>` +
                                 `<div class="term-line">• 手續費支出 (Fee): <span class="term-warning">${data.fee} sats</span></div>` +
                                 `<div class="term-line">• 總產出金額: <span class="term-success">${(totalOutput / 1e8).toFixed(8)} BTC</span></div>` +
                                 `<div class="term-line">• 交易體積: ${data.size} bytes | 權重: ${data.weight} vB</div>`;
                         }
                     } else { 
-                        content.innerHTML = `<div class="term-line term-error">[ERROR] 比特幣網關請求超時或被拒絕。請檢查網絡或節點線路。</div>`; 
+                        content.innerHTML = `<div class="term-line term-error">[ERROR] 比特幣網關全線超時。提示：請更換或臨時斷開你的 VPN 節點再試一次，目前公共接口對你的 IP 存在限流。</div>`; 
                     }
                 } else if (selectedChainKey === "TRON") {
                     if (isHash) {
@@ -421,8 +426,7 @@
             const pool = RPC_POOL[chainKey];
             for (let node of pool) {
                 const controller = new AbortController();
-                // 擴大超時容忍度到 6 秒，適應手機跨國代理環境
-                const timeoutId = setTimeout(() => controller.abort(), 6000); 
+                const timeoutId = setTimeout(() => controller.abort(), 5000); 
                 try {
                     let fetchOptions = { 
                         method: method, 
@@ -474,7 +478,7 @@
                     if (CHAINS[key].type === "btc") {
                         let btcBlockHeight = null;
                         try {
-                            const resBtc = await fetch("https://blockchain.info/q/getblockcount", { method: 'GET' });
+                            const resBtc = await fetch("https://blockstream.info/api/blocks/tip/height", { method: 'GET' });
                             if (resBtc.ok) { const textHeight = await resBtc.text(); if (textHeight && !isNaN(textHeight)) btcBlockHeight = parseInt(textHeight); }
                         } catch(e) {}
 
@@ -489,8 +493,14 @@
                         else { dot.className = 'status-dot error'; }
 
                         try {
-                            const feeRes = await fetch("https://mempool.space/api/v1/fees/recommended");
-                            if (feeRes.ok) { const feeData = await feeRes.json(); gasElem.textContent = `~${feeData.fastestFee} sat/vB`; }
+                            const feeRes = await fetch("https://blockstream.info/api/fee-estimates");
+                            if (feeRes.ok) { 
+                                const feeData = await feeRes.json(); 
+                                // Blockstream 返回的是一個包含多個確認區塊手續費的對象，取 2 區塊確認（最快）的手續費
+                                if(feeData && feeData["2"]) {
+                                    gasElem.textContent = `~${Math.round(feeData["2"])} sat/vB`; 
+                                } else { gasElem.textContent = "-- sat/vB"; }
+                            }
                         } catch(e) { gasElem.textContent = "-- sat/vB"; }
                     } 
                     else if (CHAINS[key].type === "evm") {
@@ -536,7 +546,6 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             initGrid(); 
-            // 預選最左側的 BTC 矩陣按鈕
             selectChain('BTC');
             refreshData(); 
             setInterval(refreshData, 3000); 
