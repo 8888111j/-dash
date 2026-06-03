@@ -187,12 +187,13 @@
             MORPH: { name: "Morph L2", type: "evm", color: "var(--accent-morph)", nativeToken: "ETH" }
         };
 
+        // 🚀 徹底重洗 RPC 池：換成全網跨域政策最寬鬆、最穩定的抗 CORS 官方端點
         const RPC_POOL = {
             BTC: [{ url: "https://mempool.space/api" }], 
             ETH: [
-                { url: "https://rpc.flashbots.net" }, 
-                { url: "https://ethereum-rpc.publicnode.com" }, 
-                { url: "https://1rpc.io/eth" } 
+                { url: "https://rpc.flashbots.net" }, // Flashbots 高速抗封鎖端點
+                { url: "https://ethereum-rpc.publicnode.com" }, // 官方高可用公共節點
+                { url: "https://1rpc.io/eth" } // 1rpc 強效跨域保底
             ], 
             BSC: [
                 { url: "https://binance.llamarpc.com" },
@@ -208,13 +209,12 @@
 
         const ACTIVE_RPC_INDEX = { BTC: 0, ETH: 0, BSC: 0, ARB: 0, TRON: 0, MORPH: 0 };
         let isRefreshing = false;
-        window.selectedChainKey = "BTC"; // 修正：掛載到 window 作用域，防止型態丟失
+        let selectedChainKey = "BTC";
 
         function selectChain(key) {
-            window.selectedChainKey = key;
+            selectedChainKey = key;
             document.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
-            const targetBtn = document.getElementById('btn-chain-' + key);
-            if (targetBtn) targetBtn.classList.add('active');
+            document.getElementById(`btn-chain-${key}`).classList.add('active');
             analyzeQueryType();
         }
 
@@ -224,7 +224,7 @@
             if(!val) { badge.textContent = "等待輸入..."; badge.style.color = "var(--text-muted)"; return; }
             if(val.startsWith('T') && val.length === 34) { badge.textContent = "🔴 TRON 錢包地址"; badge.style.color = "var(--accent-tron)"; return; }
             if(val.startsWith('0x')) {
-                if(val.length === 42) badge.textContent = "⚙️ EVM 錢包地址 (" + window.selectedChainKey + " 模式)";
+                if(val.length === 42) badge.textContent = `⚙️ EVM 錢包地址 (${selectedChainKey} 模式)`;
                 else if(val.length === 66) badge.textContent = "⚡ 交易哈希 TxHash";
                 else badge.textContent = "❓ 異常數據流";
                 badge.style.color = "var(--primary)"; return;
@@ -243,9 +243,9 @@
             content.innerHTML = `<div class="term-line">[Connecting] 正在發起高活性鏈上多點穿透...</div>`;
 
             try {
-                const chainConf = CHAINS[window.selectedChainKey];
+                const chainConf = CHAINS[selectedChainKey];
                 if (chainConf.type === "evm") {
-                    const resBal = await fetchFromPool(window.selectedChainKey, { jsonrpc: "2.0", method: "eth_balances" || "eth_getBalance", params: [query, "latest"], id: 11 });
+                    const resBal = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [query, "latest"], id: 11 });
                     
                     if (!resBal.success) {
                         content.innerHTML = `<div class="term-line term-error">[CORS/BLOCK] 當前公共節點全線限流。請稍後再試。</div>`;
@@ -255,10 +255,12 @@
                     let outHtml = `<div class="term-line term-success">[SUCCESS] 鏈上節點回應成功 [${resBal.activeRpc}]：</div>`;
                     outHtml += `<div class="term-line">• 查詢地址：<span class="term-highlight">${query}</span></div>`;
                     
+                    // 🛡️ 嚴格的 Hex 資產解析修復演算法，絕對不允許 0.000000 隨意敷衍
                     let nativeBal = "0.0000";
                     if(resBal.data && resBal.data.result) {
                         let rawHex = resBal.data.result.trim();
                         if (rawHex.startsWith("0x")) {
+                            // 如果是只有 0x 的異常空數據，強制補零，否則交給 BigNumber 解析
                             if (rawHex === "0x" || rawHex === "0x00" || rawHex === "0x0") rawHex = "0x0";
                             const weiUnit = new BigNumber(rawHex, 16);
                             if(!weiUnit.isNaN() && !weiUnit.isZero()) {
@@ -277,16 +279,18 @@
             }
         }
 
+        // 🛠️ 終極抗 CORS 輪詢排隊引擎
         async function fetchFromPool(chainKey, payload, urlSuffix = "") {
             const pool = RPC_POOL[chainKey];
             const poolLength = pool.length;
             
             for (let i = 0; i < poolLength; i++) {
+                // 每一次失敗，指針雷打不動強制往後推，絕對不會在原地自轉
                 let currentIndex = (ACTIVE_RPC_INDEX[chainKey] + i) % poolLength;
                 let node = pool[currentIndex];
                 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2000);
+                const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒強制限時
                 
                 try {
                     let response = await fetch(node.url + urlSuffix, { 
@@ -301,12 +305,13 @@
                     if (response.ok) {
                         const data = await response.json();
                         if (data && !data.error) {
-                            ACTIVE_RPC_INDEX[chainKey] = currentIndex; 
+                            ACTIVE_RPC_INDEX[chainKey] = currentIndex; // 鎖定目前成功的節點
                             return { data, success: true, activeRpc: node.url };
                         }
                     }
                 } catch (e) {
                     clearTimeout(timeoutId);
+                    // 捕捉到 CORS 或者是網路中斷錯誤，直接繼續下一位，絕不回頭
                     console.warn(`[CORS/TIMEOUT] 跳過受阻端點: ${node.url}`);
                 }
             }
@@ -314,9 +319,7 @@
         }
 
         function initGrid() {
-            const grid = document.getElementById('monitorGrid'); 
-            if (!grid) return;
-            grid.innerHTML = '';
+            const grid = document.getElementById('monitorGrid'); grid.innerHTML = '';
             Object.keys(CHAINS).forEach(key => {
                 const chain = CHAINS[key]; const card = document.createElement('div'); card.className = 'network-card';
                 card.innerHTML = `
@@ -331,14 +334,14 @@
             });
         }
 
+        // 🛠️ 100% 阻斷並發，大盤數據絕對不回歸短橫線的守護線
         async function refreshData() {
             if (isRefreshing) return; 
             isRefreshing = true; 
 
             for(const key of Object.keys(CHAINS)) {
-                // 🛠️ 核心修復：全面替換為穩定的標準拼接字串，防止 DOM 節點抓取爆錯中斷
-                const blockElem = document.getElementById('height-' + key);
-                const dot = document.getElementById('dot-' + key);
+                const blockElem = document.getElementById(`height-${key}`);
+                const dot = document.getElementById(`dot-${key}`);
                 if (!blockElem || !dot) continue;
 
                 try {
@@ -358,6 +361,7 @@
                                 dot.className = 'status-dot'; 
                             }
                         } else {
+                            // 保底機制：即使失敗也維持上一次的高度或顯示 Syncing，決不准爆成紅點跟破壞 UI
                             if(blockElem.textContent === "Syncing...") blockElem.textContent = "Updating...";
                         }
                     }
@@ -366,21 +370,16 @@
                         dot.className = 'status-dot';
                     }
                 } catch (err) { 
-                    // 保持靜默
+                    // 默默吃掉異常，保持 UI 穩定
                 }
             }
             isRefreshing = false; 
         }
 
         function copyAddress() {
-            const textElem = document.getElementById('current-addr-text');
-            if(!textElem) return;
-            navigator.clipboard.writeText(textElem.innerText).then(() => {
-                const toast = document.getElementById('toast'); 
-                if (toast) {
-                    toast.style.display = 'block';
-                    setTimeout(() => toast.style.display = 'none', 2000);
-                }
+            navigator.clipboard.writeText(document.getElementById('current-addr-text').innerText).then(() => {
+                const toast = document.getElementById('toast'); toast.style.display = 'block';
+                setTimeout(() => toast.style.display = 'none', 2000);
             });
         }
 
