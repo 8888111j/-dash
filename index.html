@@ -244,15 +244,38 @@
 
                 if (chainConf.type === "evm") {
                     if (isHash) {
-                        const res = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionByHash", params: [query], id: 10 });
-                        if(res.success && res.data.result) {
-                            const tx = res.data.result;
-                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 成功從 ${selectedChainKey} 節點提取交易快照：</div>` +
-                                `<div class="term-line">• 區塊高度: ${parseInt(tx.blockNumber, 16)}</div>` +
-                                `<div class="term-line">• 發起方(From): ${tx.from}</div>` +
-                                `<div class="term-line">• 接收方(To): ${tx.to}</div>` +
-                                `<div class="term-line">• 轉賬數額: ${new BigNumber(tx.value).div(1e18).toFixed(6)} ${chainConf.nativeToken}</div>`;
-                        } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 節點池未檢索到該 TxHash。</div>`; }
+                        content.innerHTML = `<div class="term-line">[Connecting] 正在從 ${selectedChainKey} 底層 RPC 節點拉取交易收據(Transaction Receipt)...</div>`;
+                        
+                        // 1. 先抓取交易基礎數據
+                        const resTx = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionByHash", params: [query], id: 10 });
+                        // 2. 再抓取交易收據（用來確認 Gas 消耗與真實狀態）
+                        const resReceipt = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionReceipt", params: [query], id: 101 });
+
+                        if(resTx.success && resTx.data.result) {
+                            const tx = resTx.data.result;
+                            let statusText = "⚡ 讀取中";
+                            let gasUsedText = "--";
+
+                            if (resReceipt.success && resReceipt.data.result) {
+                                const receipt = resReceipt.data.result;
+                                statusText = receipt.status === "0x1" ? "🟢 SUCCESS (成功)" : "🔴 FAILED (失敗)";
+                                gasUsedText = parseInt(receipt.gasUsed, 16).toLocaleString();
+                            }
+
+                            const blockNum = tx.blockNumber ? parseInt(tx.blockNumber, 16) : "未打包(Pending)";
+                            const valueEth = new BigNumber(tx.value).div(1e18).toFixed(6);
+                            const gasPriceGwei = tx.gasPrice ? new BigNumber(tx.gasPrice, 16).div(1e9).toFixed(2) : "0";
+
+                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 成功從 ${selectedChainKey} 內置 RPC 節點完成全鏈解構：</div>` +
+                                `<div class="term-line">• 交易哈希: <span class="term-highlight">${query}</span></div>` +
+                                `<div class="term-line">• 交易狀態: <span class="term-highlight">${statusText}</span></div>` +
+                                `<div class="term-line">• 區塊高度: ${blockNum}</div>` +
+                                `<div class="term-line">• 發起錢包 (From): <span class="term-warning">${tx.from}</span></div>` +
+                                `<div class="term-line">• 接收合約 (To): <span class="term-warning">${tx.to || "合約部署"}</span></div>` +
+                                `<div class="term-line">• 轉賬數額: <span class="term-success">${valueEth} ${chainConf.nativeToken}</span></div>` +
+                                `<div class="term-line">• 消耗 Gas 數量: ${gasUsedText}</div>` +
+                                `<div class="term-line">• 交易 GasPrice: ${gasPriceGwei} Gwei</div>`;
+                        } else { content.innerHTML = `<div class="term-line term-error">[ERROR] ${selectedChainKey} 節點池未檢索到該交易哈希，可能尚未廣播。</div>`; }
                     } else {
                         const resBal = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [query, "latest"], id: 11 });
                         let outHtml = `<div class="term-line term-success">[SUCCESS] 成功連通 ${selectedChainKey} 核心合約層：</div>`;
@@ -294,10 +317,18 @@
                                 `<div class="term-line">• 目標地址: <span class="term-highlight">${query}</span></div>` +
                                 `<div class="term-line">  🧡 BTC 餘額 : <span class="term-success">${btcBal.toFixed(8)} BTC</span></div>`;
                         } else {
-                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈交易解析成功：</div>` +
-                                `<div class="term-line">• 交易哈希: <span class="term-highlight">${data.txid}</span></div>` +
-                                `<div class="term-line">• 手續費支出: <span class="term-warning">${data.fee} sats</span></div>` +
-                                `<div class="term-line">• 包含區塊高度: ${data.status.block_height ? data.status.block_height : "未確認"}</div>`;
+                            // 計算 BTC 輸入輸出的總金額
+                            let totalInput = 0; let totalOutput = 0;
+                            if(data.vin) data.vin.forEach(v => { if(v.prevout) totalInput += v.prevout.value; });
+                            if(data.vout) data.vout.forEach(o => { totalOutput += o.value; });
+                            
+                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈 RPC 核心交易解析成功：</div>` +
+                                `<div class="term-line">• 交易哈希 (TxID): <span class="term-highlight">${data.txid}</span></div>` +
+                                `<div class="term-line">• 交易狀態: <span class="term-highlight">${data.status.confirmed ? "🟢 已確認" : "🔴 未確認 (Mempool 排隊中)"}</span></div>` +
+                                `<div class="term-line">• 包含區塊高度: ${data.status.block_height ? data.status.block_height : "未打包"}</div>` +
+                                `<div class="term-line">• 手續費支出 (Fee): <span class="term-warning">${data.fee} sats</span></div>` +
+                                `<div class="term-line">• 總產出金額: <span class="term-success">${(totalOutput / 1e8).toFixed(8)} BTC</span></div>` +
+                                `<div class="term-line">• 交易體積: ${data.size} bytes | 權重: ${data.weight} vB</div>`;
                         }
                     } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 公共解構網關未響應。</div>`; }
                 } else if (selectedChainKey === "TRON") {
@@ -318,7 +349,7 @@
                                     `<div class="term-line">• 合約類型: ${contractType}</div>` +
                                     `<div class="term-line">• 狀態: ${txData.ret && txData.ret[0].contractRet === "SUCCESS" ? "🟢 成功" : "🔴 失敗"}</div>`;
                             } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 未能在 TRON 網絡中找到該交易哈希。</div>`; }
-                        } else { content.innerHTML = `<div class="term-line term-error">[ERROR] TRON 網關通訊失敗。</div>`; }
+                        } else { document.getElementById('term-content').innerHTML = `<div class="term-line term-error">[ERROR] TRON 網關通訊失敗。</div>`; }
                     } else {
                         content.innerHTML = `<div class="term-line">[Connecting] 正在讀取波場賬戶主網快照並計算費率能量...</div>`;
                         
@@ -341,7 +372,6 @@
                             })
                         });
 
-                        // 新增抓取賬戶實時資源（帶寬/能量/剩餘可用度）
                         const resResources = await fetch(`https://api.trongrid.io/wallet/getaccountresource`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -379,7 +409,6 @@
                             outHtml += `<div class="term-line">  🔥 質押可用能量: <span class="term-highlight">${EnergyLimit - EnergyUsed}</span> / ${EnergyLimit}</div>`;
                             outHtml += `<div class="term-line">  💡 提示: 若能量為0，發送 TRC-20 USDT 將強行燒毀約 <span class="term-warning">32~65 TRX</span> 作為手續費</div>`;
                         }
-
                         content.innerHTML = outHtml;
                     }
                 }
@@ -484,7 +513,6 @@
                             }
                         } else { dot.className = 'status-dot error'; }
                         
-                        // 實時讀取波場鏈上當前全網能量單價 (單價一般為 420 sun，此處實時精準顯示)
                         try {
                             const resChainParam = await fetch("https://api.trongrid.io/wallet/getchainparameters", { method: 'POST' });
                             if (resChainParam.ok) {
