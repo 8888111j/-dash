@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
-    <script src="https://widgets.coigecko.com/gecko-coin-price-marquee-widget.js"></script>
+    <script src="https://widgets.coingecko.com/gecko-coin-price-marquee-widget.js"></script>
     
     <style>
         :root {
@@ -147,7 +147,7 @@
             <div class="module-desc">直接呼叫大盤底層高速 RPC 節點。點擊下方對應鏈節點，異步提取錢包的原生資產與隱藏合約代幣：</div>
             
             <div class="chain-matrix-selector">
-                <button class="matrix-btn active" id="btn-chain-BTC" onclick="selectChain('BTC')"><i class="fab fa-bitcoin" style="color:var(--accent-orange)"></i> Bitcoin<span class="chain-lbl">Ankr RPC</span></button>
+                <button class="matrix-btn active" id="btn-chain-BTC" onclick="selectChain('BTC')"><i class="fab fa-bitcoin" style="color:var(--accent-orange)"></i> Bitcoin<span class="chain-lbl">Multi-API</span></button>
                 <button class="matrix-btn" id="btn-chain-ETH" onclick="selectChain('ETH')"><i class="fab fa-ethereum" style="color:var(--accent-blue)"></i> Ethereum<span class="chain-lbl">RPC Node</span></button>
                 <button class="matrix-btn" id="btn-chain-BSC" onclick="selectChain('BSC')"><i class="fas fa-coins" style="color:var(--accent-yellow)"></i> BNB Chain<span class="chain-lbl">RPC Node</span></button>
                 <button class="matrix-btn" id="btn-chain-ARB" onclick="selectChain('ARB')"><i class="fab fa-cubes" style="color:var(--primary)"></i> Arbitrum<span class="chain-lbl">RPC Node</span></button>
@@ -242,8 +242,12 @@
         };
 
         const RPC_POOL = {
-            // 🟢 【新增】Ankr BTC 公共 RPC 節點，並保留原來的網頁 API 作為降級備用
-            BTC: [{ url: "https://rpc.ankr.com/btc" }, { url: "https://blockstream.info/api" }, { url: "https://mempool.space/api" }],
+            // 🟢 【優化】BTC 端點池全部整合為跨域友善的公共通道
+            BTC: [
+                { url: "https://blockchain.info" },
+                { url: "https://mempool.space/api" },
+                { url: "https://blockstream.info/api" }
+            ],
             ETH: [{ url: "https://rpc.flashbots.net" }, { url: "https://ethereum-rpc.publicnode.com" }],
             BSC: [{ url: "https://binance.llamarpc.com" }, { url: "https://bsc-rpc.publicnode.com" }],
             ARB: [{ url: "https://arbitrum-one-rpc.publicnode.com" }],
@@ -289,7 +293,7 @@
 
             termBox.classList.add('active');
             title.textContent = `>_ RPC ASSET TERMINAL (${selectedChainKey})`;
-            content.innerHTML = `<div class="term-line">[Connecting] 正在連通 ${selectedChainKey} 節點池...</div>`;
+            content.innerHTML = `<div class="term-line">[Connecting] 正在連通 ${selectedChainKey} 數據矩陣...</div>`;
 
             try {
                 const isHash = query.length === 66 || query.length === 64;
@@ -332,22 +336,29 @@
                         content.innerHTML = outHtml;
                     }
                 } else if (selectedChainKey === "BTC") {
-                    // 如果是用 Ankr RPC 的 POST 請求
-                    const resRpc = await fetchFromPool("BTC", { jsonrpc: "1.0", id: "curltest", method: "getblockchaininfo", params: [] });
-                    if (resRpc.success && resRpc.data && resRpc.data.result) {
-                        content.innerHTML = `<div class="term-line term-success">[SUCCESS] Ankr BTC 節點通訊成功：</div>` +
-                            `<div class="term-line">• 當前最佳區塊: <span class="term-success">${resRpc.data.result.blocks}</span></div>` +
-                            `<div class="term-line">• 節點驗證進度: ${resRpc.data.result.verificationprogress.toFixed(4)}</div>`;
-                    } else {
-                        // 降級回 REST 接口
-                        const suffix = isHash ? `/tx/${query}` : `/address/${query}`;
-                        const res = await fetchFromPool("BTC", null, suffix);
-                        if (res.success && res.data) {
-                            let btcBal = res.data.chain_stats ? (res.data.chain_stats.funded_txo_sum - res.data.chain_stats.spent_txo_sum) / 1e8 : 0;
-                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈原生 API 數據降級解構：</div>` +
+                    // 🟢 【修復】BTC 終端查詢改用純前端相容格式
+                    let btcAddrUrl = `https://mempool.space/api/address/${query}`;
+                    if(isHash) btcAddrUrl = `https://mempool.space/api/tx/${query}`;
+
+                    const controller = new AbortController();
+                    setTimeout(() => controller.abort(), 3000);
+                    const response = await fetch(btcAddrUrl, { method: 'GET', signal: controller.signal });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if(!isHash) {
+                            let btcBal = data.chain_stats ? (data.chain_stats.funded_txo_sum - data.chain_stats.spent_txo_sum) / 1e8 : 0;
+                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈原生數據解構成功：</div>` +
                                 `<div class="term-line">• 目標地址: <span class="term-highlight">${query}</span></div>` +
                                 `<div class="term-line">  🧡 BTC 餘額 : <span class="term-success">${btcBal.toFixed(8)} BTC</span></div>`;
+                        } else {
+                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈交易交易解析成功：</div>` +
+                                `<div class="term-line">• 交易哈希: <span class="term-highlight">${data.txid}</span></div>` +
+                                `<div class="term-line">• 手續費支出: <span class="term-warning">${data.fee} sats</span></div>` +
+                                `<div class="term-line">• 包含區塊高度: ${data.status.block_height ? data.status.block_height : "未確認"}</div>`;
                         }
+                    } else {
+                        content.innerHTML = `<div class="term-line term-error">[ERROR] 公共解構網關未響應。</div>`;
                     }
                 } else if (selectedChainKey === "TRON") {
                     content.innerHTML = `<div class="term-line term-success">[SUCCESS] TRON 節點已就緒，即時廣播輪詢中。</div>`;
@@ -364,7 +375,7 @@
                 const timeoutId = setTimeout(() => controller.abort(), 2200); 
                 try {
                     let response;
-                    // 如果是 EVM、Ankr TRON 或是 Ankr BTC，一律採用標準 POST 協議
+                    // EVM 和 Ankr TRON 走 POST
                     if (CHAINS[chainKey].type === "evm" || node.url.includes("ankr.com")) {
                         response = await fetch(node.url + urlSuffix, { 
                             method: 'POST', 
@@ -373,17 +384,8 @@
                             signal: controller.signal 
                         });
                     } else { 
-                        // 用於 REST API 降級（Blockstream 或者是 Trongrid 原生接口）
-                        if (payload === null) {
-                            response = await fetch(node.url + urlSuffix, { method: 'GET', signal: controller.signal }); 
-                        } else {
-                            response = await fetch(node.url + urlSuffix, { 
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload || {}),
-                                signal: controller.signal 
-                            }); 
-                        }
+                        // BTC 或者是其餘 REST 降級通道走 GET
+                        response = await fetch(node.url + urlSuffix, { method: 'GET', signal: controller.signal }); 
                     }
                     clearTimeout(timeoutId);
                     if (response.ok) {
@@ -424,29 +426,44 @@
 
                 try {
                     if (CHAINS[key].type === "btc") {
-                        // 🟢 【升級】優先使用 Ankr 的 BTC RPC 發送 JSON-RPC 請求獲取高度
-                        const resBlock = await fetchFromPool(key, { jsonrpc: "1.0", id: "panel", method: "getblockcount", params: [] });
+                        // 🟢 【終極修復】BTC 高度輪詢直接改用高容錯、免 CORS 的大廠 REST 公共 API 進行並行穿透
+                        let btcBlockHeight = null;
                         
-                        if (resBlock.success && resBlock.data && resBlock.data.result !== undefined) {
-                            blockElem.textContent = Number(resBlock.data.result).toLocaleString();
-                            dot.className = 'status-dot';
-                            gasElem.textContent = "快照同步中...";
-                        } else {
-                            // 降級方案：如果 Ankr BTC 節點被限流，切換回 Blockstream REST 接口
-                            const blockRes = await fetchFromPool(key, null, "/blocks/tip/height");
-                            if(blockRes.success) {
-                                blockElem.textContent = Number(blockRes.data).toLocaleString();
-                                dot.className = 'status-dot';
-                            } else {
-                                dot.className = 'status-dot error';
+                        // 嘗試 1: Blockchain.info q2 接口 (純文字高度返還，最不容易出錯)
+                        try {
+                            const resBtc = await fetch("https://blockchain.info/q/getblockcount", { method: 'GET' });
+                            if (resBtc.ok) {
+                                const textHeight = await resBtc.text();
+                                if (textHeight && !isNaN(textHeight)) btcBlockHeight = parseInt(textHeight);
                             }
+                        } catch(e) {}
+
+                        // 嘗試 2: Mempool.space 降級備份
+                        if (!btcBlockHeight) {
+                            try {
+                                const resMem = await fetch("https://mempool.space/api/blocks/tip/height", { method: 'GET' });
+                                if (resMem.ok) {
+                                    const textHeight = await resMem.text();
+                                    if (textHeight && !isNaN(textHeight)) btcBlockHeight = parseInt(textHeight);
+                                }
+                            } catch(e) {}
                         }
 
-                        // 抓取手續費作為 Gas 狀態顯示
-                        const feeRes = await fetchFromPool(key, null, "/v1/fees/recommended");
-                        if (feeRes.success && feeRes.data) {
-                            gasElem.textContent = `${feeRes.data.fastestFee} sat/vB`;
+                        if (btcBlockHeight) {
+                            blockElem.textContent = btcBlockHeight.toLocaleString();
+                            dot.className = 'status-dot';
+                        } else {
+                            dot.className = 'status-dot error';
                         }
+
+                        // 抓取推薦手續費
+                        try {
+                            const feeRes = await fetch("https://mempool.space/api/v1/fees/recommended");
+                            if (feeRes.ok) {
+                                const feeData = await feeRes.json();
+                                gasElem.textContent = `${feeData.fastestFee} sat/vB`;
+                            }
+                        } catch(e) { gasElem.textContent = "-- sat/vB"; }
                     } 
                     else if (CHAINS[key].type === "evm") {
                         const resBlock = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 });
