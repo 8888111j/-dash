@@ -127,11 +127,11 @@
             <div class="module-desc">直接呼叫大盤底層高速 RPC 節點。點擊下方對應鏈節點，異步提取錢包的原生資產與隱藏合約代幣：</div>
             
             <div class="chain-matrix-selector">
-                <button class="matrix-btn active" id="btn-chain-BTC" onclick="selectChain('BTC')"><i class="fab fa-bitcoin" style="color:var(--accent-orange)"></i> Bitcoin<span class="chain-lbl">Multi-API</span></button>
+                <button class="matrix-btn" id="btn-chain-BTC" onclick="selectChain('BTC')"><i class="fab fa-bitcoin" style="color:var(--accent-orange)"></i> Bitcoin<span class="chain-lbl">Multi-API</span></button>
                 <button class="matrix-btn" id="btn-chain-ETH" onclick="selectChain('ETH')"><i class="fab fa-ethereum" style="color:var(--accent-blue)"></i> Ethereum<span class="chain-lbl">RPC Node</span></button>
                 <button class="matrix-btn" id="btn-chain-BSC" onclick="selectChain('BSC')"><i class="fas fa-coins" style="color:var(--accent-yellow)"></i> BNB Chain<span class="chain-lbl">RPC Node</span></button>
                 <button class="matrix-btn" id="btn-chain-ARB" onclick="selectChain('ARB')"><i class="fab fa-cubes" style="color:var(--primary)"></i> Arbitrum<span class="chain-lbl">RPC Node</span></button>
-                <button class="matrix-btn" id="btn-chain-TRON" onclick="selectChain('TRON')"><i class="fas fa-bolt" style="color:var(--accent-tron)"></i> TRON<span class="chain-lbl">Ankr Node</span></button>
+                <button class="matrix-btn active" id="btn-chain-TRON" onclick="selectChain('TRON')"><i class="fas fa-bolt" style="color:var(--accent-tron)"></i> TRON<span class="chain-lbl">Ankr Node</span></button>
                 <button class="matrix-btn" id="btn-chain-MORPH" onclick="selectChain('MORPH')"><i class="fas fa-circle-notch" style="color:var(--accent-morph)"></i> Morph L2<span class="chain-lbl">RPC Node</span></button>
             </div>
 
@@ -193,11 +193,11 @@
             ETH: [{ url: "https://rpc.flashbots.net" }, { url: "https://ethereum-rpc.publicnode.com" }],
             BSC: [{ url: "https://binance.llamarpc.com" }, { url: "https://bsc-rpc.publicnode.com" }],
             ARB: [{ url: "https://arbitrum-one-rpc.publicnode.com" }],
-            TRON: [{ url: "https://rpc.ankr.com/tron" }, { url: "https://api.trongrid.io" }],
+            TRON: [{ url: "https://api.trongrid.io" }],
             MORPH: [{ url: "https://rpc.morphl2.io" }]
         };
 
-        let selectedChainKey = "BTC";
+        let selectedChainKey = "TRON"; // 預設聚焦至波場
         let isRefreshing = false;
 
         function selectChain(key) {
@@ -220,6 +220,24 @@
                 badge.style.color = "var(--primary)"; return;
             }
             badge.textContent = "🔎 自適應通用查詢模式"; badge.style.color = "var(--text-muted)";
+        }
+
+        // 用於波場地址轉合約查詢 parameters 的輔助工具
+        function decodeTronAddressToHex(address) {
+            try {
+                const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+                let num = new BigNumber(0);
+                for (let i = 0; i < address.length; i++) {
+                    num = num.multipliedBy(58).plus(ALPHABET.indexOf(address[i]));
+                }
+                let hex = num.toString(16);
+                if (hex.length % 2 !== 0) hex = '0' + hex;
+                // 去掉尾部的 4 字節校驗碼，波場合約一般只需要前 21 字節（包含 0x41 前綴）的後 20 字節
+                let cleanHex = hex.substring(2, 42); 
+                return cleanHex.padStart(64, '0');
+            } catch (e) {
+                return "0000000000000000000000000000000000000000000000000000000000000000";
+            }
         }
 
         async function executeQuery() {
@@ -299,7 +317,79 @@
                         content.innerHTML = `<div class="term-line term-error">[ERROR] 公共解構網關未響應。</div>`;
                     }
                 } else if (selectedChainKey === "TRON") {
-                    content.innerHTML = `<div class="term-line term-success">[SUCCESS] TRON 節點已就緒，即時廣播輪詢中。</div>`;
+                    if (isHash) {
+                        content.innerHTML = `<div class="term-line">[Connecting] 正在向波場網關檢索交易哈希...</div>`;
+                        const resTx = await fetch(`https://api.trongrid.io/wallet/gettransactionbyid`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ value: query })
+                        });
+                        
+                        if (resTx.ok) {
+                            const txData = await resTx.json();
+                            if (txData && txData.txID) {
+                                let contractType = txData.raw_data.contract[0].type;
+                                content.innerHTML = `<div class="term-line term-success">[SUCCESS] 成功解構 TRON 交易：</div>` +
+                                    `<div class="term-line">• 交易哈希: <span class="term-highlight">${txData.txID}</span></div>` +
+                                    `<div class="term-line">• 合約類型: ${contractType}</div>` +
+                                    `<div class="term-line">• 狀態: ${txData.ret && txData.ret[0].contractRet === "SUCCESS" ? "🟢 成功" : "🔴 失敗"}</div>`;
+                            } else {
+                                content.innerHTML = `<div class="term-line term-error">[ERROR] 未能在 TRON 網絡中找到該交易哈希。</div>`;
+                            }
+                        } else {
+                            content.innerHTML = `<div class="term-line term-error">[ERROR] TRON 網關通訊失敗。</div>`;
+                        }
+                    } else {
+                        content.innerHTML = `<div class="term-line">[Connecting] 正在讀取波場賬戶主網快照...</div>`;
+                        
+                        // 1. 抓取 TRX 餘額
+                        const resAcc = await fetch(`https://api.trongrid.io/wallet/getaccount`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ address: query, visible: true })
+                        });
+
+                        // 2. 抓取 TRC-20 USDT 餘額
+                        const hexParam = decodeTronAddressToHex(query);
+                        const resUsdt = await fetch(`https://api.trongrid.io/wallet/triggerconstantcontract`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                owner_address: query,
+                                contract_address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+                                function_selector: "balanceOf(address)",
+                                parameter: hexParam,
+                                visible: true
+                            })
+                        });
+
+                        let outHtml = `<div class="term-line term-success">[SUCCESS] 成功連通 TRON Network 核心節點：</div>`;
+                        outHtml += `<div class="term-line">• 賬戶地址：<span class="term-highlight">${query}</span></div>`;
+
+                        if (resAcc.ok) {
+                            const accData = await resAcc.json();
+                            let trxBal = accData.balance ? (accData.balance / 1000000).toFixed(4) : "0.0000";
+                            outHtml += `<div class="term-line">  🔴 <span class="term-warning">TRX</span> : <span class="term-success">${trxBal} TRX</span></div>`;
+                        } else {
+                            outHtml += `<div class="term-line term-error">  ❌ 原生 TRX 數據獲取失敗</div>`;
+                        }
+
+                        if (resUsdt.ok) {
+                            const usdtData = await resUsdt.json();
+                            if (usdtData && usdtData.constant_result && usdtData.constant_result[0]) {
+                                const hexBal = usdtData.constant_result[0];
+                                const rawUsdtBal = new BigNumber(hexBal, 16);
+                                const finalUsdt = rawUsdtBal.div(1e6).toFixed(4);
+                                outHtml += `<div class="term-line">  🟢 <span class="term-warning">USDT (TRC-20)</span> : <span class="term-success">${finalUsdt}</span></div>`;
+                            } else {
+                                outHtml += `<div class="term-line">  🟢 <span class="term-warning">USDT (TRC-20)</span> : <span class="term-success">0.0000</span></div>`;
+                            }
+                        } else {
+                            outHtml += `<div class="term-line term-error">  ❌ TRC-20 合約通訊失敗</div>`;
+                        }
+
+                        content.innerHTML = outHtml;
+                    }
                 }
             } catch (err) {
                 content.innerHTML = `<div class="term-line term-error">[EXCEPTION] 故障: ${err.message}</div>`;
@@ -321,7 +411,7 @@
                             signal: controller.signal 
                         });
                     } else { 
-                        response = await fetch(node.url + urlSuffix, { method: 'GET', signal: controller.signal }); 
+                        response = await fetch(node.url + urlSuffix, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload || {}), signal: controller.signal }); 
                     }
                     clearTimeout(timeoutId);
                     if (response.ok) {
@@ -384,9 +474,6 @@
                         if (btcBlockHeight) {
                             blockElem.textContent = btcBlockHeight.toLocaleString();
                             dot.className = 'status-dot';
-                            
-                            // 連動修改網頁標題
-                            document.title = `[₿ ${btcBlockHeight.toLocaleString()}] Bogglo 全鏈監控`;
                         } else {
                             dot.className = 'status-dot error';
                         }
@@ -416,20 +503,17 @@
                         }
                     } 
                     else if (CHAINS[key].type === "tron") {
-                        const resBlock = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 });
-                        
-                        if (resBlock.success && resBlock.data && resBlock.data.result) {
-                            const blockHeight = parseInt(resBlock.data.result, 16);
-                            blockElem.textContent = blockHeight.toLocaleString();
-                            dot.className = 'status-dot';
-                        } else {
-                            const fallback = await fetchFromPool(key, {}, "/wallet/getnowblock");
-                            if (fallback.success && fallback.data.block_header) {
-                                blockElem.textContent = parseInt(fallback.data.block_header.raw_data.number).toLocaleString();
+                        // 獲取當前最新區塊高度
+                        const resBlock = await fetch("https://api.trongrid.io/wallet/getnowblock", { method: 'POST' });
+                        if (resBlock.ok) {
+                            const blockData = await resBlock.json();
+                            if (blockData && blockData.block_header) {
+                                const blockHeight = blockData.block_header.raw_data.number;
+                                blockElem.textContent = blockHeight.toLocaleString();
                                 dot.className = 'status-dot';
-                            } else {
-                                dot.className = 'status-dot error';
                             }
+                        } else {
+                            dot.className = 'status-dot error';
                         }
                         gasElem.textContent = "420 sun/Gas"; 
                     }
