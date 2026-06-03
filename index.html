@@ -8,8 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-    
     <style>
         :root {
             --bg: #0d1117;
@@ -103,47 +101,67 @@
     </style>
 
     <script type="module">
-        import { createAppKit } from 'https://esm.sh/@reown/appkit@latest';
-        import { EthersAdapter } from 'https://esm.sh/@reown/appkit-adapter-ethers@latest';
-        import { mainnet, arbitrum, bsc } from 'https://esm.sh/@reown/appkit/networks@latest';
+        import { createAppKit } from 'https://cdn.jsdelivr.net/npm/@reown/appkit@1.1.0/+esm';
+        import { mainnet, arbitrum, bsc } from 'https://cdn.jsdelivr.net/npm/@reown/appkit/networks/+esm';
 
         const projectId = '53202dd753c7257584adfa9959dce792';
 
         const metadata = {
-            name: 'dns',
-            description: 'Bogglo 全鏈監控終端 - 東南山 DNS 版',
+            name: 'Bogglo DNS',
+            description: 'Bogglo 全鏈監控終端',
             url: window.location.origin,
             icons: ['https://avatars.githubusercontent.com/u/37784886']
         };
 
-        const modal = createAppKit({
-            adapters: [new EthersAdapter()],
-            networks: [mainnet, arbitrum, bsc],
-            metadata,
-            projectId,
-            features: { analytics: true }
-        });
+        let modal;
 
-        // 綁定到全局視窗，讓 HTML 的 onclick 事件能直接抓到
-        window.connectWallet = () => modal.open();
-
-        // 訂閱狀態，錢包一連上立刻幹活
-        modal.subscribeAccount((account) => {
-            if (account && account.address) {
-                const addrInput = document.getElementById('wallet-address');
-                if (addrInput) {
-                    addrInput.value = account.address;
-                    // 如果當前是預設的 BTC，切換到 ETH 方便直接展示資料
-                    if (window.selectedChainKey === "BTC") {
-                        window.selectChain("ETH");
-                    } else {
-                        window.analyzeQueryType();
-                    }
-                    // 自動幫你按下「啟動節點讀取」
-                    window.executeQuery();
+        try {
+            modal = createAppKit({
+                networks: [mainnet, arbitrum, bsc],
+                metadata,
+                projectId,
+                features: { 
+                    analytics: false, 
+                    email: false,     
+                    socials: []       
                 }
-            }
-        });
+            });
+
+            console.log("🚀 WalletConnect 模組安全初始化成功！");
+
+            window.connectWallet = async () => {
+                try {
+                    if (modal) {
+                        await modal.open();
+                    } else {
+                        alert("模組初始化中，請稍候...");
+                    }
+                } catch (err) {
+                    console.error("無法喚起錢包彈窗:", err);
+                }
+            };
+
+            modal.subscribeAccount((account) => {
+                if (account && account.address) {
+                    console.log("🔗 錢包地址成功捕獲:", account.address);
+                    const addrInput = document.getElementById('wallet-address');
+                    if (addrInput) {
+                        addrInput.value = account.address;
+                        
+                        if (window.selectedChainKey === "BTC") {
+                            window.selectChain("ETH");
+                        } else {
+                            window.analyzeQueryType();
+                        }
+                        
+                        window.executeQuery();
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error("❌ WalletConnect 載入失敗:", error);
+        }
     </script>
 </head>
 <body>
@@ -241,7 +259,6 @@
 
         const ACTIVE_RPC_INDEX = { BTC: 0, ETH: 0, BSC: 0, ARB: 0, TRON: 0, MORPH: 0 };
         let isRefreshing = false;
-        // 將變數暴露到 window，方便跨 script 區塊讀寫
         window.selectedChainKey = "BTC";
 
         window.selectChain = function(key) {
@@ -368,8 +385,8 @@
             isRefreshing = true; 
 
             for(const key of Object.keys(CHAINS)) {
-                const blockElem = document.getElementById(`height-${key}`);
-                const dot = document.getElementById(`dot-${key}`);
+                const blockElem = document.getElementById('height-' + key);
+                const dot = document.getElementById('dot-' + key);
                 if (!blockElem || !dot) continue;
 
                 try {
