@@ -92,6 +92,7 @@
         .term-success { color: #4af626; }
         .term-warning { color: var(--warning); }
         .term-highlight { color: #58a6ff; }
+        .term-error { color: var(--danger); }
     </style>
 </head>
 <body>
@@ -123,7 +124,7 @@
                 <button class="matrix-btn" id="btn-chain-ETH" onclick="selectChain('ETH')"><i class="fab fa-ethereum" style="color:var(--accent-blue)"></i> Ethereum<span class="chain-lbl">RPC Node</span></button>
                 <button class="matrix-btn" id="btn-chain-BSC" onclick="selectChain('BSC')"><i class="fas fa-coins" style="color:var(--accent-yellow)"></i> BNB Chain<span class="chain-lbl">RPC Node</span></button>
                 <button class="matrix-btn" id="btn-chain-ARB" onclick="selectChain('ARB')"><i class="fab fa-cubes" style="color:var(--primary)"></i> Arbitrum<span class="chain-lbl">RPC Node</span></button>
-                <button class="matrix-btn active" id="btn-chain-TRON" onclick="selectChain('TRON')"><i class="fas fa-bolt" style="color:var(--accent-tron)"></i> TRON<span class="chain-lbl">Ankr Node</span></button>
+                <button class="matrix-btn" id="btn-chain-TRON" onclick="selectChain('TRON')"><i class="fas fa-bolt" style="color:var(--accent-tron)"></i> TRON<span class="chain-lbl">Ankr Node</span></button>
                 <button class="matrix-btn" id="btn-chain-MORPH" onclick="selectChain('MORPH')"><i class="fas fa-circle-notch" style="color:var(--accent-morph)"></i> Morph L2<span class="chain-lbl">RPC Node</span></button>
             </div>
 
@@ -133,7 +134,7 @@
                     <button class="btn-action" onclick="executeQuery()"><i class="fas fa-bolt"></i> 啟動節點讀取</button>
                 </div>
                 <div style="font-size: 0.85rem; color: var(--text-muted);">
-                    識別類型：<span id="ident-type" style="color: var(--primary); font-weight: bold;">EVM 地址 / 錢包</span>
+                    識別類型：<span id="ident-type" style="color: var(--primary); font-weight: bold;">等待輸入...</span>
                 </div>
             </div>
 
@@ -177,7 +178,7 @@
         };
 
         const RPC_POOL = {
-            BTC: [{ url: "https://blockchain.info" }, { url: "https://mempool.space/api" }],
+            BTC: [{ url: "https://mempool.space/api" }, { url: "https://blockchain.info" }],
             ETH: [{ url: "https://rpc.flashbots.net" }, { url: "https://ethereum-rpc.publicnode.com" }],
             BSC: [{ url: "https://binance.llamarpc.com" }, { url: "https://bsc-rpc.publicnode.com" }],
             ARB: [{ url: "https://arbitrum-one-rpc.publicnode.com" }],
@@ -185,13 +186,14 @@
             MORPH: [{ url: "https://rpc.morphl2.io" }]
         };
 
-        let selectedChainKey = "TRON";
+        let selectedChainKey = "BTC";
         let isRefreshing = false;
 
         function selectChain(key) {
             selectedChainKey = key;
             document.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`btn-chain-${key}`).classList.add('active');
+            const btn = document.getElementById(`btn-chain-${key}`);
+            if(btn) btn.classList.add('active');
             analyzeQueryType();
         }
 
@@ -246,14 +248,12 @@
                     if (isHash) {
                         content.innerHTML = `<div class="term-line">[Connecting] 正在從 ${selectedChainKey} 底層 RPC 節點拉取交易收據(Transaction Receipt)...</div>`;
                         
-                        // 1. 先抓取交易基礎數據
-                        const resTx = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionByHash", params: [query], id: 10 });
-                        // 2. 再抓取交易收據（用來確認 Gas 消耗與真實狀態）
-                        const resReceipt = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionReceipt", params: [query], id: 101 });
+                        const resTx = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionByHash", params: [query], id: 10 }, "", "POST");
+                        const resReceipt = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionReceipt", params: [query], id: 101 }, "", "POST");
 
                         if(resTx.success && resTx.data.result) {
                             const tx = resTx.data.result;
-                            let statusText = "⚡ 讀取中";
+                            let statusText = "⚡ 讀起中";
                             let gasUsedText = "--";
 
                             if (resReceipt.success && resReceipt.data.result) {
@@ -277,7 +277,7 @@
                                 `<div class="term-line">• 交易 GasPrice: ${gasPriceGwei} Gwei</div>`;
                         } else { content.innerHTML = `<div class="term-line term-error">[ERROR] ${selectedChainKey} 節點池未檢索到該交易哈希，可能尚未廣播。</div>`; }
                     } else {
-                        const resBal = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [query, "latest"], id: 11 });
+                        const resBal = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [query, "latest"], id: 11 }, "", "POST");
                         let outHtml = `<div class="term-line term-success">[SUCCESS] 成功連通 ${selectedChainKey} 核心合約層：</div>`;
                         outHtml += `<div class="term-line">• 賬戶地址：<span class="term-highlight">${query}</span></div>`;
                         
@@ -291,7 +291,7 @@
                         for (let token of tokens) {
                             const cleanAddr = query.replace('0x', '').toLowerCase().padStart(64, '0');
                             const dataParam = "0x70a08231" + cleanAddr;
-                            const resToken = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_call", params: [{ to: token.address, data: dataParam }, "latest"], id: 12 });
+                            const resToken = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_call", params: [{ to: token.address, data: dataParam }, "latest"], id: 12 }, "", "POST");
 
                             if (resToken.success && resToken.data.result && resToken.data.result !== "0x") {
                                 const rawTokenBal = new BigNumber(resToken.data.result, 16);
@@ -302,22 +302,20 @@
                         content.innerHTML = outHtml;
                     }
                 } else if (selectedChainKey === "BTC") {
-                    let btcAddrUrl = `https://mempool.space/api/address/${query}`;
-                    if(isHash) btcAddrUrl = `https://mempool.space/api/tx/${query}`;
-
-                    const controller = new AbortController();
-                    setTimeout(() => controller.abort(), 3000);
-                    const response = await fetch(btcAddrUrl, { method: 'GET', signal: controller.signal });
+                    content.innerHTML = `<div class="term-line">[Connecting] 正在向比特幣數據矩陣請求節點通訊...</div>`;
+                    let urlSuffix = isHash ? `/tx/${query}` : `/address/${query}`;
                     
-                    if (response.ok) {
-                        const data = await response.json();
+                    // 使用改良後的 6 秒超時節點池進行 GET 請求
+                    const resBtc = await fetchFromPool("BTC", null, urlSuffix, "GET");
+
+                    if (resBtc.success && resBtc.data) {
+                        const data = resBtc.data;
                         if(!isHash) {
                             let btcBal = data.chain_stats ? (data.chain_stats.funded_txo_sum - data.chain_stats.spent_txo_sum) / 1e8 : 0;
                             content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈原生數據解構成功：</div>` +
                                 `<div class="term-line">• 目標地址: <span class="term-highlight">${query}</span></div>` +
                                 `<div class="term-line">  🧡 BTC 餘額 : <span class="term-success">${btcBal.toFixed(8)} BTC</span></div>`;
                         } else {
-                            // 計算 BTC 輸入輸出的總金額
                             let totalInput = 0; let totalOutput = 0;
                             if(data.vin) data.vin.forEach(v => { if(v.prevout) totalInput += v.prevout.value; });
                             if(data.vout) data.vout.forEach(o => { totalOutput += o.value; });
@@ -330,7 +328,9 @@
                                 `<div class="term-line">• 總產出金額: <span class="term-success">${(totalOutput / 1e8).toFixed(8)} BTC</span></div>` +
                                 `<div class="term-line">• 交易體積: ${data.size} bytes | 權重: ${data.weight} vB</div>`;
                         }
-                    } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 公共解構網關未響應。</div>`; }
+                    } else { 
+                        content.innerHTML = `<div class="term-line term-error">[ERROR] 比特幣網關請求超時或被拒絕。請檢查網絡或節點線路。</div>`; 
+                    }
                 } else if (selectedChainKey === "TRON") {
                     if (isHash) {
                         content.innerHTML = `<div class="term-line">[Connecting] 正在向波場網關檢索交易哈希...</div>`;
@@ -349,7 +349,7 @@
                                     `<div class="term-line">• 合約類型: ${contractType}</div>` +
                                     `<div class="term-line">• 狀態: ${txData.ret && txData.ret[0].contractRet === "SUCCESS" ? "🟢 成功" : "🔴 失敗"}</div>`;
                             } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 未能在 TRON 網絡中找到該交易哈希。</div>`; }
-                        } else { document.getElementById('term-content').innerHTML = `<div class="term-line term-error">[ERROR] TRON 網關通訊失敗。</div>`; }
+                        } else { content.innerHTML = `<div class="term-line term-error">[ERROR] TRON 網關通訊失敗。</div>`; }
                     } else {
                         content.innerHTML = `<div class="term-line">[Connecting] 正在讀取波場賬戶主網快照並計算費率能量...</div>`;
                         
@@ -417,18 +417,23 @@
             }
         }
 
-        async function fetchFromPool(chainKey, payload, urlSuffix = "") {
+        async function fetchFromPool(chainKey, payload, urlSuffix = "", method = "POST") {
             const pool = RPC_POOL[chainKey];
             for (let node of pool) {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2200); 
+                // 擴大超時容忍度到 6 秒，適應手機跨國代理環境
+                const timeoutId = setTimeout(() => controller.abort(), 6000); 
                 try {
-                    let response = await fetch(node.url + urlSuffix, { 
-                        method: 'POST', 
+                    let fetchOptions = { 
+                        method: method, 
                         headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify(payload || {}), 
                         signal: controller.signal 
-                    });
+                    };
+                    if (method === "POST" && payload) {
+                        fetchOptions.body = JSON.stringify(payload);
+                    }
+
+                    let response = await fetch(node.url + urlSuffix, fetchOptions);
                     clearTimeout(timeoutId);
                     if (response.ok) {
                         const data = await response.json();
@@ -489,8 +494,8 @@
                         } catch(e) { gasElem.textContent = "-- sat/vB"; }
                     } 
                     else if (CHAINS[key].type === "evm") {
-                        const resBlock = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 });
-                        const resGas = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_gasPrice", params: [], id: 2 });
+                        const resBlock = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 }, "", "POST");
+                        const resGas = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_gasPrice", params: [], id: 2 }, "", "POST");
                         
                         if(resBlock.success && resBlock.data.result) {
                             blockElem.textContent = parseInt(resBlock.data.result, 16).toLocaleString();
@@ -531,6 +536,8 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             initGrid(); 
+            // 預選最左側的 BTC 矩陣按鈕
+            selectChain('BTC');
             refreshData(); 
             setInterval(refreshData, 3000); 
         });
