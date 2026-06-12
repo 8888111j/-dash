@@ -100,7 +100,7 @@
     <nav class="navbar">
         <div style="display: flex; align-items: center;">
             <h1>Bogglo 全鏈監控 Panel</h1>
-            <span class="system-status"><i class="fas fa-circle"></i> 系統運行中</span>
+            <span class="system-status"><i class="fas fa-circle"></i> System Operational</span>
         </div>
     </nav>
 
@@ -228,69 +228,6 @@
             }
         }
 
-        // ========== BTC 區塊鏈瀏覽器解構函數（硬核版） ==========
-        async function deconstructBTCTransaction(txHash) {
-            const termContent = document.getElementById('term-content');
-            termContent.innerHTML = `<div class="term-line">[解構] 正在從 Bitcoin 核心節點獲取交易原始數據...</div>`;
-
-            try {
-                const txRes = await fetch(`https://blockstream.info/api/tx/${txHash}`);
-                if (!txRes.ok) throw new Error('交易未找到或節點無響應');
-                const txData = await txRes.json();
-
-                let inputTotal = 0;
-                const inputs = txData.vin.map((v, idx) => {
-                    const val = v.prevout?.value || 0;
-                    inputTotal += val;
-                    return {
-                        index: idx,
-                        address: v.prevout?.scriptpubkey_address || '未知來源',
-                        amount: val / 1e8,
-                        script: v.prevout?.scriptpubkey || '無腳本',
-                        witness: v.witness ? v.witness.join(' ') : '無見證'
-                    };
-                });
-
-                let outputTotal = 0;
-                const outputs = txData.vout.map((v, idx) => {
-                    outputTotal += v.value;
-                    return {
-                        index: idx,
-                        address: v.scriptpubkey_address || '未識別地址',
-                        amount: v.value / 1e8,
-                        script: v.scriptpubkey || '無腳本',
-                        type: v.scriptpubkey_type || '未知'
-                    };
-                });
-
-                const fee = inputTotal - outputTotal;
-                const feeFormatted = fee / 1e8;
-
-                let outHtml = `<div class="term-line term-success">[成功] Bitcoin 交易解構完成：</div>`;
-                outHtml += `<div class="term-line">• 交易哈希 (TxID): <span class="term-highlight">${txData.txid}</span></div>`;
-                outHtml += `<div class="term-line">• 區塊高度: ${txData.status.confirmed ? txData.status.block_height : "未確認 (Mempool)"}</div>`;
-                outHtml += `<div class="term-line">• 交易大小: ${txData.size} bytes | 權重: ${txData.weight} vB</div>`;
-                outHtml += `<div class="term-line">• 手續費 (Fee): <span class="term-warning">${feeFormatted.toFixed(8)} BTC</span></div>`;
-
-                outHtml += `<div class="term-line" style="border-top:1px dashed rgba(255,255,255,0.1); padding-top:5px; margin-top:5px; color:var(--text-muted)">• 輸入 (Inputs) 數量: ${inputs.length}</div>`;
-                inputs.forEach(inp => {
-                    outHtml += `<div class="term-line">  [${inp.index}] 來源: <span class="term-warning">${inp.address}</span> | 金額: <span class="term-success">${inp.amount.toFixed(8)} BTC</span></div>`;
-                });
-
-                outHtml += `<div class="term-line" style="border-top:1px dashed rgba(255,255,255,0.1); padding-top:5px; margin-top:5px; color:var(--text-muted)">• 輸出 (Outputs) 數量: ${outputs.length}</div>`;
-                outputs.forEach(out => {
-                    outHtml += `<div class="term-line">  [${out.index}] 目標: <span class="term-warning">${out.address}</span> | 金額: <span class="term-success">${out.amount.toFixed(8)} BTC</span></div>`;
-                });
-
-                outHtml += `<div class="term-line" style="margin-top:10px; color:var(--text-muted)">• 技術備註: 此解構基於 Blockstream API，純前端實現，無後端依賴。</div>`;
-
-                termContent.innerHTML = outHtml;
-
-            } catch (err) {
-                termContent.innerHTML = `<div class="term-line term-error">[錯誤] 解構失敗: ${err.message}</div>`;
-            }
-        }
-
         async function executeQuery() {
             const query = document.getElementById('wallet-address').value.trim();
             if(!query) return alert("請先輸入地址或交易哈希！");
@@ -301,7 +238,7 @@
 
             termBox.classList.add('active');
             title.textContent = `>_ RPC ASSET TERMINAL (${selectedChainKey})`;
-            content.innerHTML = `<div class="term-line">[連接中] 正在與 ${selectedChainKey} 數據矩陣建立通訊...</div>`;
+            content.innerHTML = `<div class="term-line">[Connecting] 正在連通 ${selectedChainKey} 數據矩陣...</div>`;
 
             try {
                 const isHash = query.length === 66 || query.length === 64;
@@ -309,7 +246,7 @@
 
                 if (chainConf.type === "evm") {
                     if (isHash) {
-                        content.innerHTML = `<div class="term-line">[連接中] 正在從 ${selectedChainKey} 底層 RPC 節點拉取交易收據(Transaction Receipt)...</div>`;
+                        content.innerHTML = `<div class="term-line">[Connecting] 正在從 ${selectedChainKey} 底層 RPC 節點拉取交易收據(Transaction Receipt)...</div>`;
                         
                         const resTx = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionByHash", params: [query], id: 10 }, "", "POST");
                         const resReceipt = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionReceipt", params: [query], id: 101 }, "", "POST");
@@ -365,16 +302,14 @@
                         content.innerHTML = outHtml;
                     }
                 } else if (selectedChainKey === "BTC") {
-                    content.innerHTML = `<div class="term-line">[連接中] 正在發起安全底層快照同步...</div>`;
+                    content.innerHTML = `<div class="term-line">[Connecting] 正在發起安全底層快照同步...</div>`;
+                    let urlSuffix = isHash ? `/tx/${query}` : `/address/${query}`;
                     
-                    if (isHash) {
-                        await deconstructBTCTransaction(query);
-                        return;
-                    } else {
-                        const resBtc = await fetchFromPool("BTC", null, `/address/${query}`, "GET");
+                    const resBtc = await fetchFromPool("BTC", null, urlSuffix, "GET");
 
-                        if (resBtc.success && resBtc.data) {
-                            const data = resBtc.data;
+                    if (resBtc.success && resBtc.data) {
+                        const data = resBtc.data;
+                        if(!isHash) {
                             let funded = data.chain_stats ? data.chain_stats.funded_txo_sum : 0;
                             let spent = data.chain_stats ? data.chain_stats.spent_txo_sum : 0;
                             let btcBal = (funded - spent) / 1e8;
@@ -382,13 +317,25 @@
                             content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈原生數據解構成功：</div>` +
                                 `<div class="term-line">• 目標地址: <span class="term-highlight">${query}</span></div>` +
                                 `<div class="term-line">  🧡 BTC 餘額 : <span class="term-success">${btcBal.toFixed(8)} BTC</span></div>`;
-                        } else { 
-                            content.innerHTML = `<div class="term-line term-error">[ERROR] 比特幣節點網關拒絕通訊。請檢查你的 VPN 代理路由規則，確保公共 API 沒有被完全阻斷。</div>`; 
+                        } else {
+                            let totalInput = 0; let totalOutput = 0;
+                            if(data.vin) data.vin.forEach(v => { if(v.prevout) totalInput += v.prevout.value; });
+                            if(data.vout) data.vout.forEach(o => { totalOutput += o.value; });
+                            
+                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈 RPC 核心交易解析成功：</div>` +
+                                `<div class="term-line">• 交易哈希 (TxID): <span class="term-highlight">${data.txid}</span></div>` +
+                                `<div class="term-line">• 交易狀態: <span class="term-highlight">${data.status && data.status.confirmed ? "🟢 已確認" : "🔴 未確認 (Mempool 排隊中)"}</span></div>` +
+                                `<div class="term-line">• 包含區塊高度: ${(data.status && data.status.block_height) ? data.status.block_height : "未打包"}</div>` +
+                                `<div class="term-line">• 手續費支出 (Fee): <span class="term-warning">${data.fee} sats</span></div>` +
+                                `<div class="term-line">• 總產出金額: <span class="term-success">${(totalOutput / 1e8).toFixed(8)} BTC</span></div>` +
+                                `<div class="term-line">• 交易體積: ${data.size} bytes | 權重: ${data.weight} vB</div>`;
                         }
+                    } else { 
+                        content.innerHTML = `<div class="term-line term-error">[ERROR] 比特幣節點網關拒絕通訊。請檢查你的 VPN 代理路由規則，確保公共 API 沒有被完全阻斷。</div>`; 
                     }
                 } else if (selectedChainKey === "TRON") {
                     if (isHash) {
-                        content.innerHTML = `<div class="term-line">[連接中] 正在向波場網關檢索交易哈希...</div>`;
+                        content.innerHTML = `<div class="term-line">[Connecting] 正在向波場網關檢索交易哈希...</div>`;
                         const resTx = await fetch(`https://api.trongrid.io/wallet/gettransactionbyid`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -406,7 +353,7 @@
                             } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 未能在 TRON 網絡中找到該交易哈希。</div>`; }
                         } else { content.innerHTML = `<div class="term-line term-error">[ERROR] TRON 網關通訊失敗。</div>`; }
                     } else {
-                        content.innerHTML = `<div class="term-line">[連接中] 正在讀取波場賬戶主網快照並計算費率能量...</div>`;
+                        content.innerHTML = `<div class="term-line">[Connecting] 正在讀取波場賬戶主網快照並計算費率能量...</div>`;
                         
                         const resAcc = await fetch(`https://api.trongrid.io/wallet/getaccount`, {
                             method: 'POST',
@@ -468,7 +415,7 @@
                     }
                 }
             } catch (err) {
-                content.innerHTML = `<div class="term-line term-error">[異常] 故障: ${err.message}</div>`;
+                content.innerHTML = `<div class="term-line term-error">[EXCEPTION] 故障: ${err.message}</div>`;
             }
         }
 
