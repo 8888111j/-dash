@@ -5,543 +5,952 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bogglo 全鏈監控 Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
     <script src="https://widgets.coingecko.com/gecko-coin-price-marquee-widget.js"></script>
-    
     <style>
         :root {
-            --bg: #0d1117;
-            --card-bg: #161b22;
-            --text-main: #c9d1d9;
-            --text-muted: #8b949e;
-            --primary: #58a6ff;
-            --success: #2ea44f;
-            --warning: #f0883e;
-            --danger: #f85149;
-            --accent-orange: #f7931a;
-            --accent-blue: #3894ff;
-            --accent-yellow: #f1c40f;
-            --accent-tron: #ec0928;
-            --accent-morph: #45f4b6;
-            --terminal-bg: #05070a;
-            --border: #30363d;
+            --bg:          #080b10;
+            --surface:     #0e1420;
+            --surface-2:   #141b28;
+            --border:      #1e2d42;
+            --border-hi:   #2a3f5c;
+            --text:        #cdd9e8;
+            --text-muted:  #5a7294;
+            --text-dim:    #3a5070;
+
+            --btc:   #f7931a;
+            --eth:   #6272ea;
+            --bnb:   #f3ba2f;
+            --arb:   #28a0f0;
+            --tron:  #ec0928;
+            --morph: #00e5aa;
+
+            --ok:    #00c97a;
+            --warn:  #f59e0b;
+            --err:   #f04040;
+            --info:  #3d9eff;
+
+            --mono: 'JetBrains Mono', monospace;
+            --sans: 'Inter', sans-serif;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            background-color: var(--bg); color: var(--text-main);
-            font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, sans-serif;
-            padding-bottom: 30px; line-height: 1.5;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            min-height: 100vh;
+            padding-bottom: 60px;
         }
 
-        .navbar {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 15px 5%; background-color: var(--card-bg); border-bottom: 1px solid var(--border);
+        /* ─── SCANLINE OVERLAY ─── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.06) 2px,
+                rgba(0,0,0,0.06) 4px
+            );
+            pointer-events: none;
+            z-index: 9999;
         }
-        .navbar h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.5px; }
-        .system-status {
-            display: inline-flex; align-items: center; font-size: 0.85rem; color: #2ea44f;
-            background: rgba(46, 164, 79, 0.1); padding: 4px 10px; border-radius: 12px; margin-left: 10px;
+
+        /* ─── NAVBAR ─── */
+        .nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 5%;
+            height: 56px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
-        .system-status i { margin-right: 5px; font-size: 0.7rem; }
-
-        .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; display: flex; flex-direction: column; gap: 20px; }
-        
-        .marquee-wrapper {
-            background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; padding: 2px;
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .data-source-hint { font-size: 0.75rem; color: var(--text-muted); text-align: right; margin-top: -5px; padding-right: 5px; }
-
-        .network-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
-        .network-card { background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 15px; position: relative; }
-        .network-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .network-title { font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--success); display: inline-block; }
-        .status-dot.error { background-color: var(--danger); animation: blink 1.5s infinite; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-        .network-value { font-family: 'Share Tech Mono', monospace; font-size: 1.6rem; font-weight: bold; color: #58a6ff; margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .network-meta { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; }
-        .meta-row { display: flex; justify-content: space-between; align-items: center; }
-        .meta-val { color: var(--text-main); font-family: 'Share Tech Mono', monospace; }
-
-        .module-card { background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 22px; }
-        .module-header { font-size: 1.15rem; font-weight: 700; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        .module-desc { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 15px; }
-        
-        .chain-matrix-selector { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 15px; }
-        .matrix-btn {
-            background: #21262d; border: 1px solid var(--border); color: #fff; padding: 10px 5px;
-            border-radius: 6px; cursor: pointer; text-align: center; font-weight: bold; font-size: 0.85rem;
-            display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.2s;
+        .nav-logo {
+            font-family: var(--mono);
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: #fff;
         }
-        .matrix-btn:hover, .matrix-btn.active { border-color: var(--primary); background: rgba(56, 139, 253, 0.1); }
-        .matrix-btn span.chain-lbl { font-size: 0.7rem; color: var(--text-muted); font-weight: normal; }
+        .nav-logo span { color: var(--info); }
+        .nav-badge {
+            font-size: 0.72rem;
+            font-family: var(--mono);
+            color: var(--ok);
+            background: rgba(0,201,122,0.1);
+            border: 1px solid rgba(0,201,122,0.25);
+            padding: 2px 8px;
+            border-radius: 3px;
+            letter-spacing: 0.05em;
+        }
+        .nav-badge::before { content: '● '; font-size: 0.6rem; }
+        .nav-time {
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
 
-        .query-box { display: flex; flex-direction: column; gap: 12px; }
-        .input-group { display: flex; gap: 8px; }
-        input { background-color: var(--bg); border: 1px solid var(--border); color: var(--text-main); padding: 10px 14px; border-radius: 6px; font-size: 0.95rem; outline: none; flex: 1; font-family: 'Share Tech Mono', monospace; }
-        .btn-action { background-color: var(--success); color: white; border: none; padding: 11px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        /* ─── MARQUEE ─── */
+        .marquee-wrap {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            overflow: hidden;
+        }
 
-        .terminal-container { background-color: var(--terminal-bg); border: 1px solid var(--border); border-radius: 6px; padding: 15px; font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; color: #a2b1cd; margin-top: 15px; display: none; box-shadow: inset 0 2px 8px rgba(0,0,0,0.8); }
-        .terminal-container.active { display: block; }
-        .term-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 10px; font-size: 0.8rem; }
-        .term-close { cursor: pointer; color: var(--text-muted); }
-        .term-close:hover { color: var(--danger); }
-        .term-line { margin-bottom: 5px; word-break: break-all; white-space: pre-wrap; }
-        .term-success { color: #4af626; }
-        .term-warning { color: var(--warning); }
-        .term-highlight { color: #58a6ff; }
-        .term-error { color: var(--danger); }
+        /* ─── LAYOUT ─── */
+        .container {
+            max-width: 1260px;
+            margin: 0 auto;
+            padding: 28px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* ─── SECTION LABEL ─── */
+        .section-label {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            letter-spacing: 0.15em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        .section-label::before {
+            content: '//  ';
+            color: var(--border-hi);
+        }
+
+        /* ─── NETWORK GRID ─── */
+        .network-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+            gap: 12px;
+        }
+
+        .net-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .net-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--accent-color, var(--border));
+            opacity: 0.7;
+        }
+        .net-card:hover { border-color: var(--border-hi); }
+
+        .net-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .net-name {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.04em;
+        }
+        .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--ok);
+            box-shadow: 0 0 6px var(--ok);
+        }
+        .dot.err {
+            background: var(--err);
+            box-shadow: 0 0 6px var(--err);
+            animation: blink 1.4s infinite;
+        }
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        .net-block {
+            font-family: var(--mono);
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1;
+            margin-bottom: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .net-block.loading {
+            color: var(--text-dim);
+            animation: pulse 1.2s infinite;
+        }
+        @keyframes pulse { 50% { opacity: 0.4; } }
+
+        .net-foot {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 0.75rem;
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+        }
+        .net-row {
+            display: flex;
+            justify-content: space-between;
+        }
+        .net-row-k { color: var(--text-dim); }
+        .net-row-v {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        /* ─── QUERY MODULE ─── */
+        .query-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 24px;
+        }
+        .query-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .query-title i { color: var(--info); }
+        .query-sub {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        /* chain selector */
+        .chain-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .chain-btn {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 12px 8px 10px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s;
+            position: relative;
+            overflow: hidden;
+        }
+        .chain-btn:hover {
+            border-color: var(--border-hi);
+            background: #192030;
+        }
+        .chain-btn.active {
+            border-color: var(--c-color, var(--info));
+            background: rgba(255,255,255,0.04);
+        }
+        .chain-btn.active::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--c-color, var(--info));
+        }
+        .chain-btn .c-icon {
+            font-size: 1.2rem;
+        }
+        .chain-btn .c-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .chain-btn .c-tag {
+            font-size: 0.65rem;
+            font-family: var(--mono);
+            color: var(--text-dim);
+        }
+
+        /* input row */
+        .input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .addr-input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 0.88rem;
+            padding: 11px 14px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .addr-input:focus { border-color: var(--info); }
+        .addr-input::placeholder { color: var(--text-dim); }
+
+        .query-btn {
+            background: var(--info);
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 11px 22px;
+            font-weight: 700;
+            font-size: 0.88rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            white-space: nowrap;
+            transition: opacity 0.15s;
+        }
+        .query-btn:hover { opacity: 0.85; }
+        .query-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .ident-bar {
+            font-size: 0.8rem;
+            font-family: var(--mono);
+            color: var(--text-dim);
+            padding: 4px 0;
+        }
+        .ident-bar span {
+            color: var(--info);
+            font-weight: 600;
+        }
+
+        /* ─── TERMINAL ─── */
+        .term {
+            display: none;
+            margin-top: 20px;
+            background: #04070d;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .term.active { display: block; }
+
+        .term-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 14px;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
+        }
+        .term-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .term-dots {
+            display: flex;
+            gap: 5px;
+        }
+        .term-dots span {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+        }
+        .term-dots span:nth-child(1) { background: #ff5f57; }
+        .term-dots span:nth-child(2) { background: #febc2e; }
+        .term-dots span:nth-child(3) { background: #28c840; }
+        .term-label {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .term-close {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid transparent;
+        }
+        .term-close:hover {
+            color: var(--err);
+            border-color: var(--err);
+        }
+
+        .term-body {
+            padding: 16px;
+            font-family: var(--mono);
+            font-size: 0.84rem;
+            line-height: 1.85;
+            color: #7a9abc;
+            max-height: 440px;
+            overflow-y: auto;
+        }
+        .term-body::-webkit-scrollbar { width: 4px; }
+        .term-body::-webkit-scrollbar-track { background: transparent; }
+        .term-body::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+        .t-line { word-break: break-all; white-space: pre-wrap; }
+        .t-ok   { color: #00c97a; }
+        .t-hi   { color: #5ab4ff; }
+        .t-warn { color: #f59e0b; }
+        .t-err  { color: #f04040; }
+        .t-dim  { color: var(--text-dim); }
+        .t-sep  {
+            border: none;
+            border-top: 1px dashed var(--border);
+            margin: 10px 0;
+        }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 640px) {
+            .input-row { flex-direction: column; }
+            .query-btn { width: 100%; justify-content: center; }
+        }
     </style>
 </head>
 <body>
 
-    <nav class="navbar">
-        <div style="display: flex; align-items: center;">
-            <h1>Bogglo 全鏈監控 Panel</h1>
-            <span class="system-status"><i class="fas fa-circle"></i> System Operational</span>
+<nav class="nav">
+    <div class="nav-brand">
+        <div class="nav-logo">BOG<span>GLO</span></div>
+        <div class="nav-badge">OPERATIONAL</div>
+    </div>
+    <div class="nav-time" id="nav-clock">--:--:-- UTC</div>
+</nav>
+
+<div class="marquee-wrap">
+    <gecko-coin-price-marquee-widget
+        locale="zh-tw" dark-mode="true" outlined="false"
+        coin-ids="bitcoin,ethereum,binancecoin,solana,ripple,tron"
+        initial-currency="usd">
+    </gecko-coin-price-marquee-widget>
+</div>
+
+<div class="container">
+
+    <!-- Network status grid -->
+    <div>
+        <div class="section-label">鏈網狀態監控</div>
+        <div class="network-grid" id="net-grid"></div>
+    </div>
+
+    <!-- Query module -->
+    <div class="query-card">
+        <div class="query-title"><i class="fas fa-terminal"></i> RPC 全鏈資產解構引擎</div>
+        <div class="query-sub">直連底層高速 RPC 節點，解析錢包原生資產與合約代幣餘額，或查詢任意交易哈希詳情。</div>
+
+        <div class="section-label" style="margin-bottom:10px">選擇目標鏈</div>
+        <div class="chain-grid" id="chain-grid"></div>
+
+        <div class="input-row">
+            <input
+                class="addr-input"
+                id="wallet-input"
+                type="text"
+                placeholder="錢包地址 或 交易哈希 (TxHash)…"
+                oninput="analyzeInput()"
+                autocomplete="off"
+                spellcheck="false"
+            >
+            <button class="query-btn" id="exec-btn" onclick="runQuery()">
+                <i class="fas fa-bolt"></i> 查詢
+            </button>
         </div>
-    </nav>
+        <div class="ident-bar">識別：<span id="ident-label">等待輸入…</span></div>
 
-    <div class="container">
-        <div class="marquee-wrapper">
-            <gecko-coin-price-marquee-widget 
-                locale="zh-tw" dark-mode="true" outlined="false" 
-                coin-ids="bitcoin,ethereum,binancecoin,solana,ripple,tron" initial-currency="usd">
-            </gecko-coin-price-marquee-widget>
-        </div>
-        <div class="data-source-hint">數據源：CoinGecko 實時資產矩陣流</div>
-
-        <div class="network-grid" id="monitorGrid"></div>
-
-        <div class="module-card">
-            <div class="module-header"><i class="fas fa-search"></i> 本站 RPC 全鏈多資產解構引擎</div>
-            <div class="module-desc">直接呼叫大盤底層高速 RPC 節點。點擊下方對應鏈節點，異步提取錢包的原生資產與隱藏合約代幣：</div>
-            
-            <div class="chain-matrix-selector">
-                <button class="matrix-btn" id="btn-chain-BTC" onclick="selectChain('BTC')"><i class="fab fa-bitcoin" style="color:var(--accent-orange)"></i> Bitcoin<span class="chain-lbl">Multi-API</span></button>
-                <button class="matrix-btn" id="btn-chain-ETH" onclick="selectChain('ETH')"><i class="fab fa-ethereum" style="color:var(--accent-blue)"></i> Ethereum<span class="chain-lbl">RPC Node</span></button>
-                <button class="matrix-btn" id="btn-chain-BSC" onclick="selectChain('BSC')"><i class="fas fa-coins" style="color:var(--accent-yellow)"></i> BNB Chain<span class="chain-lbl">RPC Node</span></button>
-                <button class="matrix-btn" id="btn-chain-ARB" onclick="selectChain('ARB')"><i class="fab fa-cubes" style="color:var(--primary)"></i> Arbitrum<span class="chain-lbl">RPC Node</span></button>
-                <button class="matrix-btn" id="btn-chain-TRON" onclick="selectChain('TRON')"><i class="fas fa-bolt" style="color:var(--accent-tron)"></i> TRON<span class="chain-lbl">Ankr Node</span></button>
-                <button class="matrix-btn" id="btn-chain-MORPH" onclick="selectChain('MORPH')"><i class="fas fa-circle-notch" style="color:var(--accent-morph)"></i> Morph L2<span class="chain-lbl">RPC Node</span></button>
-            </div>
-
-            <div class="query-box">
-                <div class="input-group">
-                    <input type="text" id="wallet-address" placeholder="請輸入 錢包地址 或 交易哈希 (TxHash)..." value="" oninput="analyzeQueryType()">
-                    <button class="btn-action" onclick="executeQuery()"><i class="fas fa-bolt"></i> 啟動節點讀取</button>
+        <div class="term" id="term">
+            <div class="term-bar">
+                <div class="term-bar-left">
+                    <div class="term-dots"><span></span><span></span><span></span></div>
+                    <div class="term-label" id="term-label">RPC TERMINAL</div>
                 </div>
-                <div style="font-size: 0.85rem; color: var(--text-muted);">
-                    識別類型：<span id="ident-type" style="color: var(--primary); font-weight: bold;">等待輸入...</span>
-                </div>
+                <div class="term-close" onclick="closeTerm()">✕ 關閉</div>
             </div>
-
-            <div class="terminal-container" id="term-box">
-                <div class="term-header">
-                    <span id="term-title">>_ RPC ASSET TERMINAL</span>
-                    <span class="term-close" onclick="document.getElementById('term-box').classList.remove('active')"><i class="fas fa-times"></i> 關閉</span>
-                </div>
-                <div id="term-content">等待節點通訊發起...</div>
-            </div>
+            <div class="term-body" id="term-body">等待指令…</div>
         </div>
     </div>
 
-    <script>
-        const TOKEN_MATRIX = {
-            ETH: [
-                { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 },
-                { symbol: "USDC", address: "0xA0b86991c6218b36c1d19D4a2e9Eb0CE3606eB48", decimals: 6 }
-            ],
-            BSC: [
-                { symbol: "USDT", address: "0x55d398326f99059fF775485246999027B3197955", decimals: 18 },
-                { symbol: "USDC", address: "0x8AC76a51cc950d9822D68b83fE1Ad97B32CD580d", decimals: 18 }
-            ],
-            ARB: [
-                { symbol: "USDC", address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", decimals: 6 },
-                { symbol: "USDT", address: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", decimals: 6 }
-            ],
-            MORPH: [
-                { symbol: "USDT", address: "0x452479e000000000000000000000000000000001", decimals: 6 },
-                { symbol: "USDC", address: "0x5300000000000000000000000000000000000002", decimals: 6 }
-            ]
-        };
+</div>
 
-        const CHAINS = {
-            BTC: { name: "Bitcoin Network", type: "btc", color: "var(--accent-orange)", nativeToken: "BTC", gasLabel: "手續費率" },
-            ETH: { name: "Ethereum", type: "evm", color: "var(--accent-blue)", nativeToken: "ETH", gasLabel: "Gas 狀態" },
-            BSC: { name: "BNB Chain", type: "evm", color: "var(--accent-yellow)", nativeToken: "BNB", gasLabel: "Gas 狀態" },
-            ARB: { name: "Arbitrum One", type: "evm", color: "var(--primary)", nativeToken: "ETH", gasLabel: "Gas 狀態" }, 
-            TRON: { name: "TRON Network", type: "tron", color: "var(--accent-tron)", nativeToken: "TRX", gasLabel: "基底能量" },
-            MORPH: { name: "Morph L2", type: "evm", color: "var(--accent-morph)", nativeToken: "ETH", gasLabel: "Gas 狀態" }  
-        };
+<script>
+/* ═══════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════ */
+const CHAINS = {
+    BTC:  { name: "Bitcoin",   type: "btc",  color: "#f7931a", native: "BTC",  gasLabel: "推薦費率",  icon: "fab fa-bitcoin" },
+    ETH:  { name: "Ethereum",  type: "evm",  color: "#6272ea", native: "ETH",  gasLabel: "Gas Price", icon: "fab fa-ethereum" },
+    BSC:  { name: "BNB Chain", type: "evm",  color: "#f3ba2f", native: "BNB",  gasLabel: "Gas Price", icon: "fas fa-coins" },
+    ARB:  { name: "Arbitrum",  type: "evm",  color: "#28a0f0", native: "ETH",  gasLabel: "Gas Price", icon: "fas fa-layer-group" },
+    TRON: { name: "TRON",      type: "tron", color: "#ec0928", native: "TRX",  gasLabel: "能量費率",  icon: "fas fa-bolt" },
+    MORPH:{ name: "Morph L2",  type: "evm",  color: "#00e5aa", native: "ETH",  gasLabel: "Gas Price", icon: "fas fa-circle-notch" },
+};
 
-        const RPC_POOL = {
-            BTC: [{ url: "https://blockstream.info/api" }, { url: "https://mempool.space/api" }],
-            ETH: [{ url: "https://rpc.flashbots.net" }, { url: "https://ethereum-rpc.publicnode.com" }],
-            BSC: [{ url: "https://binance.llamarpc.com" }, { url: "https://bsc-rpc.publicnode.com" }],
-            ARB: [{ url: "https://arbitrum-one-rpc.publicnode.com" }],
-            TRON: [{ url: "https://api.trongrid.io" }],
-            MORPH: [{ url: "https://rpc.morphl2.io" }]
-        };
+const RPC = {
+    BTC:  [{ url: "https://blockstream.info/api" }, { url: "https://mempool.space/api" }],
+    ETH:  [{ url: "https://rpc.flashbots.net" }, { url: "https://ethereum-rpc.publicnode.com" }],
+    BSC:  [{ url: "https://binance.llamarpc.com" }, { url: "https://bsc-rpc.publicnode.com" }],
+    ARB:  [{ url: "https://arbitrum-one-rpc.publicnode.com" }],
+    TRON: [{ url: "https://api.trongrid.io" }],
+    MORPH:[{ url: "https://rpc.morphl2.io" }],
+};
 
-        let selectedChainKey = "BTC";
-        let isRefreshing = false;
+const TOKENS = {
+    ETH:  [{ sym:"USDT", addr:"0xdAC17F958D2ee523a2206206994597C13D831ec7", dec:6 },
+           { sym:"USDC", addr:"0xA0b86991c6218b36c1d19D4a2e9Eb0CE3606eB48", dec:6 }],
+    BSC:  [{ sym:"USDT", addr:"0x55d398326f99059fF775485246999027B3197955", dec:18},
+           { sym:"USDC", addr:"0x8AC76a51cc950d9822D68b83fE1Ad97B32CD580d", dec:18}],
+    ARB:  [{ sym:"USDC", addr:"0xaf88d065e77c8cC2239327C5EDb3A432268e5831", dec:6 },
+           { sym:"USDT", addr:"0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", dec:6 }],
+    MORPH:[{ sym:"USDT", addr:"0x452479e000000000000000000000000000000001", dec:6 },
+           { sym:"USDC", addr:"0x5300000000000000000000000000000000000002", dec:6 }],
+};
 
-        function selectChain(key) {
-            selectedChainKey = key;
-            document.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
-            const btn = document.getElementById(`btn-chain-${key}`);
-            if(btn) btn.classList.add('active');
-            analyzeQueryType();
+/* ═══════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════ */
+let activeChain = "BTC";
+let refreshBusy = false;
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+document.addEventListener("DOMContentLoaded", () => {
+    buildGrid();
+    buildChainBtns();
+    selectChain("BTC");
+    refreshAll();
+    setInterval(refreshAll, 5000);
+    setInterval(updateClock, 1000);
+    updateClock();
+});
+
+function updateClock() {
+    const now = new Date();
+    document.getElementById("nav-clock").textContent =
+        now.toUTCString().split(" ")[4] + " UTC";
+}
+
+/* ─── Network grid cards ─── */
+function buildGrid() {
+    const g = document.getElementById("net-grid");
+    g.innerHTML = "";
+    Object.entries(CHAINS).forEach(([k, c]) => {
+        const card = document.createElement("div");
+        card.className = "net-card";
+        card.style.setProperty("--accent-color", c.color);
+        card.innerHTML = `
+            <div class="net-head">
+                <div class="net-name">${c.name}</div>
+                <div class="dot" id="dot-${k}"></div>
+            </div>
+            <div class="net-block loading" id="blk-${k}">———</div>
+            <div class="net-foot">
+                <div class="net-row">
+                    <span class="net-row-k">原生代幣</span>
+                    <span class="net-row-v" style="color:${c.color}">${c.native}</span>
+                </div>
+                <div class="net-row">
+                    <span class="net-row-k">${c.gasLabel}</span>
+                    <span class="net-row-v" id="gas-${k}">—</span>
+                </div>
+            </div>
+        `;
+        g.appendChild(card);
+    });
+}
+
+/* ─── Chain selector buttons ─── */
+function buildChainBtns() {
+    const g = document.getElementById("chain-grid");
+    g.innerHTML = "";
+    Object.entries(CHAINS).forEach(([k, c]) => {
+        const btn = document.createElement("button");
+        btn.className = "chain-btn";
+        btn.id = `cbtn-${k}`;
+        btn.style.setProperty("--c-color", c.color);
+        btn.innerHTML = `
+            <i class="${c.icon} c-icon" style="color:${c.color}"></i>
+            <span class="c-name">${c.name}</span>
+            <span class="c-tag">${k}</span>
+        `;
+        btn.onclick = () => selectChain(k);
+        g.appendChild(btn);
+    });
+}
+
+function selectChain(k) {
+    activeChain = k;
+    document.querySelectorAll(".chain-btn").forEach(b => b.classList.remove("active"));
+    const btn = document.getElementById(`cbtn-${k}`);
+    if (btn) btn.classList.add("active");
+    analyzeInput();
+}
+
+/* ═══════════════════════════════════════════
+   INPUT ANALYSIS
+═══════════════════════════════════════════ */
+function analyzeInput() {
+    const v = document.getElementById("wallet-input").value.trim();
+    const lbl = document.getElementById("ident-label");
+    if (!v) { lbl.textContent = "等待輸入…"; lbl.style.color = ""; return; }
+
+    if (v.startsWith("T") && v.length === 34)
+        return set(lbl, "TRON 錢包地址", "#ec0928");
+    if ((v.startsWith("bc1") || v.startsWith("1") || v.startsWith("3")) && v.length >= 26)
+        return set(lbl, "Bitcoin 錢包地址", "#f7931a");
+    if (v.startsWith("0x")) {
+        if (v.length === 42) return set(lbl, `EVM 錢包地址  [${activeChain}]`, "#3d9eff");
+        if (v.length === 66) return set(lbl, "EVM 交易哈希 TxHash", "#3d9eff");
+        return set(lbl, "0x 數據流（格式待確認）", "#5a7294");
+    }
+    if (/^[0-9a-fA-F]{64}$/.test(v))
+        return set(lbl, "原始交易哈希（無 0x 前綴）", "#3d9eff");
+    set(lbl, "通用查詢模式", "#5a7294");
+}
+function set(el, text, color) { el.textContent = text; el.style.color = color; }
+
+/* ═══════════════════════════════════════════
+   QUERY EXECUTION
+═══════════════════════════════════════════ */
+async function runQuery() {
+    const raw = document.getElementById("wallet-input").value.trim();
+    if (!raw) return;
+
+    const btn = document.getElementById("exec-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 查詢中…';
+
+    openTerm(`${activeChain} // RPC TERMINAL`);
+    termWrite(`<div class="t-line t-dim">[INIT] 連通 ${activeChain} 節點池…</div>`);
+
+    try {
+        const isHash = raw.length === 66 || raw.length === 64;
+        const chain = CHAINS[activeChain];
+
+        if (chain.type === "evm") {
+            await queryEVM(raw, isHash);
+        } else if (activeChain === "BTC") {
+            await queryBTC(raw, isHash);
+        } else if (activeChain === "TRON") {
+            await queryTRON(raw, isHash);
         }
+    } catch (e) {
+        termWrite(`<div class="t-line t-err">[EXCEPTION] ${e.message}</div>`);
+    }
 
-        function analyzeQueryType() {
-            const val = document.getElementById('wallet-address').value.trim();
-            const badge = document.getElementById('ident-type');
-            if(!val) { badge.textContent = "等待輸入..."; badge.style.color = "var(--text-muted)"; return; }
-            if(val.startsWith('T') && val.length === 34) { badge.textContent = "🔴 TRON 錢包地址"; badge.style.color = "var(--accent-tron)"; return; }
-            if((val.startsWith('bc1') || val.startsWith('1') || val.startsWith('3')) && val.length >= 26) { badge.textContent = "🟠 Bitcoin 錢包地址"; badge.style.color = "var(--accent-orange)"; return; }
-            if(val.startsWith('0x')) {
-                if(val.length === 42) badge.textContent = `⚙️ EVM 錢包地址 (${selectedChainKey} 模式)`;
-                else if(val.length === 66) badge.textContent = "⚡ 全鏈通用交易哈希 TxHash";
-                else badge.textContent = "❓ 0x 數據流";
-                badge.style.color = "var(--primary)"; return;
-            }
-            badge.textContent = "🔎 自適應通用查詢模式"; badge.style.color = "var(--text-muted)";
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-bolt"></i> 查詢';
+}
+
+/* ─── EVM ─── */
+async function queryEVM(query, isHash) {
+    const chain = CHAINS[activeChain];
+    if (isHash) {
+        termWrite(`<div class="t-line t-dim">[RPC] eth_getTransactionByHash…</div>`);
+        const [rTx, rReceipt] = await Promise.all([
+            rpc(activeChain, { jsonrpc:"2.0", method:"eth_getTransactionByHash", params:[query], id:1 }),
+            rpc(activeChain, { jsonrpc:"2.0", method:"eth_getTransactionReceipt", params:[query], id:2 }),
+        ]);
+        if (!rTx.ok || !rTx.data.result) {
+            return termWrite(`<div class="t-line t-err">[MISS] 未找到該交易，可能尚未廣播至 ${activeChain}。</div>`);
         }
+        const tx = rTx.data.result;
+        const receipt = rReceipt.ok && rReceipt.data.result ? rReceipt.data.result : null;
+        const status = receipt ? (receipt.status === "0x1" ? "✓ SUCCESS" : "✗ FAILED") : "PENDING";
+        const gasUsed = receipt ? parseInt(receipt.gasUsed, 16).toLocaleString() : "—";
+        const blockNum = tx.blockNumber ? parseInt(tx.blockNumber, 16).toLocaleString() : "Pending";
+        const valueEth = new BigNumber(tx.value).div(1e18).toFixed(6);
+        const gasPriceGwei = tx.gasPrice ? new BigNumber(tx.gasPrice, 16).div(1e9).toFixed(2) : "0";
 
-        function decodeTronAddressToHex(address) {
-            try {
-                const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-                let num = new BigNumber(0);
-                for (let i = 0; i < address.length; i++) {
-                    num = num.multipliedBy(58).plus(ALPHABET.indexOf(address[i]));
-                }
-                let hex = num.toString(16);
-                if (hex.length % 2 !== 0) hex = '0' + hex;
-                let cleanHex = hex.substring(2, 42); 
-                return cleanHex.padStart(64, '0');
-            } catch (e) {
-                return "0000000000000000000000000000000000000000000000000000000000000000";
-            }
-        }
+        termWrite(`
+<div class="t-line t-ok">[OK] ${activeChain} 交易解析完成</div>
+<hr class="t-sep">
+<div class="t-line">  TXHASH  <span class="t-hi">${query}</span></div>
+<div class="t-line">  STATUS  <span class="${status.startsWith("✓") ? "t-ok" : "t-err"}">${status}</span></div>
+<div class="t-line">  BLOCK   ${blockNum}</div>
+<div class="t-line">  FROM    <span class="t-warn">${tx.from}</span></div>
+<div class="t-line">  TO      <span class="t-warn">${tx.to || "(contract deploy)"}</span></div>
+<div class="t-line">  VALUE   <span class="t-ok">${valueEth} ${chain.native}</span></div>
+<div class="t-line">  GAS     ${gasUsed} used  ·  ${gasPriceGwei} Gwei</div>
+`);
+    } else {
+        termWrite(`<div class="t-line t-dim">[RPC] eth_getBalance…</div>`);
+        const rBal = await rpc(activeChain, { jsonrpc:"2.0", method:"eth_getBalance", params:[query,"latest"], id:3 });
+        const native = rBal.ok && rBal.data.result
+            ? new BigNumber(rBal.data.result).div(1e18).toFixed(6)
+            : "0.000000";
 
-        async function executeQuery() {
-            const query = document.getElementById('wallet-address').value.trim();
-            if(!query) return alert("請先輸入地址或交易哈希！");
-
-            const termBox = document.getElementById('term-box');
-            const content = document.getElementById('term-content');
-            const title = document.getElementById('term-title');
-
-            termBox.classList.add('active');
-            title.textContent = `>_ RPC ASSET TERMINAL (${selectedChainKey})`;
-            content.innerHTML = `<div class="term-line">[Connecting] 正在連通 ${selectedChainKey} 數據矩陣...</div>`;
-
-            try {
-                const isHash = query.length === 66 || query.length === 64;
-                const chainConf = CHAINS[selectedChainKey];
-
-                if (chainConf.type === "evm") {
-                    if (isHash) {
-                        content.innerHTML = `<div class="term-line">[Connecting] 正在從 ${selectedChainKey} 底層 RPC 節點拉取交易收據(Transaction Receipt)...</div>`;
-                        
-                        const resTx = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionByHash", params: [query], id: 10 }, "", "POST");
-                        const resReceipt = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getTransactionReceipt", params: [query], id: 101 }, "", "POST");
-
-                        if(resTx.success && resTx.data.result) {
-                            const tx = resTx.data.result;
-                            let statusText = "⚡ 讀取中";
-                            let gasUsedText = "--";
-
-                            if (resReceipt.success && resReceipt.data.result) {
-                                const receipt = resReceipt.data.result;
-                                statusText = receipt.status === "0x1" ? "🟢 SUCCESS (成功)" : "🔴 FAILED (失敗)";
-                                gasUsedText = parseInt(receipt.gasUsed, 16).toLocaleString();
-                            }
-
-                            const blockNum = tx.blockNumber ? parseInt(tx.blockNumber, 16) : "未打包(Pending)";
-                            const valueEth = new BigNumber(tx.value).div(1e18).toFixed(6);
-                            const gasPriceGwei = tx.gasPrice ? new BigNumber(tx.gasPrice, 16).div(1e9).toFixed(2) : "0";
-
-                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 成功從 ${selectedChainKey} 內置 RPC 節點完成全鏈解構：</div>` +
-                                `<div class="term-line">• 交易哈希: <span class="term-highlight">${query}</span></div>` +
-                                `<div class="term-line">• 交易狀態: <span class="term-highlight">${statusText}</span></div>` +
-                                `<div class="term-line">• 區塊高度: ${blockNum}</div>` +
-                                `<div class="term-line">• 發起錢包 (From): <span class="term-warning">${tx.from}</span></div>` +
-                                `<div class="term-line">• 接收合約 (To): <span class="term-warning">${tx.to || "合約部署"}</span></div>` +
-                                `<div class="term-line">• 轉賬數額: <span class="term-success">${valueEth} ${chainConf.nativeToken}</span></div>` +
-                                `<div class="term-line">• 消耗 Gas 數量: ${gasUsedText}</div>` +
-                                `<div class="term-line">• 交易 GasPrice: ${gasPriceGwei} Gwei</div>`;
-                        } else { content.innerHTML = `<div class="term-line term-error">[ERROR] ${selectedChainKey} 節點池未檢索到該交易哈希，可能尚未廣播。</div>`; }
-                    } else {
-                        const resBal = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_getBalance", params: [query, "latest"], id: 11 }, "", "POST");
-                        let outHtml = `<div class="term-line term-success">[SUCCESS] 成功連通 ${selectedChainKey} 核心合約層：</div>`;
-                        outHtml += `<div class="term-line">• 賬戶地址：<span class="term-highlight">${query}</span></div>`;
-                        
-                        let nativeBal = "0.000000";
-                        if(resBal.success && resBal.data.result) {
-                            nativeBal = new BigNumber(resBal.data.result).div(1e18).toFixed(6);
-                        }
-                        outHtml += `<div class="term-line">  <i class="fab fa-ethereum"></i> <span class="term-warning">${chainConf.nativeToken}</span> : <span class="term-success">${nativeBal} ${chainConf.nativeToken}</span></div>`;
-
-                        const tokens = TOKEN_MATRIX[selectedChainKey] || [];
-                        for (let token of tokens) {
-                            const cleanAddr = query.replace('0x', '').toLowerCase().padStart(64, '0');
-                            const dataParam = "0x70a08231" + cleanAddr;
-                            const resToken = await fetchFromPool(selectedChainKey, { jsonrpc: "2.0", method: "eth_call", params: [{ to: token.address, data: dataParam }, "latest"], id: 12 }, "", "POST");
-
-                            if (resToken.success && resToken.data.result && resToken.data.result !== "0x") {
-                                const rawTokenBal = new BigNumber(resToken.data.result, 16);
-                                const finalTokenBal = rawTokenBal.div(new BigNumber(10).pow(token.decimals)).toFixed(4);
-                                outHtml += `<div class="term-line">  <i class="fas fa-dollar-sign"></i> <span class="term-warning">${token.symbol}</span> : <span class="term-success">${finalTokenBal}</span></div>`;
-                            }
-                        }
-                        content.innerHTML = outHtml;
-                    }
-                } else if (selectedChainKey === "BTC") {
-                    content.innerHTML = `<div class="term-line">[Connecting] 正在發起安全底層快照同步...</div>`;
-                    let urlSuffix = isHash ? `/tx/${query}` : `/address/${query}`;
-                    
-                    const resBtc = await fetchFromPool("BTC", null, urlSuffix, "GET");
-
-                    if (resBtc.success && resBtc.data) {
-                        const data = resBtc.data;
-                        if(!isHash) {
-                            let funded = data.chain_stats ? data.chain_stats.funded_txo_sum : 0;
-                            let spent = data.chain_stats ? data.chain_stats.spent_txo_sum : 0;
-                            let btcBal = (funded - spent) / 1e8;
-                            
-                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈原生數據解構成功：</div>` +
-                                `<div class="term-line">• 目標地址: <span class="term-highlight">${query}</span></div>` +
-                                `<div class="term-line">  🧡 BTC 餘額 : <span class="term-success">${btcBal.toFixed(8)} BTC</span></div>`;
-                        } else {
-                            let totalInput = 0; let totalOutput = 0;
-                            if(data.vin) data.vin.forEach(v => { if(v.prevout) totalInput += v.prevout.value; });
-                            if(data.vout) data.vout.forEach(o => { totalOutput += o.value; });
-                            
-                            content.innerHTML = `<div class="term-line term-success">[SUCCESS] 比特鏈 RPC 核心交易解析成功：</div>` +
-                                `<div class="term-line">• 交易哈希 (TxID): <span class="term-highlight">${data.txid}</span></div>` +
-                                `<div class="term-line">• 交易狀態: <span class="term-highlight">${data.status && data.status.confirmed ? "🟢 已確認" : "🔴 未確認 (Mempool 排隊中)"}</span></div>` +
-                                `<div class="term-line">• 包含區塊高度: ${(data.status && data.status.block_height) ? data.status.block_height : "未打包"}</div>` +
-                                `<div class="term-line">• 手續費支出 (Fee): <span class="term-warning">${data.fee} sats</span></div>` +
-                                `<div class="term-line">• 總產出金額: <span class="term-success">${(totalOutput / 1e8).toFixed(8)} BTC</span></div>` +
-                                `<div class="term-line">• 交易體積: ${data.size} bytes | 權重: ${data.weight} vB</div>`;
-                        }
-                    } else { 
-                        content.innerHTML = `<div class="term-line term-error">[ERROR] 比特幣節點網關拒絕通訊。請檢查你的 VPN 代理路由規則，確保公共 API 沒有被完全阻斷。</div>`; 
-                    }
-                } else if (selectedChainKey === "TRON") {
-                    if (isHash) {
-                        content.innerHTML = `<div class="term-line">[Connecting] 正在向波場網關檢索交易哈希...</div>`;
-                        const resTx = await fetch(`https://api.trongrid.io/wallet/gettransactionbyid`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ value: query })
-                        });
-                        
-                        if (resTx.ok) {
-                            const txData = await resTx.json();
-                            if (txData && txData.txID) {
-                                let contractType = txData.raw_data.contract[0].type;
-                                content.innerHTML = `<div class="term-line term-success">[SUCCESS] 成功解構 TRON 交易：</div>` +
-                                    `<div class="term-line">• 交易哈希: <span class="term-highlight">${txData.txID}</span></div>` +
-                                    `<div class="term-line">• 合約類型: ${contractType}</div>` +
-                                    `<div class="term-line">• 狀態: ${txData.ret && txData.ret[0].contractRet === "SUCCESS" ? "🟢 成功" : "🔴 失敗"}</div>`;
-                            } else { content.innerHTML = `<div class="term-line term-error">[ERROR] 未能在 TRON 網絡中找到該交易哈希。</div>`; }
-                        } else { content.innerHTML = `<div class="term-line term-error">[ERROR] TRON 網關通訊失敗。</div>`; }
-                    } else {
-                        content.innerHTML = `<div class="term-line">[Connecting] 正在讀取波場賬戶主網快照並計算費率能量...</div>`;
-                        
-                        const resAcc = await fetch(`https://api.trongrid.io/wallet/getaccount`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ address: query, visible: true })
-                        });
-
-                        const hexParam = decodeTronAddressToHex(query);
-                        const resUsdt = await fetch(`https://api.trongrid.io/wallet/triggerconstantcontract`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                owner_address: query,
-                                contract_address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-                                function_selector: "balanceOf(address)",
-                                parameter: hexParam,
-                                visible: true
-                            })
-                        });
-
-                        const resResources = await fetch(`https://api.trongrid.io/wallet/getaccountresource`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ address: query, visible: true })
-                        });
-
-                        let outHtml = `<div class="term-line term-success">[SUCCESS] 成功連通 TRON Network 核心節點：</div>`;
-                        outHtml += `<div class="term-line">• 賬戶地址：<span class="term-highlight">${query}</span></div>`;
-
-                        if (resAcc.ok) {
-                            const accData = await resAcc.json();
-                            let trxBal = accData.balance ? (accData.balance / 1000000).toFixed(4) : "0.0000";
-                            outHtml += `<div class="term-line">  🔴 <span class="term-warning">TRX 餘額</span> : <span class="term-success">${trxBal} TRX</span></div>`;
-                        } else { outHtml += `<div class="term-line term-error">  ❌ 原生 TRX 數據獲取失敗</div>`; }
-
-                        if (resUsdt.ok) {
-                            const usdtData = await resUsdt.json();
-                            if (usdtData && usdtData.constant_result && usdtData.constant_result[0]) {
-                                const hexBal = usdtData.constant_result[0];
-                                const rawUsdtBal = new BigNumber(hexBal, 16);
-                                const finalUsdt = rawUsdtBal.div(1e6).toFixed(4);
-                                outHtml += `<div class="term-line">  🟢 <span class="term-warning">USDT (TRC-20)</span> : <span class="term-success">${finalUsdt}</span></div>`;
-                            } else { outHtml += `<div class="term-line">  🟢 <span class="term-warning">USDT (TRC-20)</span> : <span class="term-success">0.0000</span></div>`; }
-                        } else { outHtml += `<div class="term-line term-error">  ❌ TRC-20 合約通訊失敗</div>`; }
-
-                        if (resResources.ok) {
-                            const resData = await resResources.json();
-                            let freeNetLimit = resData.FreeNetLimit || 600;
-                            let freeNetUsed = resData.FreeNetUsed || 0;
-                            let EnergyLimit = resData.EnergyLimit || 0;
-                            let EnergyUsed = resData.EnergyUsed || 0;
-                            
-                            outHtml += `<div class="term-line" style="border-top:1px dashed rgba(255,255,255,0.1); padding-top:5px; margin-top:5px; color:var(--text-muted)">• 實時賬戶資源池狀態：</div>`;
-                            outHtml += `<div class="term-line">  ⚡ 剩餘免費帶寬: <span class="term-highlight">${freeNetLimit - freeNetUsed}</span> / ${freeNetLimit}</div>`;
-                            outHtml += `<div class="term-line">  🔥 質押可用能量: <span class="term-highlight">${EnergyLimit - EnergyUsed}</span> / ${EnergyLimit}</div>`;
-                            outHtml += `<div class="term-line">  💡 提示: 若能量為0，發送 TRC-20 USDT 將強行燒毀約 <span class="term-warning">32~65 TRX</span> 作為手續費</div>`;
-                        }
-                        content.innerHTML = outHtml;
-                    }
-                }
-            } catch (err) {
-                content.innerHTML = `<div class="term-line term-error">[EXCEPTION] 故障: ${err.message}</div>`;
-            }
-        }
-
-        async function fetchFromPool(chainKey, payload, urlSuffix = "", method = "POST") {
-            const pool = RPC_POOL[chainKey];
-            for (let node of pool) {
-                try {
-                    let fetchOptions = { 
-                        method: method, 
-                        headers: { 'Content-Type': 'application/json' }
-                    };
-                    if (method === "POST" && payload) {
-                        fetchOptions.body = JSON.stringify(payload);
-                    }
-
-                    let response = await fetch(node.url + urlSuffix, fetchOptions);
-                    if (response.ok) {
-                        const data = await response.json();
-                        return { data, success: true, activeRpc: node.url };
-                    }
-                } catch (e) { }
-            }
-            return { success: false };
-        }
-
-        function initGrid() {
-            const grid = document.getElementById('monitorGrid'); grid.innerHTML = '';
-            Object.keys(CHAINS).forEach(key => {
-                const chain = CHAINS[key]; const card = document.createElement('div'); card.className = 'network-card';
-                card.innerHTML = `
-                    <div class="network-header"><div class="network-title">${chain.name}</div><span class="status-dot" id="dot-${key}"></span></div>
-                    <div class="network-value" id="height-${key}">-------</div>
-                    <div class="network-meta">
-                        <div class="meta-row"><span>原生代幣:</span><span class="meta-val" style="color:${chain.color}">${chain.nativeToken}</span></div>
-                        <div class="meta-row"><span>${chain.gasLabel}:</span><span class="meta-val" id="gas-${key}">--</span></div>
-                    </div>
-                `;
-                grid.appendChild(card);
+        let html = `
+<div class="t-line t-ok">[OK] ${activeChain} 賬戶資產解構完成</div>
+<hr class="t-sep">
+<div class="t-line">  ADDR  <span class="t-hi">${query}</span></div>
+<div class="t-line">  <span class="t-warn">${chain.native.padEnd(6)}</span>  <span class="t-ok">${native}</span></div>
+`;
+        const tokens = TOKENS[activeChain] || [];
+        for (const tok of tokens) {
+            const pad = query.replace("0x","").toLowerCase().padStart(64,"0");
+            const r = await rpc(activeChain, {
+                jsonrpc:"2.0", method:"eth_call",
+                params:[{ to: tok.addr, data: "0x70a08231" + pad }, "latest"], id:4
             });
-        }
-
-        async function refreshData() {
-            if (isRefreshing) return;
-            isRefreshing = true;
-
-            for (let key of Object.keys(CHAINS)) {
-                const blockElem = document.getElementById(`height-${key}`);
-                const gasElem = document.getElementById(`gas-${key}`);
-                const dot = document.getElementById(`dot-${key}`);
-                if (!blockElem || !gasElem || !dot) continue;
-
-                try {
-                    if (CHAINS[key].type === "btc") {
-                        let btcBlockHeight = null;
-                        try {
-                            const resBtc = await fetch("https://blockstream.info/api/blocks/tip/height", { method: 'GET' });
-                            if (resBtc.ok) { const textHeight = await resBtc.text(); if (textHeight && !isNaN(textHeight)) btcBlockHeight = parseInt(textHeight); }
-                        } catch(e) {}
-
-                        if (!btcBlockHeight) {
-                            try {
-                                const resMem = await fetch("https://mempool.space/api/blocks/tip/height", { method: 'GET' });
-                                if (resMem.ok) { const textHeight = await resMem.text(); if (textHeight && !isNaN(textHeight)) btcBlockHeight = parseInt(textHeight); }
-                            } catch(e) {}
-                        }
-
-                        if (btcBlockHeight) { blockElem.textContent = btcBlockHeight.toLocaleString(); dot.className = 'status-dot'; } 
-                        else { dot.className = 'status-dot error'; }
-
-                        try {
-                            const feeRes = await fetch("https://blockstream.info/api/fee-estimates");
-                            if (feeRes.ok) { 
-                                const feeData = await feeRes.json(); 
-                                if(feeData && feeData["2"]) {
-                                    gasElem.textContent = `~${Math.round(feeData["2"])} sat/vB`; 
-                                } else { gasElem.textContent = "-- sat/vB"; }
-                            }
-                        } catch(e) { gasElem.textContent = "-- sat/vB"; }
-                    } 
-                    else if (CHAINS[key].type === "evm") {
-                        const resBlock = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 }, "", "POST");
-                        const resGas = await fetchFromPool(key, { jsonrpc: "2.0", method: "eth_gasPrice", params: [], id: 2 }, "", "POST");
-                        
-                        if(resBlock.success && resBlock.data.result) {
-                            blockElem.textContent = parseInt(resBlock.data.result, 16).toLocaleString();
-                            dot.className = 'status-dot';
-                        } else { dot.className = 'status-dot error'; }
-
-                        if(resGas.success && resGas.data.result) {
-                            const gweiVal = new BigNumber(resGas.data.result, 16).div(1e9).toFixed(2);
-                            gasElem.textContent = `${gweiVal} Gwei`;
-                        }
-                    } 
-                    else if (CHAINS[key].type === "tron") {
-                        const resBlock = await fetch("https://api.trongrid.io/wallet/getnowblock", { method: 'POST' });
-                        if (resBlock.ok) {
-                            const blockData = await resBlock.json();
-                            if (blockData && blockData.block_header) {
-                                const blockHeight = blockData.block_header.raw_data.number;
-                                blockElem.textContent = blockHeight.toLocaleString();
-                                dot.className = 'status-dot';
-                            }
-                        } else { dot.className = 'status-dot error'; }
-                        
-                        try {
-                            const resChainParam = await fetch("https://api.trongrid.io/wallet/getchainparameters", { method: 'POST' });
-                            if (resChainParam.ok) {
-                                const pData = await resChainParam.json();
-                                const energyFeeParam = pData.chainParameter.find(p => p.key === "getEnergyFee");
-                                if (energyFeeParam) {
-                                    gasElem.textContent = `${energyFeeParam.value} sun/Energy`;
-                                } else { gasElem.textContent = "420 sun/Energy"; }
-                            }
-                        } catch(e) { gasElem.textContent = "420 sun/Energy"; }
-                    }
-                } catch (err) { dot.className = 'status-dot error'; }
+            if (r.ok && r.data.result && r.data.result !== "0x") {
+                const bal = new BigNumber(r.data.result, 16).div(new BigNumber(10).pow(tok.dec)).toFixed(4);
+                html += `<div class="t-line">  <span class="t-warn">${tok.sym.padEnd(6)}</span>  <span class="t-ok">${bal}</span></div>`;
             }
-            isRefreshing = false;
         }
+        termWrite(html);
+    }
+}
 
-        document.addEventListener("DOMContentLoaded", () => {
-            initGrid(); 
-            selectChain('BTC');
-            refreshData(); 
-            setInterval(refreshData, 3000); 
+/* ─── BTC ─── */
+async function queryBTC(query, isHash) {
+    termWrite(`<div class="t-line t-dim">[API] Blockstream / Mempool.space…</div>`);
+    const suffix = isHash ? `/tx/${query}` : `/address/${query}`;
+    const r = await rpc("BTC", null, suffix, "GET");
+
+    if (!r.ok || !r.data) {
+        return termWrite(`<div class="t-line t-err">[FAIL] 比特幣節點拒絕響應。請確認網絡或代理設定。</div>`);
+    }
+    const d = r.data;
+    if (!isHash) {
+        const funded = d.chain_stats ? d.chain_stats.funded_txo_sum : 0;
+        const spent  = d.chain_stats ? d.chain_stats.spent_txo_sum  : 0;
+        const bal = ((funded - spent) / 1e8).toFixed(8);
+        termWrite(`
+<div class="t-line t-ok">[OK] Bitcoin 地址解析完成</div>
+<hr class="t-sep">
+<div class="t-line">  ADDR  <span class="t-hi">${query}</span></div>
+<div class="t-line">  <span class="t-warn">BTC   </span>  <span class="t-ok">${bal} BTC</span></div>
+<div class="t-line t-dim">  已確認 Tx 數：${(d.chain_stats ? d.chain_stats.tx_count : "—")}</div>
+`);
+    } else {
+        let totalIn = 0, totalOut = 0;
+        if (d.vin) d.vin.forEach(v => { if (v.prevout) totalIn += v.prevout.value; });
+        if (d.vout) d.vout.forEach(o => totalOut += o.value);
+        const confirmed = d.status && d.status.confirmed;
+        termWrite(`
+<div class="t-line t-ok">[OK] Bitcoin 交易解析完成</div>
+<hr class="t-sep">
+<div class="t-line">  TXID    <span class="t-hi">${d.txid}</span></div>
+<div class="t-line">  STATUS  <span class="${confirmed ? "t-ok" : "t-warn"}">${confirmed ? "✓ CONFIRMED" : "⏳ MEMPOOL"}</span></div>
+<div class="t-line">  BLOCK   ${d.status && d.status.block_height ? d.status.block_height.toLocaleString() : "未打包"}</div>
+<div class="t-line">  OUTPUT  <span class="t-ok">${(totalOut/1e8).toFixed(8)} BTC</span></div>
+<div class="t-line">  FEE     <span class="t-warn">${d.fee} sats</span></div>
+<div class="t-line t-dim">  Size: ${d.size} B  ·  Weight: ${d.weight} vB</div>
+`);
+    }
+}
+
+/* ─── TRON ─── */
+function tronHex(addr) {
+    try {
+        const AB = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+        let n = new BigNumber(0);
+        for (const c of addr) n = n.multipliedBy(58).plus(AB.indexOf(c));
+        let hex = n.toString(16);
+        if (hex.length % 2) hex = "0" + hex;
+        return hex.substring(2, 42).padStart(64, "0");
+    } catch { return "0".repeat(64); }
+}
+
+async function queryTRON(query, isHash) {
+    if (isHash) {
+        termWrite(`<div class="t-line t-dim">[API] trongrid.io / gettransactionbyid…</div>`);
+        const r = await fetch("https://api.trongrid.io/wallet/gettransactionbyid", {
+            method:"POST", headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ value: query })
         });
-    </script>
+        if (!r.ok) return termWrite(`<div class="t-line t-err">[FAIL] TRON 網關無響應。</div>`);
+        const d = await r.json();
+        if (!d || !d.txID)
+            return termWrite(`<div class="t-line t-err">[MISS] 未找到該交易哈希。</div>`);
+        const ok = d.ret && d.ret[0].contractRet === "SUCCESS";
+        termWrite(`
+<div class="t-line t-ok">[OK] TRON 交易解析完成</div>
+<hr class="t-sep">
+<div class="t-line">  TXID    <span class="t-hi">${d.txID}</span></div>
+<div class="t-line">  STATUS  <span class="${ok?"t-ok":"t-err"}">${ok ? "✓ SUCCESS" : "✗ FAILED"}</span></div>
+<div class="t-line">  TYPE    ${d.raw_data.contract[0].type}</div>
+`);
+    } else {
+        termWrite(`<div class="t-line t-dim">[API] trongrid.io / getaccount…</div>`);
+        const hexParam = tronHex(query);
+        const [rAcc, rUsdt, rRes] = await Promise.all([
+            fetch("https://api.trongrid.io/wallet/getaccount", {
+                method:"POST", headers:{"Content-Type":"application/json"},
+                body: JSON.stringify({ address:query, visible:true })
+            }),
+            fetch("https://api.trongrid.io/wallet/triggerconstantcontract", {
+                method:"POST", headers:{"Content-Type":"application/json"},
+                body: JSON.stringify({
+                    owner_address: query,
+                    contract_address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+                    function_selector: "balanceOf(address)",
+                    parameter: hexParam,
+                    visible: true
+                })
+            }),
+            fetch("https://api.trongrid.io/wallet/getaccountresource", {
+                method:"POST", headers:{"Content-Type":"application/json"},
+                body: JSON.stringify({ address:query, visible:true })
+            }),
+        ]);
+
+        let html = `
+<div class="t-line t-ok">[OK] TRON 賬戶資產解構完成</div>
+<hr class="t-sep">
+<div class="t-line">  ADDR  <span class="t-hi">${query}</span></div>
+`;
+        if (rAcc.ok) {
+            const acc = await rAcc.json();
+            const trx = acc.balance ? (acc.balance / 1e6).toFixed(4) : "0.0000";
+            html += `<div class="t-line">  <span class="t-warn">TRX   </span>  <span class="t-ok">${trx}</span></div>`;
+        }
+        if (rUsdt.ok) {
+            const ud = await rUsdt.json();
+            if (ud && ud.constant_result && ud.constant_result[0]) {
+                const ubal = new BigNumber(ud.constant_result[0], 16).div(1e6).toFixed(4);
+                html += `<div class="t-line">  <span class="t-warn">USDT  </span>  <span class="t-ok">${ubal}</span></div>`;
+            } else {
+                html += `<div class="t-line">  <span class="t-warn">USDT  </span>  <span class="t-ok">0.0000</span></div>`;
+            }
+        }
+        if (rRes.ok) {
+            const rd = await rRes.json();
+            const netFree  = (rd.FreeNetLimit||600)  - (rd.FreeNetUsed||0);
+            const energyFree = (rd.EnergyLimit||0)   - (rd.EnergyUsed||0);
+            html += `
+<hr class="t-sep">
+<div class="t-line t-dim">  資源池狀態</div>
+<div class="t-line">  帶寬餘量   <span class="t-hi">${netFree.toLocaleString()}</span>  / ${(rd.FreeNetLimit||600)}</div>
+<div class="t-line">  可用能量   <span class="t-hi">${energyFree.toLocaleString()}</span>  / ${(rd.EnergyLimit||0)}</div>
+<div class="t-line t-dim">  ⓘ 能量為 0 時，TRC-20 轉帳將燒毀 <span class="t-warn">~32–65 TRX</span> 手續費</div>
+`;
+        }
+        termWrite(html);
+    }
+}
+
+/* ═══════════════════════════════════════════
+   NETWORK MONITOR
+═══════════════════════════════════════════ */
+async function refreshAll() {
+    if (refreshBusy) return;
+    refreshBusy = true;
+    await Promise.allSettled(Object.keys(CHAINS).map(k => refreshChain(k)));
+    refreshBusy = false;
+}
+
+async function refreshChain(k) {
+    const blkEl  = document.getElementById(`blk-${k}`);
+    const gasEl  = document.getElementById(`gas-${k}`);
+    const dotEl  = document.getElementById(`dot-${k}`);
+    if (!blkEl) return;
+
+    try {
+        if (CHAINS[k].type === "btc") {
+            let height = null;
+            for (const src of ["https://blockstream.info/api/blocks/tip/height","https://mempool.space/api/blocks/tip/height"]) {
+                try {
+                    const r = await fetch(src);
+                    if (r.ok) { const t = await r.text(); if (!isNaN(t)) { height = parseInt(t); break; } }
+                } catch {}
+            }
+            if (height) {
+                blkEl.textContent = height.toLocaleString();
+                blkEl.classList.remove("loading");
+                dotEl.className = "dot";
+            } else { dotEl.className = "dot err"; }
+
+            try {
+                const r = await fetch("https://blockstream.info/api/fee-estimates");
+                if (r.ok) { const d = await r.json(); if (d["2"]) gasEl.textContent = `${Math.round(d["2"])} sat/vB`; }
+            } catch {}
+
+        } else if (CHAINS[k].type === "evm") {
+            const [rBlk, rGas] = await Promise.all([
+                rpc(k, { jsonrpc:"2.0", method:"eth_blockNumber", params:[], id:5 }),
+                rpc(k, { jsonrpc:"2.0", method:"eth_gasPrice",    params:[], id:6 }),
+            ]);
+            if (rBlk.ok && rBlk.data.result) {
+                blkEl.textContent = parseInt(rBlk.data.result, 16).toLocaleString();
+                blkEl.classList.remove("loading");
+                dotEl.className = "dot";
+            } else { dotEl.className = "dot err"; }
+            if (rGas.ok && rGas.data.result) {
+                gasEl.textContent = `${new BigNumber(rGas.data.result, 16).div(1e9).toFixed(2)} Gwei`;
+            }
+
+        } else if (CHAINS[k].type === "tron") {
+            const r = await fetch("https://api.trongrid.io/wallet/getnowblock", { method:"POST" });
+            if (r.ok) {
+                const d = await r.json();
+                if (d && d.block_header) {
+                    blkEl.textContent = d.block_header.raw_data.number.toLocaleString();
+                    blkEl.classList.remove("loading");
+                    dotEl.className = "dot";
+                }
+            } else { dotEl.className = "dot err"; }
+            try {
+                const r2 = await fetch("https://api.trongrid.io/wallet/getchainparameters", { method:"POST" });
+                if (r2.ok) {
+                    const p = await r2.json();
+                    const ef = p.chainParameter.find(x => x.key === "getEnergyFee");
+                    if (ef) gasEl.textContent = `${ef.value} sun`;
+                }
+            } catch {}
+        }
+    } catch { dotEl.className = "dot err"; }
+}
+
+/* ═══════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════ */
+async function rpc(chain, payload, suffix = "", method = "POST") {
+    for (const node of RPC[chain]) {
+        try {
+            const opts = { method, headers:{ "Content-Type":"application/json" } };
+            if (method === "POST" && payload) opts.body = JSON.stringify(payload);
+            const r = await fetch(node.url + suffix, opts);
+            if (r.ok) return { ok: true, data: await r.json() };
+        } catch {}
+    }
+    return { ok: false };
+}
+
+function openTerm(label) {
+    document.getElementById("term-label").textContent = label;
+    document.getElementById("term-body").innerHTML = "";
+    document.getElementById("term").classList.add("active");
+}
+function closeTerm() { document.getElementById("term").classList.remove("active"); }
+function termWrite(html) {
+    const body = document.getElementById("term-body");
+    body.innerHTML += html;
+    body.scrollTop = body.scrollHeight;
+}
+</script>
 </body>
 </html>
