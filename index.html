@@ -631,6 +631,10 @@ function analyzeInput() {
 }
 function set(el, text, color) { el.textContent = text; el.style.color = color; }
 
+function isBTCTxid(v) {
+    return /^[a-fA-F0-9]{64}$/.test(v);
+}
+
 /* ═══════════════════════════════════════════
    QUERY EXECUTION
 ═══════════════════════════════════════════ */
@@ -646,7 +650,7 @@ async function runQuery() {
     termWrite(`<div class="t-line t-dim">[INIT] 連通 ${activeChain} 節點池…</div>`);
 
     try {
-        const isHash = raw.length === 66 || raw.length === 64;
+        const isHash = activeChain === "BTC" ? isBTCTxid(raw) : (raw.length === 66 || raw.length === 64);
         const chain = CHAINS[activeChain];
 
         if (chain.type === "evm") {
@@ -726,39 +730,82 @@ async function queryEVM(query, isHash) {
 
 /* ─── BTC ─── */
 async function queryBTC(query, isHash) {
-    termWrite(`<div class="t-line t-dim">[API] Blockstream / Mempool.space…</div>`);
-    const suffix = isHash ? `/tx/${query}` : `/address/${query}`;
-    const r = await rpc("BTC", null, suffix, "GET");
+    termWrite(`<div class="t-line t-dim">[BTC] Multi-Source Decode Engine...</div>`);
 
-    if (!r.ok || !r.data) {
-        return termWrite(`<div class="t-line t-err">[FAIL] 比特幣節點拒絕響應。請確認網絡或代理設定。</div>`);
+    async function getJSON(url) {
+        try {
+            const r = await fetch(url);
+            if (r.ok) return await r.json();
+        } catch(e) {}
+        return null;
     }
-    const d = r.data;
+
     if (!isHash) {
-        const funded = d.chain_stats ? d.chain_stats.funded_txo_sum : 0;
-        const spent  = d.chain_stats ? d.chain_stats.spent_txo_sum  : 0;
-        const bal = ((funded - spent) / 1e8).toFixed(8);
+        let d =
+            await getJSON(`https://blockstream.info/api/address/${query}`) ||
+            await getJSON(`https://mempool.space/api/address/${query}`);
+
+        if (!d) {
+            return termWrite(`<div class="t-line t-err">[FAIL] BTC 地址解析失敗，地址不存在或節點拒絕響應。</div>`);
+        }
+
+        const funded =
+            (d.chain_stats?.funded_txo_sum || 0) +
+            (d.mempool_stats?.funded_txo_sum || 0);
+
+        const spent =
+            (d.chain_stats?.spent_txo_sum || 0) +
+            (d.mempool_stats?.spent_txo_sum || 0);
+
+        const txCount =
+            (d.chain_stats?.tx_count || 0) +
+            (d.mempool_stats?.tx_count || 0);
+
+        const balance = (funded - spent) / 1e8;
+
         termWrite(`
-<div class="t-line t-ok">[OK] Bitcoin 地址解析完成</div>
+<div class="t-line t-ok">[OK] Bitcoin 地址解構完成</div>
 <hr class="t-sep">
-<div class="t-line">  ADDR  <span class="t-hi">${query}</span></div>
-<div class="t-line">  <span class="t-warn">BTC   </span>  <span class="t-ok">${bal} BTC</span></div>
-<div class="t-line t-dim">  已確認 Tx 數：${(d.chain_stats ? d.chain_stats.tx_count : "—")}</div>
+<div class="t-line"> ADDR     <span class="t-hi">${query}</span></div>
+<div class="t-line"> BALANCE  <span class="t-ok">${balance.toFixed(8)} BTC</span></div>
+<div class="t-line"> TXCOUNT  ${txCount}</div>
+<div class="t-line"> FUNDED   ${(funded/1e8).toFixed(8)} BTC</div>
+<div class="t-line"> SPENT    ${(spent/1e8).toFixed(8)} BTC</div>
 `);
     } else {
-        let totalIn = 0, totalOut = 0;
-        if (d.vin) d.vin.forEach(v => { if (v.prevout) totalIn += v.prevout.value; });
-        if (d.vout) d.vout.forEach(o => totalOut += o.value);
-        const confirmed = d.status && d.status.confirmed;
+        let d =
+            await getJSON(`https://blockstream.info/api/tx/${query}`) ||
+            await getJSON(`https://mempool.space/api/tx/${query}`);
+
+        if (!d) {
+            return termWrite(`<div class="t-line t-err">[MISS] 找不到 BTC 交易。</div>`);
+        }
+
+        let totalIn = 0;
+        let totalOut = 0;
+
+        (d.vin || []).forEach(v => {
+            if (v.prevout?.value) totalIn += v.prevout.value;
+        });
+
+        (d.vout || []).forEach(v => {
+            if (v.value) totalOut += v.value;
+        });
+
+        const fee = d.fee || 0;
+        const confirmed = d.status?.confirmed || false;
+
         termWrite(`
-<div class="t-line t-ok">[OK] Bitcoin 交易解析完成</div>
+<div class="t-line t-ok">[OK] Bitcoin 交易解構完成</div>
 <hr class="t-sep">
-<div class="t-line">  TXID    <span class="t-hi">${d.txid}</span></div>
-<div class="t-line">  STATUS  <span class="${confirmed ? "t-ok" : "t-warn"}">${confirmed ? "✓ CONFIRMED" : "⏳ MEMPOOL"}</span></div>
-<div class="t-line">  BLOCK   ${d.status && d.status.block_height ? d.status.block_height.toLocaleString() : "未打包"}</div>
-<div class="t-line">  OUTPUT  <span class="t-ok">${(totalOut/1e8).toFixed(8)} BTC</span></div>
-<div class="t-line">  FEE     <span class="t-warn">${d.fee} sats</span></div>
-<div class="t-line t-dim">  Size: ${d.size} B  ·  Weight: ${d.weight} vB</div>
+<div class="t-line"> TXID     <span class="t-hi">${d.txid}</span></div>
+<div class="t-line"> STATUS   <span class="${confirmed ? "t-ok" : "t-warn"}">${confirmed ? "CONFIRMED" : "MEMPOOL"}</span></div>
+<div class="t-line"> BLOCK    ${d.status?.block_height || "未確認"}</div>
+<div class="t-line"> INPUT    ${(totalIn/1e8).toFixed(8)} BTC</div>
+<div class="t-line"> OUTPUT   ${(totalOut/1e8).toFixed(8)} BTC</div>
+<div class="t-line"> FEE      ${(fee/1e8).toFixed(8)} BTC</div>
+<div class="t-line"> VIN      ${(d.vin||[]).length}</div>
+<div class="t-line"> VOUT     ${(d.vout||[]).length}</div>
 `);
     }
 }
