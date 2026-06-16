@@ -1,3 +1,6 @@
+
+
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -511,7 +514,7 @@ const RPC = {
     BTC:  [{ url: "https://blockstream.info/api" }, { url: "https://mempool.space/api" }],
     ETH:  [{ url: "https://rpc.flashbots.net" }, { url: "https://ethereum-rpc.publicnode.com" }],
     BSC:  [{ url: "https://binance.llamarpc.com" }, { url: "https://bsc-rpc.publicnode.com" }],
-    ARB:  [{ url: "https://arbitrum-one-rpc.publicnode.com" }, { url: "https://arb1.arbitrum.io/rpc" }],
+    ARB:  [{ url: "https://arbitrum-one-rpc.publicnode.com" }],
     TRON: [{ url: "https://api.trongrid.io" }],
     MORPH:[{ url: "https://rpc.morphl2.io" }],
 };
@@ -522,8 +525,7 @@ const TOKENS = {
     BSC:  [{ sym:"USDT", addr:"0x55d398326f99059fF775485246999027B3197955", dec:18},
            { sym:"USDC", addr:"0x8AC76a51cc950d9822D68b83fE1Ad97B32CD580d", dec:18}],
     ARB:  [{ sym:"USDC", addr:"0xaf88d065e77c8cC2239327C5EDb3A432268e5831", dec:6 },
-           { sym:"USDT", addr:"0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", dec:6 },
-           { sym:"USD24", addr:"0xbE00f3db78688d9704BCb4e0a827aea3a9Cc0D62", dec:6}],
+           { sym:"USDT", addr:"0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", dec:6 }],
     MORPH:[{ sym:"USDT", addr:"0x452479e000000000000000000000000000000001", dec:6 },
            { sym:"USDC", addr:"0x5300000000000000000000000000000000000002", dec:6 }],
 };
@@ -768,7 +770,7 @@ async function queryBTC(query, isHash) {
 <div class="t-line t-ok">[OK] Bitcoin 地址解構完成</div>
 <hr class="t-sep">
 <div class="t-line"> ADDR     <span class="t-hi">${query}</span></div>
-<div class="t-line"> BALANCE  <span class="t-ok">${balance.toFixed(8)} BTC</span></div>
+<div class="t-line"> TYPE     ${detectBTCAddressType(query)}</div><div class="t-line"> BALANCE  <span class="t-ok">${balance.toFixed(8)} BTC</span></div>
 <div class="t-line"> TXCOUNT  ${txCount}</div>
 <div class="t-line"> FUNDED   ${(funded/1e8).toFixed(8)} BTC</div>
 <div class="t-line"> SPENT    ${(spent/1e8).toFixed(8)} BTC</div>
@@ -976,16 +978,52 @@ async function refreshChain(k) {
 /* ═══════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════ */
+const NODE_HEALTH = {};
+
 async function rpc(chain, payload, suffix = "", method = "POST") {
-    for (const node of RPC[chain]) {
+    const nodes = [...RPC[chain]];
+
+    nodes.sort((a,b)=>(NODE_HEALTH[b.url]?.score||100)-(NODE_HEALTH[a.url]?.score||100));
+
+    for (const node of nodes) {
+        const started = performance.now();
         try {
-            const opts = { method, headers:{ "Content-Type":"application/json" } };
-            if (method === "POST" && payload) opts.body = JSON.stringify(payload);
+            const controller = new AbortController();
+            const timer = setTimeout(()=>controller.abort(), 8000);
+
+            const opts = {
+                method,
+                signal: controller.signal,
+                headers: { "Content-Type":"application/json" }
+            };
+
+            if (method === "POST" && payload) {
+                opts.body = JSON.stringify(payload);
+            }
+
             const r = await fetch(node.url + suffix, opts);
-            if (r.ok) return { ok: true, data: await r.json() };
-        } catch {}
+            clearTimeout(timer);
+
+            if (r.ok) {
+                NODE_HEALTH[node.url] ??= {score:100, latency:0, fails:0};
+                NODE_HEALTH[node.url].score += 1;
+                NODE_HEALTH[node.url].latency = Math.round(performance.now() - started);
+
+                return {
+                    ok: true,
+                    node: node.url,
+                    latency: NODE_HEALTH[node.url].latency,
+                    data: await r.json()
+                };
+            }
+        } catch (e) {
+            NODE_HEALTH[node.url] ??= {score:100, latency:0, fails:0};
+            NODE_HEALTH[node.url].score -= 10;
+            NODE_HEALTH[node.url].fails += 1;
+        }
     }
-    return { ok: false };
+
+    return { ok:false };
 }
 
 function openTerm(label) {
