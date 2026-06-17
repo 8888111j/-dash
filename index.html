@@ -1,6 +1,3 @@
-
-
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -407,7 +404,7 @@
             font-size: 0.84rem;
             line-height: 1.85;
             color: #7a9abc;
-            max-height: 440px;
+            max-height: 600px;
             overflow-y: auto;
         }
         .term-body::-webkit-scrollbar { width: 4px; }
@@ -426,10 +423,171 @@
             margin: 10px 0;
         }
 
+        /* ─── METHOD DECODE BADGE ─── */
+        .method-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(61, 158, 255, 0.08);
+            border: 1px solid rgba(61, 158, 255, 0.25);
+            border-radius: 4px;
+            padding: 4px 10px;
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            color: var(--info);
+            margin: 4px 0;
+        }
+        .method-badge .method-icon {
+            color: var(--warn);
+            font-size: 0.7rem;
+        }
+        .method-badge .method-name {
+            color: #fff;
+            font-weight: 600;
+        }
+        .method-params {
+            margin: 6px 0 6px 16px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.3);
+            border-left: 2px solid var(--info);
+            border-radius: 0 4px 4px 0;
+            font-family: var(--mono);
+            font-size: 0.76rem;
+            line-height: 1.8;
+            color: var(--text-muted);
+        }
+        .method-params .param-name { color: var(--warn); }
+        .method-params .param-value { color: var(--ok); }
+        .method-params .param-type { color: var(--text-dim); font-style: italic; }
+
+        /* ─── TOKEN TRANSFER FLOW ─── */
+        .flow-container {
+            margin: 12px 0;
+            padding: 16px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .flow-title {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .flow-title::before {
+            content: '◆';
+            color: var(--info);
+            font-size: 0.6rem;
+        }
+        .flow-item {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin: 8px 0;
+            flex-wrap: wrap;
+        }
+        .flow-addr {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-family: var(--mono);
+            font-size: 0.74rem;
+            color: var(--text);
+            max-width: 160px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            position: relative;
+        }
+        .flow-addr.from { border-color: rgba(245, 158, 11, 0.4); }
+        .flow-addr.to { border-color: rgba(0, 201, 122, 0.4); }
+        .flow-addr .addr-label {
+            display: block;
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .flow-arrow {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin: 0 8px;
+            position: relative;
+        }
+        .flow-arrow-line {
+            width: 40px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--warn), var(--ok));
+            position: relative;
+        }
+        .flow-arrow-line::after {
+            content: '';
+            position: absolute;
+            right: -5px;
+            top: -4px;
+            border: 5px solid transparent;
+            border-left: 6px solid var(--ok);
+        }
+        .flow-amount {
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #fff;
+            white-space: nowrap;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .flow-token-badge {
+            font-size: 0.65rem;
+            font-family: var(--mono);
+            background: rgba(98, 114, 234, 0.15);
+            border: 1px solid rgba(98, 114, 234, 0.3);
+            color: var(--eth);
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 8px;
+        }
+        .flow-summary {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--border);
+            font-family: var(--mono);
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .flow-summary-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .flow-summary-item .dot-sm {
+            width: 5px; height: 5px;
+            border-radius: 50%;
+        }
+
         /* ─── RESPONSIVE ─── */
         @media (max-width: 640px) {
             .input-row { flex-direction: column; }
             .query-btn { width: 100%; justify-content: center; }
+            .flow-item { flex-direction: column; align-items: flex-start; gap: 4px; }
+            .flow-arrow { transform: rotate(90deg); margin: 4px 0 4px 20px; }
+            .flow-amount { top: -2px; left: 120%; transform: none; }
         }
     </style>
 </head>
@@ -462,7 +620,7 @@
     <!-- Query module -->
     <div class="query-card">
         <div class="query-title"><i class="fas fa-terminal"></i> RPC 全鏈資產解構引擎</div>
-        <div class="query-sub">直連底層高速 RPC 節點，解析錢包原生資產與合約代幣餘額，或查詢任意交易哈希詳情。</div>
+        <div class="query-sub">直連底層高速 RPC 節點，解析錢包原生資產與合約代幣餘額，或查詢任意交易哈希詳情。<br>支援 <strong style="color:var(--info)">Method 解碼</strong> 與 <strong style="color:var(--ok)">Token Transfer Flow 視覺化</strong>。</div>
 
         <div class="section-label" style="margin-bottom:10px">選擇目標鏈</div>
         <div class="chain-grid" id="chain-grid"></div>
@@ -529,6 +687,119 @@ const TOKENS = {
     MORPH:[{ sym:"USDT", addr:"0x452479e000000000000000000000000000000001", dec:6 },
            { sym:"USDC", addr:"0x5300000000000000000000000000000000000002", dec:6 }],
 };
+
+/* ═══════════════════════════════════════════
+   METHOD SIGNATURE DATABASE
+   常見 ERC-20 / DEX / NFT / DeFi 方法簽名
+═══════════════════════════════════════════ */
+const METHOD_SIGS = {
+    // ERC-20
+    "0xa9059cbb": { name: "transfer", params: ["address to", "uint256 amount"] },
+    "0x23b872dd": { name: "transferFrom", params: ["address from", "address to", "uint256 amount"] },
+    "0x095ea7b3": { name: "approve", params: ["address spender", "uint256 amount"] },
+    "0x70a08231": { name: "balanceOf", params: ["address account"] },
+    "0xdd62ed3e": { name: "allowance", params: ["address owner", "address spender"] },
+    "0x18160ddd": { name: "totalSupply", params: [] },
+    "0x313ce567": { name: "decimals", params: [] },
+    "0x06fdde03": { name: "name", params: [] },
+    "0x95d89b41": { name: "symbol", params: [] },
+    "0x40c10f19": { name: "mint", params: ["address to", "uint256 amount"] },
+    "0x42966c68": { name: "burn", params: ["uint256 amount"] },
+    "0x79cc6790": { name: "burnFrom", params: ["address account", "uint256 amount"] },
+
+    // Uniswap V2 Router
+    "0x38ed1739": { name: "swapExactTokensForTokens", params: ["uint256 amountIn", "uint256 amountOutMin", "address[] path", "address to", "uint256 deadline"] },
+    "0x8803dbee": { name: "swapTokensForExactTokens", params: ["uint256 amountOut", "uint256 amountInMax", "address[] path", "address to", "uint256 deadline"] },
+    "0x7ff36ab5": { name: "swapExactETHForTokens", params: ["uint256 amountOutMin", "address[] path", "address to", "uint256 deadline"] },
+    "0x18cbafe5": { name: "swapExactTokensForETH", params: ["uint256 amountIn", "uint256 amountOutMin", "address[] path", "address to", "uint256 deadline"] },
+    "0xfb3bdb41": { name: "swapETHForExactTokens", params: ["uint256 amountOut", "address[] path", "address to", "uint256 deadline"] },
+    "0xe8e33700": { name: "addLiquidity", params: ["address tokenA", "address tokenB", "uint256 amountADesired", "uint256 amountBDesired", "uint256 amountAMin", "uint256 amountBMin", "address to", "uint256 deadline"] },
+    "0xf305d719": { name: "addLiquidityETH", params: ["address token", "uint256 amountTokenDesired", "uint256 amountTokenMin", "uint256 amountETHMin", "address to", "uint256 deadline"] },
+    "0xbaa2abde": { name: "removeLiquidity", params: ["address tokenA", "address tokenB", "uint256 liquidity", "uint256 amountAMin", "uint256 amountBMin", "address to", "uint256 deadline"] },
+    "0x02751cec": { name: "removeLiquidityETH", params: ["address token", "uint256 liquidity", "uint256 amountTokenMin", "uint256 amountETHMin", "address to", "uint256 deadline"] },
+
+    // Uniswap V3
+    "0x414bf389": { name: "exactInputSingle", params: ["tuple params"] },
+    "0xc04b8d59": { name: "exactInput", params: ["tuple params"] },
+    "0xdb3e2198": { name: "exactOutputSingle", params: ["tuple params"] },
+    "0xf28c0498": { name: "exactOutput", params: ["tuple params"] },
+    "0x5ae401dc": { name: "multicall", params: ["uint256 deadline", "bytes[] data"] },
+    "0xac9650d8": { name: "multicall", params: ["bytes[] data"] },
+    "0x04e45aaf": { name: "exactInputSingle", params: ["tuple params"] },
+
+    // ERC-721 / NFT
+    "0x42842e0e": { name: "safeTransferFrom", params: ["address from", "address to", "uint256 tokenId"] },
+    "0xb88d4fde": { name: "safeTransferFrom", params: ["address from", "address to", "uint256 tokenId", "bytes data"] },
+    "0xa22cb465": { name: "setApprovalForAll", params: ["address operator", "bool approved"] },
+    "0x6352211e": { name: "ownerOf", params: ["uint256 tokenId"] },
+    "0x1249c58b": { name: "mint", params: [] },
+    "0xa0712d68": { name: "mint", params: ["uint256 quantity"] },
+
+    // ERC-1155
+    "0xf242432a": { name: "safeTransferFrom", params: ["address from", "address to", "uint256 id", "uint256 amount", "bytes data"] },
+    "0x2eb2c2d6": { name: "safeBatchTransferFrom", params: ["address from", "address to", "uint256[] ids", "uint256[] amounts", "bytes data"] },
+
+    // Common DeFi
+    "0xd0e30db0": { name: "deposit", params: [] },
+    "0x2e1a7d4d": { name: "withdraw", params: ["uint256 amount"] },
+    "0x3ccfd60b": { name: "withdraw", params: [] },
+    "0xb6b55f25": { name: "deposit", params: ["uint256 amount"] },
+    "0xe2bbb158": { name: "deposit", params: ["uint256 pid", "uint256 amount"] },
+    "0x441a3e70": { name: "withdraw", params: ["uint256 pid", "uint256 amount"] },
+    "0x1058d281": { name: "harvest", params: ["uint256 pid"] },
+    "0xddc63262": { name: "harvest", params: [] },
+    "0xa694fc3a": { name: "stake", params: ["uint256 amount"] },
+    "0x2e17de78": { name: "unstake", params: ["uint256 amount"] },
+    "0x4e71d92d": { name: "claim", params: [] },
+    "0xe9fad8ee": { name: "exit", params: [] },
+
+    // Proxy / Multicall
+    "0x1b2ef1ca": { name: "claimReward", params: ["uint256 amount", "uint256 nonce"] },
+    "0x3593564c": { name: "execute", params: ["bytes commands", "bytes[] inputs", "uint256 deadline"] },
+    "0x0162e2d0": { name: "execute", params: ["tuple[] commands", "bytes[] state"] },
+
+    // Bridge
+    "0x0100c0d6": { name: "bridgeETH", params: ["uint256 amount", "uint32 minGasLimit", "bytes extraData"] },
+    "0x838b2520": { name: "bridgeERC20", params: ["address token", "uint256 amount", "uint32 minGasLimit", "bytes extraData"] },
+
+    // WETH
+    "0xd0e30db0": { name: "deposit (wrap ETH)", params: [] },
+    "0x2e1a7d4d": { name: "withdraw (unwrap WETH)", params: ["uint256 wad"] },
+};
+
+/* ═══════════════════════════════════════════
+   KNOWN TOKEN ADDRESSES (for flow labeling)
+═══════════════════════════════════════════ */
+const KNOWN_TOKENS = {
+    // Ethereum
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": { sym: "USDT", dec: 6 },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": { sym: "USDC", dec: 6 },
+    "0x6b175474e89094c44da98b954eedeac495271d0f": { sym: "DAI", dec: 18 },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": { sym: "WETH", dec: 18 },
+    "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": { sym: "WBTC", dec: 8 },
+    "0x514910771af9ca656af840dff83e8264ecf986ca": { sym: "LINK", dec: 18 },
+    "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": { sym: "UNI", dec: 18 },
+    "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9": { sym: "AAVE", dec: 18 },
+    "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce": { sym: "SHIB", dec: 18 },
+    // BSC
+    "0x55d398326f99059ff775485246999027b3197955": { sym: "USDT", dec: 18 },
+    "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d": { sym: "USDC", dec: 18 },
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": { sym: "WBNB", dec: 18 },
+    "0xe9e7cea3dedca5984780bafc599bd69add087d56": { sym: "BUSD", dec: 18 },
+    // Arbitrum
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831": { sym: "USDC", dec: 6 },
+    "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": { sym: "USDT", dec: 6 },
+    "0x82af49447d8a07e3bd95bd0d56f35241523fbab1": { sym: "WETH", dec: 18 },
+    "0x912ce59144191c1204e64559fe8253a0e49e6548": { sym: "ARB", dec: 18 },
+};
+
+/* ERC-20 Transfer event topic */
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+/* ERC-721 Transfer (same topic) */
+/* Withdrawal event (WETH) */
+const WITHDRAWAL_TOPIC = "0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65";
+/* Deposit event (WETH) */
+const DEPOSIT_TOPIC = "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c";
 
 /* ═══════════════════════════════════════════
    STATE
@@ -639,6 +910,195 @@ function isBTCTxid(v) {
 }
 
 /* ═══════════════════════════════════════════
+   METHOD DECODE ENGINE
+═══════════════════════════════════════════ */
+function decodeMethod(inputData) {
+    if (!inputData || inputData === "0x" || inputData.length < 10) {
+        return { selector: null, name: "Native Transfer", params: [], raw: inputData };
+    }
+
+    const selector = inputData.slice(0, 10).toLowerCase();
+    const sig = METHOD_SIGS[selector];
+
+    if (!sig) {
+        return { selector, name: null, params: [], raw: inputData };
+    }
+
+    // Decode parameters
+    const paramData = inputData.slice(10);
+    const decodedParams = [];
+
+    let offset = 0;
+    for (const paramDef of sig.params) {
+        const [type, name] = paramDef.split(" ");
+        const chunk = paramData.slice(offset, offset + 64);
+
+        if (!chunk) break;
+
+        let value = "";
+        if (type === "address") {
+            value = "0x" + chunk.slice(24);
+        } else if (type.startsWith("uint")) {
+            try {
+                const bn = new BigNumber(chunk, 16);
+                // Check if it looks like a token amount (very large number)
+                if (bn.gt(1e15)) {
+                    value = bn.toFixed(0) + " (raw)";
+                } else {
+                    value = bn.toFixed(0);
+                }
+            } catch {
+                value = "0x" + chunk;
+            }
+        } else if (type === "bool") {
+            value = parseInt(chunk, 16) ? "true" : "false";
+        } else {
+            value = "0x" + chunk.slice(0, 40) + "…";
+        }
+
+        decodedParams.push({ type, name: name || `param${offset/64}`, value });
+        offset += 64;
+
+        // Stop after reasonable number of params for complex types
+        if (offset > 320 && type.includes("[]")) break;
+    }
+
+    return { selector, name: sig.name, params: decodedParams, raw: inputData };
+}
+
+function renderMethodDecode(decoded) {
+    if (!decoded.selector) {
+        return `<div class="t-line"><span class="method-badge"><i class="fas fa-arrow-right method-icon"></i> <span class="method-name">原生轉帳 (Native Transfer)</span></span></div>`;
+    }
+
+    if (!decoded.name) {
+        return `
+<div class="t-line"><span class="method-badge"><i class="fas fa-question-circle method-icon"></i> <span class="method-name">Unknown Method</span> <span style="color:var(--text-dim)">${decoded.selector}</span></span></div>
+<div class="t-line t-dim">  ⓘ 未收錄的方法簽名，可能為自定義合約函數</div>`;
+    }
+
+    let html = `<div class="t-line"><span class="method-badge"><i class="fas fa-code method-icon"></i> <span class="method-name">${decoded.name}()</span> <span style="color:var(--text-dim)">${decoded.selector}</span></span></div>`;
+
+    if (decoded.params.length > 0) {
+        html += `<div class="method-params">`;
+        for (const p of decoded.params) {
+            html += `<div><span class="param-type">${p.type}</span> <span class="param-name">${p.name}</span> = <span class="param-value">${p.value}</span></div>`;
+        }
+        html += `</div>`;
+    }
+
+    return html;
+}
+
+/* ═══════════════════════════════════════════
+   TOKEN TRANSFER FLOW VISUALIZATION
+═══════════════════════════════════════════ */
+function parseTransferLogs(logs) {
+    const transfers = [];
+
+    for (const log of logs) {
+        // ERC-20 Transfer event: Transfer(address from, address to, uint256 value)
+        if (log.topics && log.topics[0] === TRANSFER_TOPIC) {
+            const tokenAddr = log.address.toLowerCase();
+            const knownToken = KNOWN_TOKENS[tokenAddr];
+
+            if (log.topics.length >= 3) {
+                const from = "0x" + (log.topics[1] || "").slice(26);
+                const to = "0x" + (log.topics[2] || "").slice(26);
+                let value = "0";
+                let tokenId = null;
+
+                if (log.data && log.data !== "0x" && log.data.length > 2) {
+                    // ERC-20 transfer
+                    const rawVal = new BigNumber(log.data, 16);
+                    const dec = knownToken ? knownToken.dec : 18;
+                    value = rawVal.div(new BigNumber(10).pow(dec)).toFixed(4);
+                } else if (log.topics.length >= 4) {
+                    // ERC-721 transfer (tokenId in topic[3])
+                    tokenId = new BigNumber(log.topics[3], 16).toFixed(0);
+                }
+
+                transfers.push({
+                    from,
+                    to,
+                    value,
+                    tokenId,
+                    symbol: knownToken ? knownToken.sym : shortenAddr(tokenAddr),
+                    tokenAddr,
+                    isNFT: !!tokenId
+                });
+            }
+        }
+    }
+
+    return transfers;
+}
+
+function renderTransferFlow(transfers, txFrom, txTo) {
+    if (transfers.length === 0) return "";
+
+    let html = `<div class="flow-container">`;
+    html += `<div class="flow-title">Token Transfer Flow — ${transfers.length} 筆代幣轉移</div>`;
+
+    for (let i = 0; i < transfers.length; i++) {
+        const t = transfers[i];
+        const fromLabel = getAddrLabel(t.from, txFrom, txTo);
+        const toLabel = getAddrLabel(t.to, txFrom, txTo);
+        const amountDisplay = t.isNFT ? `NFT #${t.tokenId}` : `${t.value} ${t.symbol}`;
+
+        html += `
+<div class="flow-item">
+    <div class="flow-addr from">
+        <span class="addr-label">${fromLabel}</span>
+        ${shortenAddr(t.from)}
+    </div>
+    <div class="flow-arrow">
+        <div class="flow-amount">${amountDisplay}</div>
+        <div class="flow-arrow-line"></div>
+    </div>
+    <div class="flow-addr to">
+        <span class="addr-label">${toLabel}</span>
+        ${shortenAddr(t.to)}
+    </div>
+    <span class="flow-token-badge">${t.symbol}</span>
+</div>`;
+    }
+
+    // Summary
+    const tokenSummary = {};
+    for (const t of transfers) {
+        if (t.isNFT) continue;
+        if (!tokenSummary[t.symbol]) tokenSummary[t.symbol] = 0;
+        tokenSummary[t.symbol] += parseFloat(t.value) || 0;
+    }
+
+    html += `<div class="flow-summary">`;
+    html += `<div class="flow-summary-item"><div class="dot-sm" style="background:var(--info)"></div> 轉移次數: ${transfers.length}</div>`;
+    for (const [sym, total] of Object.entries(tokenSummary)) {
+        html += `<div class="flow-summary-item"><div class="dot-sm" style="background:var(--ok)"></div> ${sym}: ${total.toFixed(4)}</div>`;
+    }
+    html += `</div>`;
+    html += `</div>`;
+
+    return html;
+}
+
+function getAddrLabel(addr, txFrom, txTo) {
+    const a = addr.toLowerCase();
+    if (a === txFrom?.toLowerCase()) return "發送者 (From)";
+    if (a === txTo?.toLowerCase()) return "接收者 (To)";
+    if (a === "0x0000000000000000000000000000000000000000") return "Null (Mint/Burn)";
+    // Check if it's a known token contract
+    if (KNOWN_TOKENS[a]) return `${KNOWN_TOKENS[a].sym} 合約`;
+    return "中間地址";
+}
+
+function shortenAddr(addr) {
+    if (!addr || addr.length < 12) return addr || "—";
+    return addr.slice(0, 8) + "…" + addr.slice(-6);
+}
+
+/* ═══════════════════════════════════════════
    QUERY EXECUTION
 ═══════════════════════════════════════════ */
 async function runQuery() {
@@ -702,6 +1162,25 @@ async function queryEVM(query, isHash) {
 <div class="t-line">  VALUE   <span class="t-ok">${valueEth} ${chain.native}</span></div>
 <div class="t-line">  GAS     ${gasUsed} used  ·  ${gasPriceGwei} Gwei</div>
 `);
+
+        // ══════ METHOD DECODE ══════
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[DECODE] 解碼交易 Method…</div>`);
+        const decoded = decodeMethod(tx.input);
+        termWrite(renderMethodDecode(decoded));
+
+        // ══════ TOKEN TRANSFER FLOW ══════
+        if (receipt && receipt.logs && receipt.logs.length > 0) {
+            termWrite(`<hr class="t-sep"><div class="t-line t-dim">[FLOW] 解析 Token Transfer 事件 (${receipt.logs.length} logs)…</div>`);
+            const transfers = parseTransferLogs(receipt.logs);
+            if (transfers.length > 0) {
+                termWrite(renderTransferFlow(transfers, tx.from, tx.to));
+            } else {
+                termWrite(`<div class="t-line t-dim">  ⓘ 無 ERC-20/721 Transfer 事件</div>`);
+            }
+        } else if (receipt) {
+            termWrite(`<hr class="t-sep"><div class="t-line t-dim">[FLOW] 無事件日誌 — 純原生代幣轉帳</div>`);
+        }
+
     } else {
         termWrite(`<div class="t-line t-dim">[RPC] eth_getBalance…</div>`);
         const rBal = await rpc(activeChain, { jsonrpc:"2.0", method:"eth_getBalance", params:[query,"latest"], id:3 });
@@ -770,7 +1249,8 @@ async function queryBTC(query, isHash) {
 <div class="t-line t-ok">[OK] Bitcoin 地址解構完成</div>
 <hr class="t-sep">
 <div class="t-line"> ADDR     <span class="t-hi">${query}</span></div>
-<div class="t-line"> TYPE     ${detectBTCAddressType(query)}</div><div class="t-line"> BALANCE  <span class="t-ok">${balance.toFixed(8)} BTC</span></div>
+<div class="t-line"> TYPE     ${detectBTCAddressType(query)}</div>
+<div class="t-line"> BALANCE  <span class="t-ok">${balance.toFixed(8)} BTC</span></div>
 <div class="t-line"> TXCOUNT  ${txCount}</div>
 <div class="t-line"> FUNDED   ${(funded/1e8).toFixed(8)} BTC</div>
 <div class="t-line"> SPENT    ${(spent/1e8).toFixed(8)} BTC</div>
@@ -810,7 +1290,83 @@ async function queryBTC(query, isHash) {
 <div class="t-line"> VIN      ${(d.vin||[]).length}</div>
 <div class="t-line"> VOUT     ${(d.vout||[]).length}</div>
 `);
+
+        // ══════ BTC TRANSFER FLOW ══════
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[FLOW] Bitcoin UTXO 資金流向…</div>`);
+        let btcFlowHtml = `<div class="flow-container"><div class="flow-title">BTC UTXO Flow — ${(d.vin||[]).length} 輸入 → ${(d.vout||[]).length} 輸出</div>`;
+
+        // Show inputs
+        const inputs = (d.vin || []).slice(0, 5);
+        const outputs = (d.vout || []).slice(0, 8);
+
+        for (const vin of inputs) {
+            const fromAddr = vin.prevout?.scriptpubkey_address || "Unknown";
+            const val = vin.prevout?.value ? (vin.prevout.value / 1e8).toFixed(8) : "?";
+            btcFlowHtml += `
+<div class="flow-item">
+    <div class="flow-addr from">
+        <span class="addr-label">INPUT</span>
+        ${shortenAddr(fromAddr)}
+    </div>
+    <div class="flow-arrow">
+        <div class="flow-amount">${val} BTC</div>
+        <div class="flow-arrow-line"></div>
+    </div>
+    <div class="flow-addr to">
+        <span class="addr-label">TX</span>
+        ${shortenAddr(d.txid)}
+    </div>
+    <span class="flow-token-badge">BTC</span>
+</div>`;
+        }
+
+        if ((d.vin||[]).length > 5) {
+            btcFlowHtml += `<div class="t-line t-dim" style="margin:4px 0 4px 16px">  … 及其他 ${(d.vin||[]).length - 5} 個輸入</div>`;
+        }
+
+        btcFlowHtml += `<hr class="t-sep">`;
+
+        for (const vout of outputs) {
+            const toAddr = vout.scriptpubkey_address || "OP_RETURN";
+            const val = vout.value ? (vout.value / 1e8).toFixed(8) : "0";
+            btcFlowHtml += `
+<div class="flow-item">
+    <div class="flow-addr from">
+        <span class="addr-label">TX</span>
+        ${shortenAddr(d.txid)}
+    </div>
+    <div class="flow-arrow">
+        <div class="flow-amount">${val} BTC</div>
+        <div class="flow-arrow-line"></div>
+    </div>
+    <div class="flow-addr to">
+        <span class="addr-label">OUTPUT</span>
+        ${shortenAddr(toAddr)}
+    </div>
+    <span class="flow-token-badge">BTC</span>
+</div>`;
+        }
+
+        if ((d.vout||[]).length > 8) {
+            btcFlowHtml += `<div class="t-line t-dim" style="margin:4px 0 4px 16px">  … 及其他 ${(d.vout||[]).length - 8} 個輸出</div>`;
+        }
+
+        btcFlowHtml += `
+<div class="flow-summary">
+    <div class="flow-summary-item"><div class="dot-sm" style="background:var(--warn)"></div> 總輸入: ${(totalIn/1e8).toFixed(8)} BTC</div>
+    <div class="flow-summary-item"><div class="dot-sm" style="background:var(--ok)"></div> 總輸出: ${(totalOut/1e8).toFixed(8)} BTC</div>
+    <div class="flow-summary-item"><div class="dot-sm" style="background:var(--err)"></div> 手續費: ${(fee/1e8).toFixed(8)} BTC</div>
+</div></div>`;
+        termWrite(btcFlowHtml);
     }
+}
+
+function detectBTCAddressType(addr) {
+    if (addr.startsWith("bc1q")) return "Bech32 (SegWit v0)";
+    if (addr.startsWith("bc1p")) return "Bech32m (Taproot)";
+    if (addr.startsWith("1")) return "P2PKH (Legacy)";
+    if (addr.startsWith("3")) return "P2SH (可能 SegWit)";
+    return "Unknown";
 }
 
 /* ─── TRON ─── */
@@ -837,13 +1393,92 @@ async function queryTRON(query, isHash) {
         if (!d || !d.txID)
             return termWrite(`<div class="t-line t-err">[MISS] 未找到該交易哈希。</div>`);
         const ok = d.ret && d.ret[0].contractRet === "SUCCESS";
+        const contractType = d.raw_data.contract[0].type;
+
         termWrite(`
 <div class="t-line t-ok">[OK] TRON 交易解析完成</div>
 <hr class="t-sep">
 <div class="t-line">  TXID    <span class="t-hi">${d.txID}</span></div>
 <div class="t-line">  STATUS  <span class="${ok?"t-ok":"t-err"}">${ok ? "✓ SUCCESS" : "✗ FAILED"}</span></div>
-<div class="t-line">  TYPE    ${d.raw_data.contract[0].type}</div>
+<div class="t-line">  TYPE    ${contractType}</div>
 `);
+
+        // ══════ TRON METHOD DECODE ══════
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[DECODE] 解碼 TRON 交易類型…</div>`);
+        const contract = d.raw_data.contract[0];
+        const paramValue = contract.parameter?.value || {};
+
+        if (contractType === "TriggerSmartContract") {
+            // Smart contract call - decode the data field
+            const data = paramValue.data;
+            if (data) {
+                const decoded = decodeMethod("0x" + data);
+                termWrite(renderMethodDecode(decoded));
+            } else {
+                termWrite(`<div class="t-line"><span class="method-badge"><i class="fas fa-file-contract method-icon"></i> <span class="method-name">Smart Contract Call</span></span></div>`);
+            }
+
+            // Get transaction info for logs
+            termWrite(`<div class="t-line t-dim">[FLOW] 查詢 TRON 事件日誌…</div>`);
+            try {
+                const rInfo = await fetch("https://api.trongrid.io/wallet/gettransactioninfobyid", {
+                    method:"POST", headers:{"Content-Type":"application/json"},
+                    body: JSON.stringify({ value: query })
+                });
+                if (rInfo.ok) {
+                    const info = await rInfo.json();
+                    if (info.log && info.log.length > 0) {
+                        // Convert TRON logs to EVM-like format for parsing
+                        const evmLogs = info.log.map(l => ({
+                            address: "0x" + (l.address || ""),
+                            topics: (l.topics || []).map(t => "0x" + t),
+                            data: l.data ? "0x" + l.data : "0x"
+                        }));
+                        const transfers = parseTransferLogs(evmLogs);
+                        if (transfers.length > 0) {
+                            // Fix TRON addresses display
+                            termWrite(renderTransferFlow(transfers, paramValue.owner_address, paramValue.contract_address));
+                        } else {
+                            termWrite(`<div class="t-line t-dim">  ⓘ 無 TRC-20 Transfer 事件</div>`);
+                        }
+                    }
+                }
+            } catch(e) {
+                termWrite(`<div class="t-line t-dim">  ⓘ 事件日誌查詢失敗</div>`);
+            }
+
+        } else if (contractType === "TransferContract") {
+            const amount = paramValue.amount ? (paramValue.amount / 1e6).toFixed(6) : "0";
+            termWrite(`<div class="t-line"><span class="method-badge"><i class="fas fa-arrow-right method-icon"></i> <span class="method-name">TRX Transfer</span></span></div>`);
+            termWrite(`<div class="method-params"><div><span class="param-type">address</span> <span class="param-name">to</span> = <span class="param-value">${paramValue.to_address || "—"}</span></div><div><span class="param-type">uint256</span> <span class="param-name">amount</span> = <span class="param-value">${amount} TRX</span></div></div>`);
+
+            // Simple TRX transfer flow
+            let flowHtml = `<div class="flow-container"><div class="flow-title">TRX Transfer Flow</div>`;
+            flowHtml += `
+<div class="flow-item">
+    <div class="flow-addr from">
+        <span class="addr-label">發送者</span>
+        ${shortenAddr(paramValue.owner_address || "—")}
+    </div>
+    <div class="flow-arrow">
+        <div class="flow-amount">${amount} TRX</div>
+        <div class="flow-arrow-line"></div>
+    </div>
+    <div class="flow-addr to">
+        <span class="addr-label">接收者</span>
+        ${shortenAddr(paramValue.to_address || "—")}
+    </div>
+    <span class="flow-token-badge">TRX</span>
+</div></div>`;
+            termWrite(flowHtml);
+
+        } else if (contractType === "TransferAssetContract") {
+            termWrite(`<div class="t-line"><span class="method-badge"><i class="fas fa-coins method-icon"></i> <span class="method-name">TRC-10 Asset Transfer</span></span></div>`);
+            termWrite(`<div class="method-params"><div><span class="param-type">string</span> <span class="param-name">asset</span> = <span class="param-value">${paramValue.asset_name || "—"}</span></div><div><span class="param-type">address</span> <span class="param-name">to</span> = <span class="param-value">${paramValue.to_address || "—"}</span></div><div><span class="param-type">uint256</span> <span class="param-name">amount</span> = <span class="param-value">${paramValue.amount || 0}</span></div></div>`);
+        } else {
+            termWrite(`<div class="t-line"><span class="method-badge"><i class="fas fa-cube method-icon"></i> <span class="method-name">${contractType}</span></span></div>`);
+        }
+
     } else {
         termWrite(`<div class="t-line t-dim">[API] trongrid.io / getaccount…</div>`);
         const hexParam = tronHex(query);
