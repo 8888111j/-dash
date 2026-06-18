@@ -1,6 +1,3 @@
-
-
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -1908,7 +1905,7 @@ async function queryBTC(query, isHash) {
         termWrite(`<hr class="t-sep"><div class="t-line t-dim">[BRC-20] 掃描 BRC-20 代幣…</div>`);
         try {
             const brc20Resp = await fetch(`https://open-api.unisat.io/v3/address/${query}/brc20?start=0&limit=100`, {
-                headers: { "Authorization": `Bearer ${1fb5e5cb1ac7760378e7b3b8c5c4b80db17096aad33a02d4b317bf5bf4fb9def}` }
+                headers: { "Authorization": `Bearer ${UNISAT_KEY}` }
             });
             if (brc20Resp.ok) {
                 const brc20Data = await brc20Resp.json();
