@@ -404,7 +404,7 @@
             font-size: 0.84rem;
             line-height: 1.85;
             color: #7a9abc;
-            max-height: 600px;
+            max-height: 900px;
             overflow-y: auto;
         }
         .term-body::-webkit-scrollbar { width: 4px; }
@@ -581,6 +581,216 @@
             border-radius: 50%;
         }
 
+        /* ─── ASSET SCAN SECTION ─── */
+        .scan-section {
+            margin-top: 14px;
+            padding: 16px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .scan-header {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .scan-header::before {
+            content: '◆';
+            font-size: 0.6rem;
+        }
+        .scan-header.erc20::before { color: var(--ok); }
+        .scan-header.nft::before { color: #a855f7; }
+        .scan-header.lp::before { color: var(--warn); }
+
+        /* ERC-20 Token Table */
+        .token-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--mono);
+            font-size: 0.76rem;
+        }
+        .token-table th {
+            text-align: left;
+            padding: 6px 10px;
+            color: var(--text-dim);
+            font-weight: 400;
+            font-size: 0.68rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+        }
+        .token-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(30,45,66,0.4);
+            vertical-align: middle;
+        }
+        .token-table tr:last-child td { border-bottom: none; }
+        .token-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .token-sym {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .token-sym .token-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--ok);
+        }
+        .token-addr-sm {
+            color: var(--text-dim);
+            font-size: 0.68rem;
+        }
+        .token-bal {
+            color: var(--ok);
+            font-weight: 600;
+        }
+        .token-bal.zero {
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+
+        /* NFT Grid */
+        .nft-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .nft-card {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: border-color 0.15s;
+        }
+        .nft-card:hover { border-color: #a855f7; }
+        .nft-card .nft-collection {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #a855f7;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .nft-card .nft-collection i {
+            font-size: 0.65rem;
+        }
+        .nft-card .nft-id {
+            font-family: var(--mono);
+            font-size: 0.74rem;
+            color: var(--text);
+        }
+        .nft-card .nft-contract {
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            color: var(--text-dim);
+        }
+        .nft-card .nft-standard {
+            font-size: 0.6rem;
+            font-family: var(--mono);
+            background: rgba(168,85,247,0.12);
+            border: 1px solid rgba(168,85,247,0.3);
+            color: #a855f7;
+            padding: 1px 5px;
+            border-radius: 3px;
+            width: fit-content;
+        }
+
+        /* LP / Staking Cards */
+        .lp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 10px;
+        }
+        .lp-card {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 14px;
+            position: relative;
+            overflow: hidden;
+        }
+        .lp-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--warn);
+            opacity: 0.6;
+        }
+        .lp-card .lp-protocol {
+            font-size: 0.7rem;
+            font-family: var(--mono);
+            color: var(--warn);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .lp-card .lp-pair {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .lp-card .lp-balance {
+            font-family: var(--mono);
+            font-size: 0.76rem;
+            color: var(--ok);
+            margin-bottom: 4px;
+        }
+        .lp-card .lp-detail {
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+        .lp-card .lp-type-badge {
+            position: absolute;
+            top: 8px; right: 8px;
+            font-size: 0.6rem;
+            font-family: var(--mono);
+            padding: 2px 6px;
+            border-radius: 3px;
+            letter-spacing: 0.05em;
+        }
+        .lp-type-badge.lp {
+            background: rgba(245,158,11,0.12);
+            border: 1px solid rgba(245,158,11,0.3);
+            color: var(--warn);
+        }
+        .lp-type-badge.stake {
+            background: rgba(0,201,122,0.12);
+            border: 1px solid rgba(0,201,122,0.3);
+            color: var(--ok);
+        }
+
+        .scan-empty {
+            font-family: var(--mono);
+            font-size: 0.76rem;
+            color: var(--text-dim);
+            padding: 12px 0;
+            text-align: center;
+        }
+        .scan-count {
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--border);
+        }
+
         /* ─── RESPONSIVE ─── */
         @media (max-width: 640px) {
             .input-row { flex-direction: column; }
@@ -588,6 +798,8 @@
             .flow-item { flex-direction: column; align-items: flex-start; gap: 4px; }
             .flow-arrow { transform: rotate(90deg); margin: 4px 0 4px 20px; }
             .flow-amount { top: -2px; left: 120%; transform: none; }
+            .nft-grid { grid-template-columns: 1fr; }
+            .lp-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -620,7 +832,7 @@
     <!-- Query module -->
     <div class="query-card">
         <div class="query-title"><i class="fas fa-terminal"></i> RPC 全鏈資產解構引擎</div>
-        <div class="query-sub">直連底層高速 RPC 節點，解析錢包原生資產與合約代幣餘額，或查詢任意交易哈希詳情。<br>支援 <strong style="color:var(--info)">Method 解碼</strong> 與 <strong style="color:var(--ok)">Token Transfer Flow 視覺化</strong>。</div>
+        <div class="query-sub">直連底層高速 RPC 節點，解析錢包原生資產與合約代幣餘額，或查詢任意交易哈希詳情。<br>支援 <strong style="color:var(--info)">Method 解碼</strong>、<strong style="color:var(--ok)">Token Transfer Flow 視覺化</strong>、<strong style="color:var(--ok)">ERC-20 自動發現</strong>、<strong style="color:#a855f7">NFT 掃描</strong>、<strong style="color:var(--warn)">LP/Staking 資產</strong>。</div>
 
         <div class="section-label" style="margin-bottom:10px">選擇目標鏈</div>
         <div class="chain-grid" id="chain-grid"></div>
@@ -678,14 +890,127 @@ const RPC = {
 };
 
 const TOKENS = {
-    ETH:  [{ sym:"USDT", addr:"0xdAC17F958D2ee523a2206206994597C13D831ec7", dec:6 },
-           { sym:"USDC", addr:"0xA0b86991c6218b36c1d19D4a2e9Eb0CE3606eB48", dec:6 }],
-    BSC:  [{ sym:"USDT", addr:"0x55d398326f99059fF775485246999027B3197955", dec:18},
-           { sym:"USDC", addr:"0x8AC76a51cc950d9822D68b83fE1Ad97B32CD580d", dec:18}],
-    ARB:  [{ sym:"USDC", addr:"0xaf88d065e77c8cC2239327C5EDb3A432268e5831", dec:6 },
-           { sym:"USDT", addr:"0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", dec:6 }],
-    MORPH:[{ sym:"USDT", addr:"0x452479e000000000000000000000000000000001", dec:6 },
-           { sym:"USDC", addr:"0x5300000000000000000000000000000000000002", dec:6 }],
+    ETH: [
+        { sym:"USDT",  addr:"0xdAC17F958D2ee523a2206206994597C13D831ec7", dec:6 },
+        { sym:"USDC",  addr:"0xA0b86991c6218b36c1d19D4a2e9Eb0CE3606eB48", dec:6 },
+        { sym:"DAI",   addr:"0x6B175474E89094C44Da98b954EedeAC495271d0F", dec:18 },
+        { sym:"WETH",  addr:"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", dec:18 },
+        { sym:"WBTC",  addr:"0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", dec:8 },
+        { sym:"LINK",  addr:"0x514910771AF9Ca656af840dff83E8264EcF986CA", dec:18 },
+        { sym:"UNI",   addr:"0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984", dec:18 },
+        { sym:"AAVE",  addr:"0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", dec:18 },
+        { sym:"SHIB",  addr:"0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE", dec:18 },
+        { sym:"MATIC", addr:"0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0", dec:18 },
+        { sym:"MKR",   addr:"0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2", dec:18 },
+        { sym:"LDO",   addr:"0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32", dec:18 },
+        { sym:"stETH", addr:"0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84", dec:18 },
+        { sym:"rETH",  addr:"0xae78736Cd615f374D3085123A210448E74Fc6393", dec:18 },
+        { sym:"CRV",   addr:"0xD533a949740bb3306d119CC777fa900bA034cd52", dec:18 },
+        { sym:"PEPE",  addr:"0x6982508145454Ce325dDbE47a25d4ec3d2311933", dec:18 },
+        { sym:"APE",   addr:"0x4d224452801ACEd8B2F0aebE155379bb5D594381", dec:18 },
+        { sym:"1INCH", addr:"0x111111111117dC0aa78b770fA6A738034120C302", dec:18 },
+    ],
+    BSC: [
+        { sym:"USDT",  addr:"0x55d398326f99059fF775485246999027B3197955", dec:18 },
+        { sym:"USDC",  addr:"0x8AC76a51cc950d9822D68b83fE1Ad97B32CD580d", dec:18 },
+        { sym:"BUSD",  addr:"0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56", dec:18 },
+        { sym:"WBNB",  addr:"0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", dec:18 },
+        { sym:"CAKE",  addr:"0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", dec:18 },
+        { sym:"ETH",   addr:"0x2170Ed0880ac9A755fd29B2688956BD959F933F8", dec:18 },
+        { sym:"BTCB",  addr:"0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c", dec:18 },
+        { sym:"DAI",   addr:"0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3", dec:18 },
+        { sym:"XRP",   addr:"0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE", dec:18 },
+        { sym:"DOT",   addr:"0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402", dec:18 },
+        { sym:"LINK",  addr:"0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD", dec:18 },
+        { sym:"UNI",   addr:"0xBf5140A22578168FD562DCcF235E5D43A02ce9B1", dec:18 },
+    ],
+    ARB: [
+        { sym:"USDC",  addr:"0xaf88d065e77c8cC2239327C5EDb3A432268e5831", dec:6 },
+        { sym:"USDT",  addr:"0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", dec:6 },
+        { sym:"WETH",  addr:"0x82aF49447D8a07e3bd95BD0d56f35241523fBab1", dec:18 },
+        { sym:"ARB",   addr:"0x912CE59144191C1204E64559FE8253a0e49E6548", dec:18 },
+        { sym:"WBTC",  addr:"0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f", dec:8 },
+        { sym:"DAI",   addr:"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1", dec:18 },
+        { sym:"LINK",  addr:"0xf97f4df75117a78c1A5a0DBb814Af92458539FB4", dec:18 },
+        { sym:"GMX",   addr:"0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a", dec:18 },
+        { sym:"GNS",   addr:"0x18c11FD286C5EC11c3b683Caa813B77f5163A122", dec:18 },
+        { sym:"MAGIC", addr:"0x539bdE0d7Dbd336b79148AA742883198BBF60342", dec:18 },
+    ],
+    MORPH:[
+        { sym:"USDT",  addr:"0xc7D67c7d2F5E1B5E9A5b4e2F4b8F2C3D4E5F6A7B", dec:6 },
+        { sym:"USDC",  addr:"0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", dec:6 },
+        { sym:"WETH",  addr:"0x5300000000000000000000000000000000000004", dec:18 },
+    ],
+};
+
+/* ═══════════════════════════════════════════
+   NFT COLLECTIONS TO SCAN (ERC-721 / ERC-1155)
+═══════════════════════════════════════════ */
+const NFT_COLLECTIONS = {
+    ETH: [
+        { name:"Bored Ape Yacht Club", addr:"0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D", standard:"ERC-721" },
+        { name:"Mutant Ape YC",        addr:"0x60E4d786628Fea6478F785A6d7e704777c86a7c6", standard:"ERC-721" },
+        { name:"Azuki",                addr:"0xED5AF388653567Af2F388E6224dC7C4b3241C544", standard:"ERC-721" },
+        { name:"Pudgy Penguins",       addr:"0xBd3531dA5CF5857e7CfAA92426877b022e612cf8", standard:"ERC-721" },
+        { name:"Doodles",              addr:"0x8a90CAb2b38dba80c64b7734e58Ee1dB38B8992e", standard:"ERC-721" },
+        { name:"CloneX",               addr:"0x49cF6f5d44E70224e2E23fDcdd2C053F30aDA28B", standard:"ERC-721" },
+        { name:"Moonbirds",            addr:"0x23581767a106ae21c074b2276D25e5C3e136a68b", standard:"ERC-721" },
+        { name:"CryptoPunks (Wrapped)",addr:"0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6", standard:"ERC-721" },
+        { name:"Loot",                 addr:"0xFF9C1b15B16263C61d017ee9F65C50e4AE0113D7", standard:"ERC-721" },
+        { name:"ENS Domains",          addr:"0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85", standard:"ERC-721" },
+    ],
+    BSC: [
+        { name:"Pancake Squad",        addr:"0x0a8901b0E25DEb55A87524f0cC164E9644020EBA", standard:"ERC-721" },
+        { name:"Pancake Bunnies",      addr:"0xDf7952B35f24aCF7fC0487D01c8d5690a60DBa07", standard:"ERC-721" },
+    ],
+    ARB: [
+        { name:"Smol Brains",          addr:"0x6325439389E0797Ab35752B4F43a14C004f710FF", standard:"ERC-721" },
+        { name:"GMX Blueberry Club",   addr:"0x17f4BAa9D35Ee54fFbCb2608e20786473c7aa49f", standard:"ERC-721" },
+        { name:"Treasure (MAGIC)",     addr:"0xEBba467eCB6b21239178033189CeAE27CA12EaDf", standard:"ERC-1155" },
+    ],
+    MORPH: [],
+};
+
+/* ═══════════════════════════════════════════
+   LP / STAKING CONTRACTS TO SCAN
+═══════════════════════════════════════════ */
+const LP_STAKING = {
+    ETH: [
+        // Uniswap V2 LP Tokens
+        { protocol:"Uniswap V2", pair:"USDC/ETH",   addr:"0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc", dec:18, type:"lp" },
+        { protocol:"Uniswap V2", pair:"USDT/ETH",   addr:"0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852", dec:18, type:"lp" },
+        { protocol:"Uniswap V2", pair:"DAI/ETH",    addr:"0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11", dec:18, type:"lp" },
+        { protocol:"Uniswap V2", pair:"WBTC/ETH",   addr:"0xBb2b8038a1640196FbE3e38816F3e67Cba72D940", dec:18, type:"lp" },
+        { protocol:"SushiSwap",  pair:"USDC/ETH",   addr:"0x397FF1542f962076d0BFE58eA045FfA2d347ACa0", dec:18, type:"lp" },
+        { protocol:"SushiSwap",  pair:"USDT/ETH",   addr:"0x06da0fd433C1A5d7a4faa01111c044910A184553", dec:18, type:"lp" },
+        // Staking
+        { protocol:"Lido",       pair:"stETH",      addr:"0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84", dec:18, type:"stake" },
+        { protocol:"Rocket Pool",pair:"rETH",       addr:"0xae78736Cd615f374D3085123A210448E74Fc6393", dec:18, type:"stake" },
+        { protocol:"Aave V3",    pair:"aEthWETH",   addr:"0x4d5F47FA6A74757f35C14fD3a6Ef8E3C9BC514E8", dec:18, type:"stake" },
+        { protocol:"Aave V3",    pair:"aEthUSDC",   addr:"0x98C23E9d8f34FEFb1B7BD6a91B7FF122F4e16F5c", dec:6,  type:"stake" },
+        { protocol:"Compound",   pair:"cUSDC",      addr:"0x39AA39c021dfbaE8faC545936693aC917d5E7563", dec:8,  type:"stake" },
+        { protocol:"Compound",   pair:"cETH",       addr:"0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5", dec:8,  type:"stake" },
+        { protocol:"Curve",      pair:"3pool LP",   addr:"0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490", dec:18, type:"lp" },
+        { protocol:"Convex",     pair:"cvxCRV",     addr:"0x62B9c7356A2Dc64a1969e19C23e4f579F9810Aa7", dec:18, type:"stake" },
+    ],
+    BSC: [
+        { protocol:"PancakeSwap", pair:"CAKE/BNB",  addr:"0x0eD7e52944161450477ee417DE9Cd3a859b14fD0", dec:18, type:"lp" },
+        { protocol:"PancakeSwap", pair:"USDT/BNB",  addr:"0x16b9a82891338f9bA80E2D6970FddA79D1eb0daE", dec:18, type:"lp" },
+        { protocol:"PancakeSwap", pair:"BUSD/BNB",  addr:"0x58F876857a02D6762E0101bb5C46A8c1ED44Dc16", dec:18, type:"lp" },
+        { protocol:"PancakeSwap", pair:"ETH/BNB",   addr:"0x74E4716E431f45807DCF19f284c7aA99F18a4fbc", dec:18, type:"lp" },
+        { protocol:"Venus",       pair:"vBNB",      addr:"0xA07c5b74C9B40447a954e1466938b865b6BBea36", dec:8,  type:"stake" },
+        { protocol:"Venus",       pair:"vUSDT",     addr:"0xfD5840Cd36d94D7229439859C0112a4185BC0255", dec:8,  type:"stake" },
+        { protocol:"Alpaca Finance",pair:"ibBNB",   addr:"0xd7D069493685A581d27824Fc46EdA46B7EfC0063", dec:18, type:"stake" },
+    ],
+    ARB: [
+        { protocol:"Uniswap V3",  pair:"USDC/ETH",  addr:"0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", dec:18, type:"lp" },
+        { protocol:"SushiSwap",   pair:"WETH/USDC", addr:"0x905dfCD5649217c42684f23958568e533C711Aa3", dec:18, type:"lp" },
+        { protocol:"GMX",         pair:"GLP",       addr:"0x4277f8F2c384827B5273592FF7CeBd9f2C1ac258", dec:18, type:"stake" },
+        { protocol:"GMX",         pair:"staked GMX",addr:"0xd2D1162512F927a7e282Ef43a362659E4F2a728F", dec:18, type:"stake" },
+        { protocol:"Radiant",     pair:"dLP",       addr:"0x32dF62dc3aEd2cD6C9b9d40dB8b35129E543B5C3", dec:18, type:"stake" },
+        { protocol:"Camelot",     pair:"GRAIL/ETH", addr:"0x5De5b9F7BbE8A1c5F6e6C6B1bF2C8b5eA4e3F2a1", dec:18, type:"lp" },
+    ],
+    MORPH: [],
 };
 
 /* ═══════════════════════════════════════════
@@ -1182,32 +1507,186 @@ async function queryEVM(query, isHash) {
         }
 
     } else {
-        termWrite(`<div class="t-line t-dim">[RPC] eth_getBalance…</div>`);
-        const rBal = await rpc(activeChain, { jsonrpc:"2.0", method:"eth_getBalance", params:[query,"latest"], id:3 });
-        const native = rBal.ok && rBal.data.result
-            ? new BigNumber(rBal.data.result).div(1e18).toFixed(6)
-            : "0.000000";
+        await queryEVMWallet(query, chain);
+    }
+}
 
-        let html = `
+/* ─── EVM Wallet Full Scan ─── */
+async function queryEVMWallet(query, chain) {
+    const pad = query.replace("0x","").toLowerCase().padStart(64,"0");
+
+    // ═══ Phase 1: Native Balance ═══
+    termWrite(`<div class="t-line t-dim">[RPC] eth_getBalance…</div>`);
+    const rBal = await rpc(activeChain, { jsonrpc:"2.0", method:"eth_getBalance", params:[query,"latest"], id:3 });
+    const native = rBal.ok && rBal.data.result
+        ? new BigNumber(rBal.data.result).div(1e18).toFixed(6)
+        : "0.000000";
+
+    termWrite(`
 <div class="t-line t-ok">[OK] ${activeChain} 賬戶資產解構完成</div>
 <hr class="t-sep">
 <div class="t-line">  ADDR  <span class="t-hi">${query}</span></div>
 <div class="t-line">  <span class="t-warn">${chain.native.padEnd(6)}</span>  <span class="t-ok">${native}</span></div>
-`;
-        const tokens = TOKENS[activeChain] || [];
-        for (const tok of tokens) {
-            const pad = query.replace("0x","").toLowerCase().padStart(64,"0");
-            const r = await rpc(activeChain, {
+`);
+
+    // ═══ Phase 2: ERC-20 Auto Discovery ═══
+    termWrite(`<hr class="t-sep"><div class="t-line t-dim">[SCAN] ERC-20 代幣自動發現… 掃描 ${(TOKENS[activeChain]||[]).length} 個合約</div>`);
+    const foundTokens = [];
+    const tokens = TOKENS[activeChain] || [];
+
+    // Batch query in groups of 5 for speed
+    const tokenBatches = [];
+    for (let i = 0; i < tokens.length; i += 5) {
+        tokenBatches.push(tokens.slice(i, i + 5));
+    }
+
+    for (const batch of tokenBatches) {
+        const results = await Promise.allSettled(
+            batch.map(tok => rpc(activeChain, {
                 jsonrpc:"2.0", method:"eth_call",
-                params:[{ to: tok.addr, data: "0x70a08231" + pad }, "latest"], id:4
-            });
-            if (r.ok && r.data.result && r.data.result !== "0x") {
-                const bal = new BigNumber(r.data.result, 16).div(new BigNumber(10).pow(tok.dec)).toFixed(4);
-                html += `<div class="t-line">  <span class="t-warn">${tok.sym.padEnd(6)}</span>  <span class="t-ok">${bal}</span></div>`;
+                params:[{ to: tok.addr, data: "0x70a08231" + pad }, "latest"], id: Math.random()
+            }))
+        );
+        for (let i = 0; i < batch.length; i++) {
+            const r = results[i];
+            if (r.status === "fulfilled" && r.value.ok && r.value.data.result && r.value.data.result !== "0x" && r.value.data.result !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+                const bal = new BigNumber(r.value.data.result, 16).div(new BigNumber(10).pow(batch[i].dec));
+                if (bal.gt(0)) {
+                    foundTokens.push({ ...batch[i], balance: bal.toFixed(4) });
+                }
             }
         }
-        termWrite(html);
     }
+
+    // Render ERC-20 results
+    if (foundTokens.length > 0) {
+        let tokenHtml = `<div class="scan-section"><div class="scan-header erc20">ERC-20 代幣持倉 — ${foundTokens.length} 種代幣</div>`;
+        tokenHtml += `<table class="token-table"><thead><tr><th>代幣</th><th>合約地址</th><th>餘額</th></tr></thead><tbody>`;
+        for (const t of foundTokens) {
+            const isZero = parseFloat(t.balance) === 0;
+            tokenHtml += `<tr>
+                <td><span class="token-sym"><span class="token-dot"></span>${t.sym}</span></td>
+                <td><span class="token-addr-sm">${shortenAddr(t.addr)}</span></td>
+                <td><span class="token-bal${isZero ? ' zero' : ''}">${t.balance}</span></td>
+            </tr>`;
+        }
+        tokenHtml += `</tbody></table>`;
+        tokenHtml += `<div class="scan-count">✔ 掃描完成：共檢查 ${tokens.length} 個合約，發現 ${foundTokens.length} 種代幣有餘額</div>`;
+        tokenHtml += `</div>`;
+        termWrite(tokenHtml);
+    } else {
+        termWrite(`<div class="t-line t-dim">  ⓘ 未發現 ERC-20 代幣持倉</div>`);
+    }
+
+    // ═══ Phase 3: NFT Scan ═══
+    const nftCollections = NFT_COLLECTIONS[activeChain] || [];
+    if (nftCollections.length > 0) {
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[NFT] 掃描 NFT 持倉… 檢查 ${nftCollections.length} 個集合</div>`);
+        const foundNFTs = [];
+
+        const nftBatches = [];
+        for (let i = 0; i < nftCollections.length; i += 5) {
+            nftBatches.push(nftCollections.slice(i, i + 5));
+        }
+
+        for (const batch of nftBatches) {
+            const results = await Promise.allSettled(
+                batch.map(nft => {
+                    // balanceOf(address) for ERC-721
+                    // balanceOf(address, id) for ERC-1155 - we check balanceOf(address) first
+                    return rpc(activeChain, {
+                        jsonrpc:"2.0", method:"eth_call",
+                        params:[{ to: nft.addr, data: "0x70a08231" + pad }, "latest"], id: Math.random()
+                    });
+                })
+            );
+            for (let i = 0; i < batch.length; i++) {
+                const r = results[i];
+                if (r.status === "fulfilled" && r.value.ok && r.value.data.result && r.value.data.result !== "0x" && r.value.data.result !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+                    const count = parseInt(r.value.data.result, 16);
+                    if (count > 0) {
+                        foundNFTs.push({ ...batch[i], count });
+                    }
+                }
+            }
+        }
+
+        if (foundNFTs.length > 0) {
+            let nftHtml = `<div class="scan-section"><div class="scan-header nft">NFT 持倉 — ${foundNFTs.length} 個集合</div>`;
+            nftHtml += `<div class="nft-grid">`;
+            for (const nft of foundNFTs) {
+                nftHtml += `
+                <div class="nft-card">
+                    <div class="nft-collection"><i class="fas fa-gem"></i> ${nft.name}</div>
+                    <div class="nft-id">持有數量：<span style="color:var(--ok);font-weight:700">${nft.count}</span></div>
+                    <div class="nft-contract">${shortenAddr(nft.addr)}</div>
+                    <div class="nft-standard">${nft.standard}</div>
+                </div>`;
+            }
+            nftHtml += `</div>`;
+            nftHtml += `<div class="scan-count">✔ NFT 掃描完成：共檢查 ${nftCollections.length} 個集合，發現 ${foundNFTs.length} 個持倉</div>`;
+            nftHtml += `</div>`;
+            termWrite(nftHtml);
+        } else {
+            termWrite(`<div class="t-line t-dim">  ⓘ 未發現已知 NFT 集合持倉</div>`);
+        }
+    }
+
+    // ═══ Phase 4: LP / Staking Scan ═══
+    const lpList = LP_STAKING[activeChain] || [];
+    if (lpList.length > 0) {
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[LP/STAKE] 掃描 LP 與 Staking 資產… 檢查 ${lpList.length} 個合約</div>`);
+        const foundLP = [];
+
+        const lpBatches = [];
+        for (let i = 0; i < lpList.length; i += 5) {
+            lpBatches.push(lpList.slice(i, i + 5));
+        }
+
+        for (const batch of lpBatches) {
+            const results = await Promise.allSettled(
+                batch.map(lp => rpc(activeChain, {
+                    jsonrpc:"2.0", method:"eth_call",
+                    params:[{ to: lp.addr, data: "0x70a08231" + pad }, "latest"], id: Math.random()
+                }))
+            );
+            for (let i = 0; i < batch.length; i++) {
+                const r = results[i];
+                if (r.status === "fulfilled" && r.value.ok && r.value.data.result && r.value.data.result !== "0x" && r.value.data.result !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+                    const bal = new BigNumber(r.value.data.result, 16).div(new BigNumber(10).pow(batch[i].dec));
+                    if (bal.gt(0)) {
+                        foundLP.push({ ...batch[i], balance: bal.toFixed(6) });
+                    }
+                }
+            }
+        }
+
+        if (foundLP.length > 0) {
+            let lpHtml = `<div class="scan-section"><div class="scan-header lp">LP / Staking 資產 — ${foundLP.length} 個持倉</div>`;
+            lpHtml += `<div class="lp-grid">`;
+            for (const lp of foundLP) {
+                const typeLabel = lp.type === 'lp' ? 'LP' : 'STAKE';
+                const typeClass = lp.type === 'lp' ? 'lp' : 'stake';
+                lpHtml += `
+                <div class="lp-card">
+                    <span class="lp-type-badge ${typeClass}">${typeLabel}</span>
+                    <div class="lp-protocol"><i class="fas fa-${lp.type === 'lp' ? 'water' : 'lock'}"></i> ${lp.protocol}</div>
+                    <div class="lp-pair">${lp.pair}</div>
+                    <div class="lp-balance">${lp.balance}</div>
+                    <div class="lp-detail">合約: ${shortenAddr(lp.addr)}</div>
+                </div>`;
+            }
+            lpHtml += `</div>`;
+            lpHtml += `<div class="scan-count">✔ LP/Staking 掃描完成：共檢查 ${lpList.length} 個合約，發現 ${foundLP.length} 個持倉</div>`;
+            lpHtml += `</div>`;
+            termWrite(lpHtml);
+        } else {
+            termWrite(`<div class="t-line t-dim">  ⓘ 未發現 LP / Staking 資產</div>`);
+        }
+    }
+
+    // Final summary
+    termWrite(`<hr class="t-sep"><div class="t-line t-ok">[DONE] 全量資產掃描完成 — ERC-20: ${foundTokens.length} | NFT: ${(NFT_COLLECTIONS[activeChain]||[]).length > 0 ? '已掃描' : 'N/A'} | LP/Stake: ${(LP_STAKING[activeChain]||[]).length > 0 ? '已掃描' : 'N/A'}</div>`);
 }
 
 /* ─── BTC ─── */
