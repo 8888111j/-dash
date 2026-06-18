@@ -978,8 +978,6 @@ const RPC = {
     MORPH:[{ url: "https://rpc.morphl2.io" }],
 };
 
-const UNISAT_KEY = "";
-
 const TOKENS = {
     ETH: [
         { sym:"USDT",  addr:"0xdAC17F958D2ee523a2206206994597C13D831ec7", dec:6 },
@@ -1555,16 +1553,12 @@ async function checkAddressRisk(addr, chain) {
         const chainId = chainMap[chain];
         if (!chainId) return null;
 
-        const r = await fetch(`https://api.gopluslabs.io/api/v1/address_security/${chainId}?contract_addresses=${addr}`);
+        const r = await fetch(`https://api.gopluslabs.io/api/v1/address_security/${addr}?chain_id=${chainId}`);
         if (r.ok) {
-            const j = await r.json();
-            if (j.result && j.result[addr]) {
-                const riskData = j.result[addr];
+            const data = await r.json();
+            if (data.code === '1' && data.result && data.result[addr]) {
+                const riskData = data.result[addr];
                 RISK_CACHE[cacheKey] = riskData;
-                if (riskData.phishing_activities === '1' || riskData.stealing_attack === '1' || riskData.blacklisted === '1') {
-                    const riskLevel = riskData.phishing_activities === '1' ? 'PHISHING' : (riskData.stealing_attack === '1' ? 'MALICIOUS' : 'BLACKLISTED');
-                    termWrite(`<div class="risk-banner"><span class="risk-icon">⚠</span><span class="risk-text">🔴 高危地址警告</span><span class="risk-level">${riskLevel}</span></div>`);
-                }
                 return riskData;
             }
         }
@@ -1904,25 +1898,20 @@ async function queryBTC(query, isHash) {
         // ═══ BRC-20 Scan ═══
         termWrite(`<hr class="t-sep"><div class="t-line t-dim">[BRC-20] 掃描 BRC-20 代幣…</div>`);
         try {
-            const brc20Resp = await fetch(`https://open-api.unisat.io/v3/address/${query}/brc20?start=0&limit=100`, {
-                headers: { "Authorization": `Bearer ${UNISAT_KEY}` }
-            });
+            const brc20Resp = await fetch(`https://open-api.unisat.io/v1/indexer/address/${query}/brc20/summary?start=0&limit=100`);
             if (brc20Resp.ok) {
                 const brc20Data = await brc20Resp.json();
-                const brc20List = brc20Data.data?.detail || brc20Data.data?.summary || brc20Data.data?.brc20List || [];
-                if (brc20List.length > 0) {
-                    let brc20Html = `<div class="scan-section"><div class="scan-header erc20">BRC-20 代幣持倉 — ${brc20List.length} 種代幣</div>`;
+                if (brc20Data.data && brc20Data.data.detail && brc20Data.data.detail.length > 0) {
+                    let brc20Html = `<div class="scan-section"><div class="scan-header erc20">BRC-20 代幣持倉 — ${brc20Data.data.detail.length} 種代幣</div>`;
                     brc20Html += `<table class="token-table"><thead><tr><th>代幣</th><th>可用餘額</th><th>可轉移餘額</th></tr></thead><tbody>`;
-                    for (const token of brc20List) {
+                    for (const token of brc20Data.data.detail) {
                         brc20Html += `<tr><td><span class="token-sym"><span class="token-dot" style="background:#f59e0b"></span>${token.tick}</span></td><td><span class="token-bal">${token.availableBalance}</span></td><td><span class="token-bal">${token.transferableBalance}</span></td></tr>`;
                     }
-                    brc20Html += `</tbody></table><div class="scan-count">✔ 掃描完成：共發現 ${brc20List.length} 種 BRC-20 代幣</div></div>`;
+                    brc20Html += `</tbody></table><div class="scan-count">✔ 掃描完成：共發現 ${brc20Data.data.detail.length} 種 BRC-20 代幣</div></div>`;
                     termWrite(brc20Html);
                 } else {
                     termWrite(`<div class="t-line t-dim">  ⓘ 未發現 BRC-20 代幣持倉</div>`);
                 }
-            } else {
-                termWrite(`<div class="t-line t-err">  [ERROR] UniSat ${brc20Resp.status}</div>`);
             }
         } catch (e) {
             termWrite(`<div class="t-line t-dim">  ⚠ BRC-20 API 暫時不可用</div>`);
