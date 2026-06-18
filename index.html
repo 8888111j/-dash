@@ -791,6 +791,95 @@
             border-top: 1px dashed var(--border);
         }
 
+        /* ─── AGGREGATE DASHBOARD ─── */
+        .aggregate-dashboard {
+            background: linear-gradient(135deg, rgba(0,201,122,0.08) 0%, rgba(255,107,107,0.08) 100%);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .agg-card {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .agg-card .agg-label {
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .agg-card .agg-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--ok);
+        }
+        .agg-card .agg-subtext {
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .agg-card.total {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, rgba(0,201,122,0.12) 0%, rgba(255,107,107,0.12) 100%);
+            border-color: var(--ok);
+        }
+        .agg-card.total .agg-value {
+            font-size: 1.8rem;
+        }
+
+        /* ─── RISK WARNING BANNER ─── */
+        .risk-banner {
+            background: rgba(255,107,107,0.12);
+            border: 1px solid rgba(255,107,107,0.3);
+            border-radius: 6px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--mono);
+            font-size: 0.76rem;
+        }
+        .risk-banner .risk-icon {
+            font-size: 1.2rem;
+            color: var(--err);
+        }
+        .risk-banner .risk-text {
+            color: var(--err);
+            flex: 1;
+        }
+        .risk-banner .risk-level {
+            font-weight: 700;
+            color: var(--err);
+            padding: 2px 6px;
+            background: rgba(255,107,107,0.2);
+            border-radius: 3px;
+            font-size: 0.65rem;
+        }
+
+        .risk-banner.warning {
+            background: rgba(245,158,11,0.12);
+            border-color: rgba(245,158,11,0.3);
+        }
+        .risk-banner.warning .risk-icon,
+        .risk-banner.warning .risk-text,
+        .risk-banner.warning .risk-level {
+            color: var(--warn);
+        }
+        .risk-banner.warning .risk-level {
+            background: rgba(245,158,11,0.2);
+        }
+
         /* ─── RESPONSIVE ─── */
         @media (max-width: 640px) {
             .input-row { flex-direction: column; }
@@ -1424,6 +1513,63 @@ function shortenAddr(addr) {
 }
 
 /* ═══════════════════════════════════════════
+   GLOBAL ASSET TRACKING & PRICING
+═══════════════════════════════════════════ */
+let GLOBAL_ASSETS = {
+    chains: {},
+    totalUSD: 0,
+    prices: {}
+};
+
+const PRICE_CACHE = {};
+const RISK_CACHE = {};
+
+async function getTokenPrices(tokenIds) {
+    if (!tokenIds || tokenIds.length === 0) return {};
+    const cacheKey = tokenIds.sort().join(',');
+    if (PRICE_CACHE[cacheKey]) return PRICE_CACHE[cacheKey];
+
+    try {
+        const ids = tokenIds.join(',');
+        const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+        if (r.ok) {
+            const data = await r.json();
+            PRICE_CACHE[cacheKey] = data;
+            return data;
+        }
+    } catch (e) {
+        termWrite(`<div class="t-line t-dim">  ⚠ 價格 API 暫時不可用</div>`);
+    }
+    return {};
+}
+
+async function checkAddressRisk(addr, chain) {
+    if (!addr || addr === '0x0000000000000000000000000000000000000000') return null;
+    const cacheKey = `${chain}:${addr}`;
+    if (RISK_CACHE[cacheKey] !== undefined) return RISK_CACHE[cacheKey];
+
+    try {
+        const chainMap = { ETH: '1', BSC: '56', ARB: '42161' };
+        const chainId = chainMap[chain];
+        if (!chainId) return null;
+
+        const r = await fetch(`https://api.gopluslabs.io/api/v1/address_security/${addr}?chain_id=${chainId}`);
+        if (r.ok) {
+            const data = await r.json();
+            if (data.code === '1' && data.result && data.result[addr]) {
+                const riskData = data.result[addr];
+                RISK_CACHE[cacheKey] = riskData;
+                return riskData;
+            }
+        }
+    } catch (e) {
+        // Risk API failure handled silently
+    }
+    RISK_CACHE[cacheKey] = null;
+    return null;
+}
+
+/* ═══════════════════════════════════════════
    QUERY EXECUTION
 ═══════════════════════════════════════════ */
 async function runQuery() {
@@ -1514,6 +1660,20 @@ async function queryEVM(query, isHash) {
 /* ─── EVM Wallet Full Scan ─── */
 async function queryEVMWallet(query, chain) {
     const pad = query.replace("0x","").toLowerCase().padStart(64,"0");
+
+    // Initialize chain assets if not exists
+    if (!GLOBAL_ASSETS.chains[activeChain]) {
+        GLOBAL_ASSETS.chains[activeChain] = { native: 0, tokens: {}, nfts: [], lp: [], totalUSD: 0 };
+    }
+
+    // ═══ Phase 0: Address Risk Check ═══
+    const riskData = await checkAddressRisk(query, activeChain);
+    if (riskData && (riskData.phishing_activities === '1' || riskData.stealing_attack === '1' || riskData.blacklisted === '1')) {
+        const riskLevel = riskData.phishing_activities === '1' ? 'PHISHING' : (riskData.stealing_attack === '1' ? 'MALICIOUS' : 'BLACKLISTED');
+        termWrite(`<div class="risk-banner"><span class="risk-icon">⚠</span><span class="risk-text">地址風險警告</span><span class="risk-level">${riskLevel}</span></div>`);
+    } else if (riskData && (riskData.suspicious_outgoing_transfer === '1' || riskData.suspicious_contract_creation === '1')) {
+        termWrite(`<div class="risk-banner warning"><span class="risk-icon">⚠</span><span class="risk-text">地址存在可疑活動</span><span class="risk-level">WARNING</span></div>`);
+    }
 
     // ═══ Phase 1: Native Balance ═══
     termWrite(`<div class="t-line t-dim">[RPC] eth_getBalance…</div>`);
@@ -1734,6 +1894,50 @@ async function queryBTC(query, isHash) {
 <div class="t-line"> FUNDED   ${(funded/1e8).toFixed(8)} BTC</div>
 <div class="t-line"> SPENT    ${(spent/1e8).toFixed(8)} BTC</div>
 `);
+
+        // ═══ BRC-20 Scan ═══
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[BRC-20] 掃描 BRC-20 代幣…</div>`);
+        try {
+            const brc20Resp = await fetch(`https://open-api.unisat.io/v1/indexer/address/${query}/brc20/summary?start=0&limit=100`);
+            if (brc20Resp.ok) {
+                const brc20Data = await brc20Resp.json();
+                if (brc20Data.data && brc20Data.data.detail && brc20Data.data.detail.length > 0) {
+                    let brc20Html = `<div class="scan-section"><div class="scan-header erc20">BRC-20 代幣持倉 — ${brc20Data.data.detail.length} 種代幣</div>`;
+                    brc20Html += `<table class="token-table"><thead><tr><th>代幣</th><th>可用餘額</th><th>可轉移餘額</th></tr></thead><tbody>`;
+                    for (const token of brc20Data.data.detail) {
+                        brc20Html += `<tr><td><span class="token-sym"><span class="token-dot" style="background:#f59e0b"></span>${token.tick}</span></td><td><span class="token-bal">${token.availableBalance}</span></td><td><span class="token-bal">${token.transferableBalance}</span></td></tr>`;
+                    }
+                    brc20Html += `</tbody></table><div class="scan-count">✔ 掃描完成：共發現 ${brc20Data.data.detail.length} 種 BRC-20 代幣</div></div>`;
+                    termWrite(brc20Html);
+                } else {
+                    termWrite(`<div class="t-line t-dim">  ⓘ 未發現 BRC-20 代幣持倉</div>`);
+                }
+            }
+        } catch (e) {
+            termWrite(`<div class="t-line t-dim">  ⚠ BRC-20 API 暫時不可用</div>`);
+        }
+
+        // ═══ Runes Scan ═══
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[RUNES] 掃描 Runes 資產…</div>`);
+        try {
+            const runesResp = await fetch(`https://open-api.unisat.io/v1/indexer/address/${query}/runes/balance-list?start=0&limit=100`);
+            if (runesResp.ok) {
+                const runesData = await runesResp.json();
+                if (runesData.data && runesData.data.detail && runesData.data.detail.length > 0) {
+                    let runesHtml = `<div class="scan-section"><div class="scan-header lp">Runes 資產 — ${runesData.data.detail.length} 種 Runes</div>`;
+                    runesHtml += `<div class="lp-grid">`;
+                    for (const rune of runesData.data.detail) {
+                        runesHtml += `<div class="lp-card"><span class="lp-type-badge lp">RUNE</span><div class="lp-protocol"><i class="fas fa-gem"></i> Runes</div><div class="lp-pair">${rune.spacedRune}</div><div class="lp-balance">${rune.amount}</div><div class="lp-detail">ID: ${rune.runeid}</div></div>`;
+                    }
+                    runesHtml += `</div><div class="scan-count">✔ 掃描完成：共發現 ${runesData.data.detail.length} 種 Runes 資產</div></div>`;
+                    termWrite(runesHtml);
+                } else {
+                    termWrite(`<div class="t-line t-dim">  ⓘ 未發現 Runes 資產</div>`);
+                }
+            }
+        } catch (e) {
+            termWrite(`<div class="t-line t-dim">  ⚠ Runes API 暫時不可用</div>`);
+        }
     } else {
         let d =
             await getJSON(`https://blockstream.info/api/tx/${query}`) ||
