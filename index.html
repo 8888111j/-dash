@@ -1,3 +1,6 @@
+
+
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -880,6 +883,74 @@
             background: rgba(245,158,11,0.2);
         }
 
+        /* ─── RPC HEALTH DASHBOARD ─── */
+        .rpc-health-panel {
+            background: linear-gradient(135deg, rgba(61,158,255,0.08) 0%, rgba(0,201,122,0.08) 100%);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+        .rpc-health-title {
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 10px;
+        }
+        .rpc-health-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+        }
+        .rpc-node-badge {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+        }
+        .rpc-node-badge.healthy {
+            border-color: rgba(0,201,122,0.3);
+            background: rgba(0,201,122,0.05);
+        }
+        .rpc-node-badge.slow {
+            border-color: rgba(245,158,11,0.3);
+            background: rgba(245,158,11,0.05);
+        }
+        .rpc-node-badge.failed {
+            border-color: rgba(240,64,64,0.3);
+            background: rgba(240,64,64,0.05);
+        }
+        .rpc-node-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .rpc-node-dot.healthy { background: var(--ok); box-shadow: 0 0 4px var(--ok); }
+        .rpc-node-dot.slow { background: var(--warn); }
+        .rpc-node-dot.failed { background: var(--err); }
+        .rpc-node-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .rpc-node-name {
+            color: var(--text);
+            font-weight: 600;
+        }
+        .rpc-node-latency {
+            color: var(--text-muted);
+            font-family: var(--mono);
+            font-size: 0.7rem;
+        }
+
         /* ─── RESPONSIVE ─── */
         @media (max-width: 640px) {
             .input-row { flex-direction: column; }
@@ -942,6 +1013,12 @@
         </div>
         <div class="ident-bar">識別：<span id="ident-label">等待輸入…</span></div>
 
+        <!-- RPC Health Dashboard -->
+        <div class="rpc-health-panel" id="rpc-health-panel" style="display:none;">
+            <div class="rpc-health-title">🔗 RPC 節點健康度</div>
+            <div class="rpc-health-grid" id="rpc-health-grid"></div>
+        </div>
+
         <div class="term" id="term">
             <div class="term-bar">
                 <div class="term-bar-left">
@@ -970,13 +1047,36 @@ const CHAINS = {
 };
 
 const RPC = {
-    BTC:  [{ url: "https://blockstream.info/api" }, { url: "https://mempool.space/api" }],
-    ETH:  [{ url: "https://rpc.flashbots.net" }, { url: "https://ethereum-rpc.publicnode.com" }],
-    BSC:  [{ url: "https://binance.llamarpc.com" }, { url: "https://bsc-rpc.publicnode.com" }],
-    ARB:  [{ url: "https://arbitrum-one-rpc.publicnode.com" }],
-    TRON: [{ url: "https://api.trongrid.io" }],
-    MORPH:[{ url: "https://rpc.morphl2.io" }],
+    BTC: [
+        {url: "https://blockstream.info/api", name: "Blockstream"},
+        {url: "https://mempool.space/api", name: "Mempool.space"},
+    ],
+    ETH: [
+        {url: "https://rpc.flashbots.net", name: "Flashbots"},
+        {url: "https://ethereum-rpc.publicnode.com", name: "PublicNode"},
+        {url: "https://eth.meowrpc.com", name: "MeowRPC"},
+    ],
+    BSC: [
+        {url: "https://binance.llamarpc.com", name: "LlamaRPC"},
+        {url: "https://bsc-rpc.publicnode.com", name: "PublicNode"},
+        {url: "https://bsc.meowrpc.com", name: "MeowRPC"},
+    ],
+    ARB: [
+        {url: "https://arbitrum-one-rpc.publicnode.com", name: "PublicNode"},
+        {url: "https://arb1.arbitrum.io/rpc", name: "Arbitrum Official"},
+        {url: "https://arbitrum.meowrpc.com", name: "MeowRPC"},
+    ],
+    TRON: [
+        {url: "https://api.trongrid.io", name: "TronGrid"},
+        {url: "https://api.tronstack.io", name: "TronStack"},
+    ],
+    MORPH: [
+        {url: "https://rpc.morphl2.io", name: "Morph Official"},
+        {url: "https://morphl2-mainnet-rpc.allthatnode.com", name: "AllThatNode"},
+    ],
 };
+
+const NODE_HEALTH = {};
 
 const TOKENS = {
     ETH: [
@@ -1225,13 +1325,21 @@ let refreshBusy = false;
    INIT
 ═══════════════════════════════════════════ */
 document.addEventListener("DOMContentLoaded", () => {
-    buildGrid();
-    buildChainBtns();
-    selectChain("BTC");
-    refreshAll();
-    setInterval(refreshAll, 5000);
-    setInterval(updateClock, 1000);
-    updateClock();
+    console.log("DOM Loaded, initializing...");
+    try {
+        buildGrid();
+        console.log("Grid built");
+        buildChainBtns();
+        console.log("Chain buttons built");
+        selectChain("BTC");
+        console.log("BTC selected");
+        refreshAll();
+        setInterval(refreshAll, 5000);
+        setInterval(updateClock, 1000);
+        updateClock();
+    } catch (e) {
+        console.error("Initialization failed:", e);
+    }
 });
 
 function updateClock() {
@@ -1293,6 +1401,7 @@ function selectChain(k) {
     document.querySelectorAll(".chain-btn").forEach(b => b.classList.remove("active"));
     const btn = document.getElementById(`cbtn-${k}`);
     if (btn) btn.classList.add("active");
+    renderRPCHealth();
     analyzeInput();
 }
 
@@ -1581,6 +1690,7 @@ async function runQuery() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 查詢中…';
 
     openTerm(`${activeChain} // RPC TERMINAL`);
+    renderRPCHealth();
     termWrite(`<div class="t-line t-dim">[INIT] 連通 ${activeChain} 節點池…</div>`);
 
     try {
@@ -1915,6 +2025,33 @@ async function queryBTC(query, isHash) {
             }
         } catch (e) {
             termWrite(`<div class="t-line t-dim">  ⚠ BRC-20 API 暫時不可用</div>`);
+        }
+
+        // ═══ BTC UTXO Scan ═══
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[UTXO] 掃描 UTXO 詳細列表…</div>`);
+        try {
+            const utxoResp = await fetch(`https://blockstream.info/api/address/${query}/utxo`);
+            if (utxoResp.ok) {
+                const utxos = await utxoResp.json();
+                if (utxos && utxos.length > 0) {
+                    let utxoHtml = `<div class="scan-section"><div class="scan-header erc20">UTXO 詳細列表 — ${utxos.length} 個未花費輸出</div>`;
+                    utxoHtml += `<table class="token-table"><thead><tr><th>TxID</th><th>Index</th><th>金額 (BTC)</th><th>確認數</th><th>狀態</th></tr></thead><tbody>`;
+                    
+                    const currentHeight = d.chain_stats?.tx_count ? 850000 : 0; // Approximate
+                    for (const utxo of utxos.slice(0, 20)) {
+                        const btcAmount = (utxo.value / 1e8).toFixed(8);
+                        const confirms = utxo.status?.confirmed ? (currentHeight - utxo.status.block_height + 1) : 0;
+                        const confirmStatus = confirms >= 6 ? "✓ 已確認" : (confirms > 0 ? `⚠ ${confirms} 確認` : "⏳ 未確認");
+                        utxoHtml += `<tr><td><span class="token-sym" style="font-size:0.7rem">${utxo.txid.slice(0,12)}…</span></td><td>${utxo.vout}</td><td><span class="token-bal">${btcAmount}</span></td><td>${confirms}</td><td>${confirmStatus}</td></tr>`;
+                    }
+                    utxoHtml += `</tbody></table><div class="scan-count">✔ 掃描完成：共發現 ${utxos.length} 個 UTXO，總金額 ${(utxos.reduce((a,u)=>a+u.value,0)/1e8).toFixed(8)} BTC</div></div>`;
+                    termWrite(utxoHtml);
+                } else {
+                    termWrite(`<div class="t-line t-dim">  ⓘ 未發現 UTXO</div>`);
+                }
+            }
+        } catch (e) {
+            termWrite(`<div class="t-line t-dim">  ⚠ UTXO 掃描 API 暫時不可用</div>`);
         }
 
         // ═══ Runes Scan ═══
@@ -2296,7 +2433,6 @@ async function refreshChain(k) {
 /* ═══════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════ */
-const NODE_HEALTH = {};
 
 async function rpc(chain, payload, suffix = "", method = "POST") {
     const nodes = [...RPC[chain]];
@@ -2342,6 +2478,40 @@ async function rpc(chain, payload, suffix = "", method = "POST") {
     }
 
     return { ok:false };
+}
+
+function renderRPCHealth() {
+    const panel = document.getElementById("rpc-health-panel");
+    const grid = document.getElementById("rpc-health-grid");
+    
+    if (!RPC[activeChain] || RPC[activeChain].length === 0) {
+        panel.style.display = "none";
+        return;
+    }
+    
+    grid.innerHTML = "";
+    let hasData = false;
+    
+    for (const node of RPC[activeChain]) {
+        const health = NODE_HEALTH[node.url] || {score: 100, latency: 0, fails: 0};
+        const status = health.score >= 80 ? "healthy" : (health.score >= 50 ? "slow" : "failed");
+        const statusText = status === "healthy" ? "✓ 健康" : (status === "slow" ? "⚠ 緩慢" : "✗ 故障");
+        
+        if (health.latency > 0 || health.fails > 0) hasData = true;
+        
+        const badge = document.createElement("div");
+        badge.className = `rpc-node-badge ${status}`;
+        badge.innerHTML = `
+            <div class="rpc-node-dot ${status}"></div>
+            <div class="rpc-node-info">
+                <div class="rpc-node-name">${node.name}</div>
+                <div class="rpc-node-latency">${statusText} • ${health.latency}ms</div>
+            </div>
+        `;
+        grid.appendChild(badge);
+    }
+    
+    panel.style.display = hasData ? "block" : "none";
 }
 
 function openTerm(label) {
