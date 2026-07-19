@@ -11,6 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
     <script src="https://widgets.coingecko.com/gecko-coin-price-marquee-widget.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
     <style>
         :root {
             --bg:          #080b10;
@@ -952,6 +954,11 @@
         }
 
         /* ─── RESPONSIVE ─── */
+        .lang-option:hover {
+            background: var(--surface-2);
+            color: var(--info);
+        }
+
         @media (max-width: 640px) {
             .input-row { flex-direction: column; }
             .query-btn { width: 100%; justify-content: center; }
@@ -969,6 +976,20 @@
     <div class="nav-brand">
         <div class="nav-logo">BOG<span>GLO</span></div>
         <div class="nav-badge">OPERATIONAL</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:16px;">
+        <div style="position:relative;">
+            <button id="lang-btn" style="background:none; border:none; color:var(--text); font-size:1.4rem; cursor:pointer; padding:4px 8px;" title="Language">🌐</button>
+            <div id="lang-menu" style="display:none; position:absolute; top:100%; right:0; background:var(--surface); border:1px solid var(--border); border-radius:4px; min-width:120px; z-index:1000; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                <button class="lang-option" data-lang="zh" style="width:100%; padding:8px 12px; text-align:left; border:none; background:none; color:var(--text); cursor:pointer; font-size:0.85rem;">中文</button>
+                <button class="lang-option" data-lang="ko" style="width:100%; padding:8px 12px; text-align:left; border:none; background:none; color:var(--text); cursor:pointer; font-size:0.85rem;">한국인</button>
+                <button class="lang-option" data-lang="ja" style="width:100%; padding:8px 12px; text-align:left; border:none; background:none; color:var(--text); cursor:pointer; font-size:0.85rem;">日本語</button>
+                <button class="lang-option" data-lang="en" style="width:100%; padding:8px 12px; text-align:left; border:none; background:none; color:var(--text); cursor:pointer; font-size:0.85rem;">English</button>
+                <button class="lang-option" data-lang="es" style="width:100%; padding:8px 12px; text-align:left; border:none; background:none; color:var(--text); cursor:pointer; font-size:0.85rem;">Español</button>
+            </div>
+        </div>
+        <button id="wallet-btn" style="background:var(--info); color:#fff; border:none; border-radius:4px; padding:6px 12px; font-size:0.8rem; cursor:pointer; font-weight:600;">🔗 Connect</button>
+        <div id="wallet-display" style="display:none; font-family:var(--mono); font-size:0.75rem; color:var(--text-muted); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
     </div>
     <div class="nav-time" id="nav-clock">--:--:-- UTC</div>
 </nav>
@@ -1037,6 +1058,153 @@
 /* ═══════════════════════════════════════════
    CONFIG
 ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   INTERNATIONALIZATION (i18n)
+═══════════════════════════════════════════ */
+let currentLanguage = localStorage.getItem('bogglo_lang') || 'zh';
+
+const i18n = {
+    zh: {
+        "nav.connect": "🔗 連接",
+        "nav.connected": "已連接",
+        "nav.disconnect": "斷開連接",
+        "chain.bitcoin": "比特幣",
+        "chain.ethereum": "以太坊",
+        "chain.bsc": "BNB 鏈",
+        "chain.arbitrum": "Arbitrum",
+        "chain.tron": "波場",
+        "chain.morph": "Morph L2",
+        "section.network": "鏈網狀態監控",
+        "section.query": "RPC 全鏈資產解構引擎",
+        "section.query_desc": "直連底層高速 RPC 節點，解析錢包原生資產與合約代幣餘額，或查詢任意交易哈希詳情。",
+        "section.chain_select": "選擇目標鏈",
+        "button.query": "查詢",
+        "label.ident": "識別",
+        "label.waiting": "等待輸入…",
+        "label.rpc_health": "🔗 RPC 節點健康度",
+        "label.native_token": "原生代幣",
+        "label.gas_price": "Gas Price",
+        "label.fee_rate": "推薦費率",
+        "label.energy_fee": "能量費率",
+    },
+    ko: {
+        "nav.connect": "🔗 연결",
+        "nav.connected": "연결됨",
+        "nav.disconnect": "연결 해제",
+        "chain.bitcoin": "비트코인",
+        "chain.ethereum": "이더리움",
+        "chain.bsc": "BNB 체인",
+        "chain.arbitrum": "Arbitrum",
+        "chain.tron": "트론",
+        "chain.morph": "Morph L2",
+        "section.network": "체인 네트워크 상태 모니터링",
+        "section.query": "RPC 전체 체인 자산 분석 엔진",
+        "section.query_desc": "고속 RPC 노드에 직접 연결하여 지갑의 기본 자산 및 계약 토큰 잔액을 분석하거나 모든 거래 해시 세부 정보를 조회하세요.",
+        "section.chain_select": "대상 체인 선택",
+        "button.query": "조회",
+        "label.ident": "식별",
+        "label.waiting": "입력 대기 중…",
+        "label.rpc_health": "🔗 RPC 노드 상태",
+        "label.native_token": "기본 토큰",
+        "label.gas_price": "Gas Price",
+        "label.fee_rate": "권장 수수료",
+        "label.energy_fee": "에너지 수수료",
+    },
+    ja: {
+        "nav.connect": "🔗 接続",
+        "nav.connected": "接続済み",
+        "nav.disconnect": "接続解除",
+        "chain.bitcoin": "ビットコイン",
+        "chain.ethereum": "イーサリアム",
+        "chain.bsc": "BNBチェーン",
+        "chain.arbitrum": "Arbitrum",
+        "chain.tron": "トロン",
+        "chain.morph": "Morph L2",
+        "section.network": "チェーンネットワーク状態監視",
+        "section.query": "RPC 全チェーン資産分析エンジン",
+        "section.query_desc": "高速 RPC ノードに直接接続してウォレットのネイティブ資産とコントラクトトークン残高を分析するか、任意のトランザクションハッシュの詳細を照会してください。",
+        "section.chain_select": "対象チェーンを選択",
+        "button.query": "照会",
+        "label.ident": "識別",
+        "label.waiting": "入力待機中…",
+        "label.rpc_health": "🔗 RPC ノード状態",
+        "label.native_token": "ネイティブトークン",
+        "label.gas_price": "Gas Price",
+        "label.fee_rate": "推奨手数料",
+        "label.energy_fee": "エネルギー手数料",
+    },
+    en: {
+        "nav.connect": "🔗 Connect",
+        "nav.connected": "Connected",
+        "nav.disconnect": "Disconnect",
+        "chain.bitcoin": "Bitcoin",
+        "chain.ethereum": "Ethereum",
+        "chain.bsc": "BNB Chain",
+        "chain.arbitrum": "Arbitrum",
+        "chain.tron": "TRON",
+        "chain.morph": "Morph L2",
+        "section.network": "Chain Network Status Monitor",
+        "section.query": "RPC Omni-Chain Asset Analysis Engine",
+        "section.query_desc": "Connect directly to high-speed RPC nodes to analyze wallet native assets and contract token balances, or query any transaction hash details.",
+        "section.chain_select": "Select Target Chain",
+        "button.query": "Query",
+        "label.ident": "Identify",
+        "label.waiting": "Waiting for input…",
+        "label.rpc_health": "🔗 RPC Node Health",
+        "label.native_token": "Native Token",
+        "label.gas_price": "Gas Price",
+        "label.fee_rate": "Recommended Fee",
+        "label.energy_fee": "Energy Fee",
+    },
+    es: {
+        "nav.connect": "🔗 Conectar",
+        "nav.connected": "Conectado",
+        "nav.disconnect": "Desconectar",
+        "chain.bitcoin": "Bitcoin",
+        "chain.ethereum": "Ethereum",
+        "chain.bsc": "Cadena BNB",
+        "chain.arbitrum": "Arbitrum",
+        "chain.tron": "TRON",
+        "chain.morph": "Morph L2",
+        "section.network": "Monitor de Estado de la Red de Cadenas",
+        "section.query": "Motor de Análisis de Activos Omni-Cadena RPC",
+        "section.query_desc": "Conéctate directamente a nodos RPC de alta velocidad para analizar activos nativos de billetera y saldos de tokens de contrato, o consulta detalles de cualquier hash de transacción.",
+        "section.chain_select": "Seleccionar Cadena Objetivo",
+        "button.query": "Consultar",
+        "label.ident": "Identificar",
+        "label.waiting": "Esperando entrada…",
+        "label.rpc_health": "🔗 Estado del Nodo RPC",
+        "label.native_token": "Token Nativo",
+        "label.gas_price": "Gas Price",
+        "label.fee_rate": "Tarifa Recomendada",
+        "label.energy_fee": "Tarifa de Energía",
+    }
+};
+
+function t(key) {
+    return i18n[currentLanguage]?.[key] || i18n['en']?.[key] || key;
+}
+
+function setLanguage(lang) {
+    currentLanguage = lang;
+    localStorage.setItem('bogglo_lang', lang);
+    updateUILanguage();
+}
+
+function updateUILanguage() {
+    // 更新所有帶 data-i18n 屬性的元素
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.textContent = t(key);
+    });
+    
+    // 更新所有帶 data-i18n-placeholder 屬性的元素
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        el.placeholder = t(key);
+    });
+}
+
 const CHAINS = {
     BTC:  { name: "Bitcoin",   type: "btc",  color: "#f7931a", native: "BTC",  gasLabel: "推薦費率",  icon: "fab fa-bitcoin" },
     ETH:  { name: "Ethereum",  type: "evm",  color: "#6272ea", native: "ETH",  gasLabel: "Gas Price", icon: "fab fa-ethereum" },
@@ -1324,9 +1492,84 @@ let refreshBusy = false;
 /* ═══════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   WALLETCONNECT INTEGRATION
+═══════════════════════════════════════════ */
+let web3Provider = null;
+let connectedAddress = null;
+
+async function connectWallet() {
+    try {
+        // 使用 WalletConnect
+        const provider = new WalletConnectProvider.default({
+            infuraId: "8043bb2cf99347b1bfadfb3c6e3229c7", // 公開 Infura ID
+        });
+
+        await provider.enable();
+        web3Provider = new Web3(provider);
+        
+        const accounts = await web3Provider.eth.getAccounts();
+        if (accounts && accounts.length > 0) {
+            connectedAddress = accounts[0];
+            updateWalletDisplay();
+            // 自動填充錢包地址到查詢欄
+            document.getElementById("wallet-input").value = connectedAddress;
+            analyzeInput();
+        }
+    } catch (error) {
+        console.error("WalletConnect error:", error);
+        alert("Failed to connect wallet. Please try again.");
+    }
+}
+
+function disconnectWallet() {
+    if (web3Provider && web3Provider.currentProvider && web3Provider.currentProvider.disconnect) {
+        web3Provider.currentProvider.disconnect();
+    }
+    web3Provider = null;
+    connectedAddress = null;
+    updateWalletDisplay();
+    document.getElementById("wallet-input").value = "";
+}
+
+function updateWalletDisplay() {
+    const btn = document.getElementById("wallet-btn");
+    const display = document.getElementById("wallet-display");
+    
+    if (connectedAddress) {
+        btn.textContent = "🔗 " + connectedAddress.slice(0, 6) + "…" + connectedAddress.slice(-4);
+        btn.onclick = disconnectWallet;
+        display.textContent = connectedAddress;
+        display.style.display = "block";
+    } else {
+        btn.textContent = t("nav.connect");
+        btn.onclick = connectWallet;
+        display.style.display = "none";
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     console.log("DOM Loaded, initializing...");
     try {
+        // 初始化語言
+        updateUILanguage();
+        
+        // 初始化語言切換按鈕
+        document.getElementById("lang-btn").addEventListener("click", () => {
+            const menu = document.getElementById("lang-menu");
+            menu.style.display = menu.style.display === "none" ? "block" : "none";
+        });
+        
+        document.querySelectorAll(".lang-option").forEach(btn => {
+            btn.addEventListener("click", () => {
+                setLanguage(btn.getAttribute("data-lang"));
+                document.getElementById("lang-menu").style.display = "none";
+            });
+        });
+        
+        // 初始化錢包按鈕
+        updateWalletDisplay();
+        
         buildGrid();
         console.log("Grid built");
         buildChainBtns();
