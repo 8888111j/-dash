@@ -11,8 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
     <script src="https://widgets.coingecko.com/gecko-coin-price-marquee-widget.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.0/dist/index.umd.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@web3modal/standalone@2.4.3/dist/index.umd.js"></script>
+
     <style>
         :root {
             --bg:          #080b10;
@@ -968,9 +967,125 @@
             .nft-grid { grid-template-columns: 1fr; }
             .lp-grid { grid-template-columns: 1fr; }
         }
+
+        /* ─── WALLET MODAL ─── */
+        .wmodal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 9000;
+            align-items: center;
+            justify-content: center;
+        }
+        .wmodal-overlay.open { display: flex; }
+        .wmodal {
+            background: var(--surface);
+            border: 1px solid var(--border-hi);
+            border-radius: 12px;
+            padding: 24px;
+            width: min(90vw, 360px);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .wmodal-title {
+            font-weight: 700;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .wmodal-title i { color: var(--info); }
+        .wmodal-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+            transition: border-color 0.15s, background 0.15s;
+            width: 100%;
+            text-align: left;
+        }
+        .wmodal-btn:hover { border-color: var(--info); background: rgba(61,158,255,0.07); }
+        .wmodal-btn .wm-icon { font-size: 1.3rem; width: 28px; text-align: center; }
+        .wmodal-btn .wm-sub { font-size: 0.72rem; color: var(--text-muted); font-weight: 400; display: block; margin-top: 1px; }
+        .wmodal-sep { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+        .wmodal-paste-row { display: flex; gap: 8px; }
+        .wmodal-paste-row input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            padding: 9px 11px;
+            outline: none;
+        }
+        .wmodal-paste-row input:focus { border-color: var(--info); }
+        .wmodal-paste-row button {
+            background: var(--info);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 9px 14px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            cursor: pointer;
+        }
+        .wmodal-close {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            cursor: pointer;
+            align-self: flex-end;
+            padding: 2px 4px;
+        }
+        .wmodal-close:hover { color: var(--err); }
     </style>
 </head>
 <body>
+
+<!-- Wallet Connect Modal -->
+<div class="wmodal-overlay" id="wmodal-overlay" onclick="if(event.target===this)closeWModal()">
+    <div class="wmodal">
+        <div class="wmodal-title"><i class="fas fa-wallet"></i> 連接錢包</div>
+
+        <button class="wmodal-btn" onclick="connectMetaMask()">
+            <span class="wm-icon">🦊</span>
+            <span>
+                MetaMask / 瀏覽器錢包
+                <span class="wm-sub">MetaMask · OKX · imToken · TokenPocket 等內建瀏覽器</span>
+            </span>
+        </button>
+
+        <button class="wmodal-btn" onclick="connectWCDeeplink()">
+            <span class="wm-icon">🔗</span>
+            <span>
+                WalletConnect 深度連接
+                <span class="wm-sub">在手機錢包 App 內掃描 / 跳轉</span>
+            </span>
+        </button>
+
+        <hr class="wmodal-sep">
+
+        <div style="font-size:0.72rem;color:var(--text-muted);font-family:var(--mono);">手動貼入地址</div>
+        <div class="wmodal-paste-row">
+            <input id="wmodal-paste-input" type="text" placeholder="0x… 或 T…">
+            <button onclick="confirmPasteAddr()">確認</button>
+        </div>
+
+        <button class="wmodal-close" onclick="closeWModal()">✕ 關閉</button>
+    </div>
+</div>
 
 <nav class="nav">
     <div class="nav-brand">
@@ -1514,74 +1629,78 @@ let refreshBusy = false;
    INIT
 ═══════════════════════════════════════════ */
 /* ═══════════════════════════════════════════
-   WALLETCONNECT V2 INTEGRATION
+   WALLET INTEGRATION (無 SDK，零依賴)
 ═══════════════════════════════════════════ */
 const WC_PROJECT_ID = "53202dd753c7257584adfa9959dce792";
-
-let wcProvider = null;
 let connectedAddress = null;
 
-async function connectWallet() {
+/* 開 / 關 modal */
+function connectWallet()  { document.getElementById("wmodal-overlay").classList.add("open"); }
+function closeWModal()    { document.getElementById("wmodal-overlay").classList.remove("open"); }
+
+/* ① window.ethereum — MetaMask / OKX / imToken 等內建瀏覽器 */
+async function connectMetaMask() {
+    closeWModal();
+    if (!window.ethereum) {
+        openTerm("Wallet");
+        termWrite(`<div class="t-line t-err">[ERROR] 未偵測到瀏覽器錢包 (window.ethereum)。</div>`);
+        termWrite(`<div class="t-line t-dim">  ⓘ 請在 MetaMask / OKX / imToken 等錢包的「DApp 瀏覽器」中打開本頁，或使用下方「手動貼入地址」。</div>`);
+        return;
+    }
     try {
-        const EthProvider = window.EthereumProvider
-            || window.WalletConnectEthereumProvider
-            || (window["@walletconnect/ethereum-provider"] && window["@walletconnect/ethereum-provider"].EthereumProvider);
-
-        if (!EthProvider) {
-            openTerm("WalletConnect");
-            termWrite(`<div class="t-line t-err">[ERROR] WalletConnect SDK 未能載入，請重新整理頁面後再試。</div>`);
-            return;
-        }
-
-        wcProvider = await EthProvider.init({
-            projectId: WC_PROJECT_ID,
-            chains: [1],
-            optionalChains: [56, 42161, 728126428],
-            showQrModal: true,
-            qrModalOptions: { themeMode: "dark" },
-        });
-
-        wcProvider.on("accountsChanged", (accounts) => {
-            connectedAddress = accounts[0] || null;
-            updateWalletDisplay();
-            if (connectedAddress) {
-                document.getElementById("wallet-input").value = connectedAddress;
-                analyzeInput();
-            }
-        });
-        wcProvider.on("disconnect", () => {
-            connectedAddress = null;
-            wcProvider = null;
-            updateWalletDisplay();
-            document.getElementById("wallet-input").value = "";
-        });
-
-        await wcProvider.connect();
-        const accounts = wcProvider.accounts;
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
         if (accounts && accounts.length > 0) {
-            connectedAddress = accounts[0];
-            updateWalletDisplay();
-            document.getElementById("wallet-input").value = connectedAddress;
-            analyzeInput();
+            setConnectedAddress(accounts[0]);
         }
-    } catch (error) {
-        console.error("WalletConnect error:", error);
-        openTerm("WalletConnect");
-        termWrite(`<div class="t-line t-err">[ERROR] 連接失敗: ${error.message || error}</div>`);
-        termWrite(`<div class="t-line t-dim">  ⓘ 請確認已安裝支持 WalletConnect v2 的錢包 App（MetaMask / OKX Wallet 等）</div>`);
+        window.ethereum.on("accountsChanged", (accs) => {
+            setConnectedAddress(accs[0] || null);
+        });
+        window.ethereum.on("disconnect", () => {
+            setConnectedAddress(null);
+        });
+    } catch (e) {
+        openTerm("Wallet");
+        termWrite(`<div class="t-line t-err">[ERROR] 授權被拒絕或失敗: ${e.message || e}</div>`);
     }
 }
 
-async function disconnectWallet() {
-    try {
-        if (wcProvider && wcProvider.disconnect) {
-            await wcProvider.disconnect();
-        }
-    } catch {}
-    wcProvider = null;
-    connectedAddress = null;
+/* ② WalletConnect 深度鏈接（不需要 SDK，直接跳 wc: URI） */
+function connectWCDeeplink() {
+    closeWModal();
+    const wcUri = `wc:${WC_PROJECT_ID}@2?relay-protocol=irn&symKey=`;
+    const mmDeep  = `https://metamask.app.link/wc?uri=${encodeURIComponent(wcUri)}`;
+    const okxDeep = `okx://main/wc?uri=${encodeURIComponent(wcUri)}`;
+    openTerm("WalletConnect Deeplink");
+    termWrite(`<div class="t-line t-dim">[INFO] WalletConnect 深度鏈接需要後端 relay，單頁 HTML 無法完整支持。</div>`);
+    termWrite(`<div class="t-line t-dim">  ⓘ 建議：在錢包 App 的內建瀏覽器直接打開本頁，再點「MetaMask / 瀏覽器錢包」即可。</div>`);
+    termWrite(`<div class="t-line t-dim">  ⓘ 或使用下方「手動貼入地址」直接查詢。</div>`);
+    setTimeout(() => connectWallet(), 2000);
+}
+
+/* ③ 手動貼入 */
+function confirmPasteAddr() {
+    const val = document.getElementById("wmodal-paste-input").value.trim();
+    if (!val) return;
+    closeWModal();
+    setConnectedAddress(val);
+    document.getElementById("wmodal-paste-input").value = "";
+}
+
+/* 統一設置地址 */
+function setConnectedAddress(addr) {
+    connectedAddress = addr || null;
     updateWalletDisplay();
-    document.getElementById("wallet-input").value = "";
+    const input = document.getElementById("wallet-input");
+    if (connectedAddress) {
+        input.value = connectedAddress;
+        analyzeInput();
+    } else {
+        input.value = "";
+    }
+}
+
+function disconnectWallet() {
+    setConnectedAddress(null);
 }
 
 function updateWalletDisplay() {
