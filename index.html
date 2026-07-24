@@ -11,8 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
     <script src="https://widgets.coingecko.com/gecko-coin-price-marquee-widget.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/modal@2.6.2/dist/index.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.0/dist/index.umd.js"></script>
     <style>
         :root {
             --bg:          #080b10;
@@ -1010,6 +1010,27 @@
         <div class="network-grid" id="net-grid"></div>
     </div>
 
+    <!-- Unix Timestamp Tool -->
+    <div class="query-card" style="padding:18px 22px;">
+        <div class="query-title" style="margin-bottom:12px;">
+            <i class="fas fa-clock"></i> Unix 時間戳轉換工具
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div style="flex:1;min-width:160px;">
+                <div style="font-size:0.72rem;color:var(--text-dim);font-family:var(--mono);margin-bottom:5px;">Unix 時間戳 (秒 / 毫秒)</div>
+                <input class="addr-input" id="unix-input" type="text" placeholder="e.g. 1700000000" style="width:100%;" oninput="convertUnix()">
+            </div>
+            <div style="flex:1;min-width:160px;">
+                <div style="font-size:0.72rem;color:var(--text-dim);font-family:var(--mono);margin-bottom:5px;">日期時間 (本地 / UTC)</div>
+                <input class="addr-input" id="datetime-input" type="datetime-local" style="width:100%;color-scheme:dark;" oninput="convertDatetime()">
+            </div>
+            <button class="query-btn" onclick="fillNow()" style="white-space:nowrap;padding:10px 16px;">
+                <i class="fas fa-crosshairs"></i> 當前時間
+            </button>
+        </div>
+        <div id="unix-result" style="display:none;margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:12px 14px;font-family:var(--mono);font-size:0.8rem;line-height:2;"></div>
+    </div>
+
     <!-- Query module -->
     <div class="query-card">
         <div class="query-title"><i class="fas fa-terminal"></i> RPC 全鏈資產解構引擎</div>
@@ -1493,26 +1514,43 @@ let refreshBusy = false;
    INIT
 ═══════════════════════════════════════════ */
 /* ═══════════════════════════════════════════
-   WALLETCONNECT INTEGRATION
+   WALLETCONNECT V2 INTEGRATION
 ═══════════════════════════════════════════ */
-let web3Provider = null;
+const WC_PROJECT_ID = "53202dd753c7257584adfa9959dce792";
+
+let wcProvider = null;
 let connectedAddress = null;
 
 async function connectWallet() {
     try {
-        // 使用 WalletConnect
-        const provider = new WalletConnectProvider.default({
-            infuraId: "8043bb2cf99347b1bfadfb3c6e3229c7", // 公開 Infura ID
+        wcProvider = await WalletConnectEthereumProvider.init({
+            projectId: WC_PROJECT_ID,
+            chains: [1],
+            optionalChains: [56, 42161, 728126428],
+            showQrModal: true,
+            qrModalOptions: { themeMode: "dark" },
         });
 
-        await provider.enable();
-        web3Provider = new Web3(provider);
-        
-        const accounts = await web3Provider.eth.getAccounts();
+        wcProvider.on("accountsChanged", (accounts) => {
+            connectedAddress = accounts[0] || null;
+            updateWalletDisplay();
+            if (connectedAddress) {
+                document.getElementById("wallet-input").value = connectedAddress;
+                analyzeInput();
+            }
+        });
+        wcProvider.on("disconnect", () => {
+            connectedAddress = null;
+            wcProvider = null;
+            updateWalletDisplay();
+            document.getElementById("wallet-input").value = "";
+        });
+
+        await wcProvider.connect();
+        const accounts = wcProvider.accounts;
         if (accounts && accounts.length > 0) {
             connectedAddress = accounts[0];
             updateWalletDisplay();
-            // 自動填充錢包地址到查詢欄
             document.getElementById("wallet-input").value = connectedAddress;
             analyzeInput();
         }
@@ -1522,11 +1560,13 @@ async function connectWallet() {
     }
 }
 
-function disconnectWallet() {
-    if (web3Provider && web3Provider.currentProvider && web3Provider.currentProvider.disconnect) {
-        web3Provider.currentProvider.disconnect();
-    }
-    web3Provider = null;
+async function disconnectWallet() {
+    try {
+        if (wcProvider && wcProvider.disconnect) {
+            await wcProvider.disconnect();
+        }
+    } catch {}
+    wcProvider = null;
     connectedAddress = null;
     updateWalletDisplay();
     document.getElementById("wallet-input").value = "";
@@ -1604,7 +1644,12 @@ function buildGrid() {
                 <div class="net-name">${c.name}</div>
                 <div class="dot" id="dot-${k}"></div>
             </div>
-            <div class="net-block loading" id="blk-${k}">———</div>
+            <div class="net-foot" style="border-top:none;padding-top:0;margin-bottom:8px">
+                <div class="net-row">
+                    <span class="net-row-k">區塊高度</span>
+                    <span class="net-row-v net-block loading" id="blk-${k}" style="font-size:0.82rem;color:#fff;font-weight:700">———</span>
+                </div>
+            </div>
             <div class="net-foot">
                 <div class="net-row">
                     <span class="net-row-k">原生代幣</span>
@@ -2755,6 +2800,59 @@ function renderRPCHealth() {
     }
     
     panel.style.display = hasData ? "block" : "none";
+}
+
+/* ═══════════════════════════════════════════
+   UNIX TIMESTAMP TOOL
+═══════════════════════════════════════════ */
+function fillNow() {
+    const now = Math.floor(Date.now() / 1000);
+    document.getElementById("unix-input").value = now;
+    convertUnix();
+}
+
+function convertUnix() {
+    const raw = document.getElementById("unix-input").value.trim();
+    const box = document.getElementById("unix-result");
+    if (!raw || isNaN(raw)) { box.style.display = "none"; return; }
+    let ts = parseInt(raw);
+    if (ts > 1e12) ts = Math.floor(ts / 1000);
+    const d = new Date(ts * 1000);
+    if (isNaN(d.getTime())) { box.style.display = "none"; return; }
+    const pad = (n) => String(n).padStart(2, "0");
+    const localStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}  ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    const utcStr  = `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}  ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+    const diffSec = Math.floor(Date.now() / 1000) - ts;
+    let relStr;
+    const abs = Math.abs(diffSec);
+    const sign = diffSec >= 0 ? "前" : "後";
+    if (abs < 60)           relStr = `${abs} 秒${sign}`;
+    else if (abs < 3600)    relStr = `${Math.floor(abs/60)} 分鐘${sign}`;
+    else if (abs < 86400)   relStr = `${Math.floor(abs/3600)} 小時${sign}`;
+    else if (abs < 2592000) relStr = `${Math.floor(abs/86400)} 天${sign}`;
+    else if (abs < 31536000)relStr = `${Math.floor(abs/2592000)} 個月${sign}`;
+    else                    relStr = `${Math.floor(abs/31536000)} 年${sign}`;
+    const msTs = ts * 1000;
+    box.style.display = "block";
+    box.innerHTML = `
+<div><span style="color:var(--text-dim)">本地時間 &nbsp;&nbsp;</span><span style="color:#fff">${localStr}</span></div>
+<div><span style="color:var(--text-dim)">UTC 時間 &nbsp;&nbsp;&nbsp;</span><span style="color:#fff">${utcStr} UTC</span></div>
+<div><span style="color:var(--text-dim)">相對時間 &nbsp;&nbsp;</span><span style="color:var(--warn)">${relStr}</span></div>
+<div><span style="color:var(--text-dim)">毫秒時間戳</span><span style="color:var(--text-muted)">${msTs}</span></div>
+<div><span style="color:var(--text-dim)">ISO 8601 &nbsp;&nbsp;</span><span style="color:var(--text-muted)">${d.toISOString()}</span></div>`;
+    const dtLocal = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    document.getElementById("datetime-input").value = dtLocal;
+}
+
+function convertDatetime() {
+    const val = document.getElementById("datetime-input").value;
+    const box = document.getElementById("unix-result");
+    if (!val) { box.style.display = "none"; return; }
+    const d = new Date(val);
+    if (isNaN(d.getTime())) { box.style.display = "none"; return; }
+    const ts = Math.floor(d.getTime() / 1000);
+    document.getElementById("unix-input").value = ts;
+    convertUnix();
 }
 
 function openTerm(label) {
