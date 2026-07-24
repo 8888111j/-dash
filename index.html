@@ -11,8 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
     <script src="https://widgets.coingecko.com/gecko-coin-price-marquee-widget.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/modal@2.6.2/dist/index.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.0/dist/index.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@web3modal/standalone@2.4.3/dist/index.umd.js"></script>
     <style>
         :root {
             --bg:          #080b10;
@@ -1523,7 +1523,17 @@ let connectedAddress = null;
 
 async function connectWallet() {
     try {
-        wcProvider = await WalletConnectEthereumProvider.init({
+        const EthProvider = window.EthereumProvider
+            || window.WalletConnectEthereumProvider
+            || (window["@walletconnect/ethereum-provider"] && window["@walletconnect/ethereum-provider"].EthereumProvider);
+
+        if (!EthProvider) {
+            openTerm("WalletConnect");
+            termWrite(`<div class="t-line t-err">[ERROR] WalletConnect SDK 未能載入，請重新整理頁面後再試。</div>`);
+            return;
+        }
+
+        wcProvider = await EthProvider.init({
             projectId: WC_PROJECT_ID,
             chains: [1],
             optionalChains: [56, 42161, 728126428],
@@ -1556,7 +1566,9 @@ async function connectWallet() {
         }
     } catch (error) {
         console.error("WalletConnect error:", error);
-        alert("Failed to connect wallet. Please try again.");
+        openTerm("WalletConnect");
+        termWrite(`<div class="t-line t-err">[ERROR] 連接失敗: ${error.message || error}</div>`);
+        termWrite(`<div class="t-line t-dim">  ⓘ 請確認已安裝支持 WalletConnect v2 的錢包 App（MetaMask / OKX Wallet 等）</div>`);
     }
 }
 
