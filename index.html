@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
+    <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.13.0/dist/index.umd.js"></script>
+    <script src="https://unpkg.com/@web3modal/standalone@2.4.3/dist/index.umd.js"></script>
     <script src="https://widgets.coingecko.com/gecko-coin-price-marquee-widget.js"></script>
 
     <style>
@@ -1067,11 +1069,11 @@
             </span>
         </button>
 
-        <button class="wmodal-btn" onclick="connectWCDeeplink()">
+        <button class="wmodal-btn" onclick="connectWC()">
             <span class="wm-icon">🔗</span>
             <span>
-                WalletConnect 深度連接
-                <span class="wm-sub">在手機錢包 App 內掃描 / 跳轉</span>
+                WalletConnect 掃碼連接
+                <span class="wm-sub">普通瀏覽器可用 · 掃 QR 碼授權</span>
             </span>
         </button>
 
@@ -1103,7 +1105,7 @@
                 <button class="lang-option" data-lang="es" style="width:100%; padding:8px 12px; text-align:left; border:none; background:none; color:var(--text); cursor:pointer; font-size:0.85rem;">Español</button>
             </div>
         </div>
-        <button id="wallet-btn" style="background:var(--info); color:#fff; border:none; border-radius:4px; padding:6px 12px; font-size:0.8rem; cursor:pointer; font-weight:600;">🔗 Connect</button>
+        <button id="wallet-btn" data-i18n="nav.connect" onclick="connectWallet()" style="background:var(--info); color:#fff; border:none; border-radius:4px; padding:6px 12px; font-size:0.8rem; cursor:pointer; font-weight:600;">🔗 連接</button>
         <div id="wallet-display" style="display:none; font-family:var(--mono); font-size:0.75rem; color:var(--text-muted); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
     </div>
     <div class="nav-time" id="nav-clock">--:--:-- UTC</div>
@@ -1325,6 +1327,7 @@ function setLanguage(lang) {
     currentLanguage = lang;
     localStorage.setItem('bogglo_lang', lang);
     updateUILanguage();
+    updateWalletDisplay();
 }
 
 function updateUILanguage() {
@@ -1629,52 +1632,81 @@ let refreshBusy = false;
    INIT
 ═══════════════════════════════════════════ */
 /* ═══════════════════════════════════════════
-   WALLET INTEGRATION (無 SDK，零依賴)
+   WALLET INTEGRATION
 ═══════════════════════════════════════════ */
 const WC_PROJECT_ID = "53202dd753c7257584adfa9959dce792";
 let connectedAddress = null;
+let _wcProvider = null;
 
-/* 開 / 關 modal */
 function connectWallet()  { document.getElementById("wmodal-overlay").classList.add("open"); }
 function closeWModal()    { document.getElementById("wmodal-overlay").classList.remove("open"); }
 
-/* ① window.ethereum — MetaMask / OKX / imToken 等內建瀏覽器 */
+/* ① WalletConnect v2 — 普通瀏覽器掃 QR 碼 */
+async function connectWC() {
+    closeWModal();
+    openTerm("WalletConnect v2");
+    try {
+        const EthProv = window.EthereumProvider;
+        if (!EthProv) {
+            termWrite(`<div class="t-line t-err">[ERROR] WalletConnect SDK 未載入，請重新整理頁面。</div>`);
+            return;
+        }
+        termWrite(`<div class="t-line t-dim">[WC] 初始化 WalletConnect v2…</div>`);
+        _wcProvider = await EthProv.init({
+            projectId: WC_PROJECT_ID,
+            chains: [1],
+            optionalChains: [56, 42161, 137, 728126428],
+            showQrModal: true,
+            qrModalOptions: {
+                themeMode: "dark",
+                themeVariables: {
+                    "--w3m-background-color": "#0e1420",
+                    "--w3m-accent-color": "#3d9eff",
+                }
+            },
+            metadata: {
+                name: "Bogglo Ultra",
+                description: "全鏈監控面板",
+                url: window.location.origin,
+                icons: []
+            }
+        });
+        termWrite(`<div class="t-line t-dim">[WC] 等待錢包掃碼…</div>`);
+        await _wcProvider.connect();
+        const accounts = _wcProvider.accounts;
+        if (accounts && accounts.length > 0) {
+            setConnectedAddress(accounts[0]);
+            termWrite(`<div class="t-line t-ok">[WC] 連接成功: ${accounts[0]}</div>`);
+        }
+        _wcProvider.on("accountsChanged", (accs) => setConnectedAddress(accs[0] || null));
+        _wcProvider.on("disconnect", () => { _wcProvider = null; setConnectedAddress(null); });
+    } catch (e) {
+        if (e.message && e.message.includes("User rejected")) {
+            termWrite(`<div class="t-line t-dim">[WC] 用戶取消連接。</div>`);
+        } else {
+            termWrite(`<div class="t-line t-err">[ERROR] ${e.message || e}</div>`);
+        }
+    }
+}
+
+/* ② window.ethereum — 在錢包 App 內建瀏覽器裡打開時用 */
 async function connectMetaMask() {
     closeWModal();
     if (!window.ethereum) {
         openTerm("Wallet");
-        termWrite(`<div class="t-line t-err">[ERROR] 未偵測到瀏覽器錢包 (window.ethereum)。</div>`);
-        termWrite(`<div class="t-line t-dim">  ⓘ 請在 MetaMask / OKX / imToken 等錢包的「DApp 瀏覽器」中打開本頁，或使用下方「手動貼入地址」。</div>`);
+        termWrite(`<div class="t-line t-err">[ERROR] 未偵測到 window.ethereum。</div>`);
+        termWrite(`<div class="t-line t-dim">  ⓘ 請在 MetaMask / OKX / imToken 的內建 DApp 瀏覽器中打開本頁，或改用「WalletConnect 掃碼」。</div>`);
         return;
     }
     try {
         const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        if (accounts && accounts.length > 0) {
-            setConnectedAddress(accounts[0]);
-        }
-        window.ethereum.on("accountsChanged", (accs) => {
-            setConnectedAddress(accs[0] || null);
-        });
-        window.ethereum.on("disconnect", () => {
-            setConnectedAddress(null);
-        });
+        if (accounts && accounts.length > 0) setConnectedAddress(accounts[0]);
+        window.ethereum.on("accountsChanged", (accs) => setConnectedAddress(accs[0] || null));
+        window.ethereum.on("disconnect", () => setConnectedAddress(null));
     } catch (e) {
         openTerm("Wallet");
-        termWrite(`<div class="t-line t-err">[ERROR] 授權被拒絕或失敗: ${e.message || e}</div>`);
+        termWrite(`<div class="t-line t-err">[ERROR] 授權失敗: ${e.message || e}</div>`);
     }
-}
-
-/* ② WalletConnect 深度鏈接（不需要 SDK，直接跳 wc: URI） */
-function connectWCDeeplink() {
-    closeWModal();
-    const wcUri = `wc:${WC_PROJECT_ID}@2?relay-protocol=irn&symKey=`;
-    const mmDeep  = `https://metamask.app.link/wc?uri=${encodeURIComponent(wcUri)}`;
-    const okxDeep = `okx://main/wc?uri=${encodeURIComponent(wcUri)}`;
-    openTerm("WalletConnect Deeplink");
-    termWrite(`<div class="t-line t-dim">[INFO] WalletConnect 深度鏈接需要後端 relay，單頁 HTML 無法完整支持。</div>`);
-    termWrite(`<div class="t-line t-dim">  ⓘ 建議：在錢包 App 的內建瀏覽器直接打開本頁，再點「MetaMask / 瀏覽器錢包」即可。</div>`);
-    termWrite(`<div class="t-line t-dim">  ⓘ 或使用下方「手動貼入地址」直接查詢。</div>`);
-    setTimeout(() => connectWallet(), 2000);
 }
 
 /* ③ 手動貼入 */
@@ -1691,55 +1723,60 @@ function setConnectedAddress(addr) {
     connectedAddress = addr || null;
     updateWalletDisplay();
     const input = document.getElementById("wallet-input");
-    if (connectedAddress) {
-        input.value = connectedAddress;
-        analyzeInput();
-    } else {
-        input.value = "";
-    }
+    if (connectedAddress) { input.value = connectedAddress; analyzeInput(); }
+    else input.value = "";
 }
 
-function disconnectWallet() {
+async function disconnectWallet() {
+    try { if (_wcProvider && _wcProvider.disconnect) await _wcProvider.disconnect(); } catch {}
+    _wcProvider = null;
     setConnectedAddress(null);
 }
 
 function updateWalletDisplay() {
     const btn = document.getElementById("wallet-btn");
     const display = document.getElementById("wallet-display");
-    
+    if (!btn) return;
+
     if (connectedAddress) {
+        btn.removeAttribute("data-i18n");
         btn.textContent = "🔗 " + connectedAddress.slice(0, 6) + "…" + connectedAddress.slice(-4);
         btn.onclick = disconnectWallet;
-        display.textContent = connectedAddress;
-        display.style.display = "block";
+        if (display) { display.textContent = connectedAddress; display.style.display = "block"; }
     } else {
+        btn.setAttribute("data-i18n", "nav.connect");
         btn.textContent = t("nav.connect");
         btn.onclick = connectWallet;
-        display.style.display = "none";
+        if (display) display.style.display = "none";
     }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
     console.log("DOM Loaded, initializing...");
     try {
-        // 初始化語言
+        // 初始化語言（必須最先，確保 wallet-btn 文字正確）
         updateUILanguage();
-        
+        updateWalletDisplay();
+
         // 初始化語言切換按鈕
-        document.getElementById("lang-btn").addEventListener("click", () => {
+        document.getElementById("lang-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
             const menu = document.getElementById("lang-menu");
             menu.style.display = menu.style.display === "none" ? "block" : "none";
         });
-        
+
         document.querySelectorAll(".lang-option").forEach(btn => {
             btn.addEventListener("click", () => {
                 setLanguage(btn.getAttribute("data-lang"));
                 document.getElementById("lang-menu").style.display = "none";
             });
         });
-        
-        // 初始化錢包按鈕
-        updateWalletDisplay();
+
+        // 點外部關閉語言選單
+        document.addEventListener("click", () => {
+            const menu = document.getElementById("lang-menu");
+            if (menu) menu.style.display = "none";
+        });
         
         buildGrid();
         console.log("Grid built");
