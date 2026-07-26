@@ -1,0 +1,3642 @@
+
+
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bogglo 全鏈監控 Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bignumber.js/9.1.2/bignumber.min.js"></script>
+    <!-- WalletConnect v2 — unpkg UMD (EthereumProvider global) -->
+    <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.13.0/dist/index.umd.js"></script>
+    <!-- ethers v6 for Swap signing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <script src="https://widgets.coingecko.com/gecko-coin-price-marquee-widget.js"></script>
+
+    <style>
+        :root {
+            --bg:          #080b10;
+            --surface:     #0e1420;
+            --surface-2:   #141b28;
+            --border:      #1e2d42;
+            --border-hi:   #2a3f5c;
+            --text:        #cdd9e8;
+            --text-muted:  #5a7294;
+            --text-dim:    #3a5070;
+
+            --btc:   #f7931a;
+            --eth:   #6272ea;
+            --bnb:   #f3ba2f;
+            --arb:   #28a0f0;
+            --tron:  #ec0928;
+            --morph: #00e5aa;
+
+            --ok:    #00c97a;
+            --warn:  #f59e0b;
+            --err:   #f04040;
+            --info:  #3d9eff;
+
+            --mono: 'JetBrains Mono', monospace;
+            --sans: 'Inter', sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            min-height: 100vh;
+            padding-bottom: 60px;
+        }
+
+        /* ─── SCANLINE OVERLAY ─── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.06) 2px,
+                rgba(0,0,0,0.06) 4px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* ─── NAVBAR ─── */
+        .nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 5%;
+            height: 56px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .nav-logo {
+            font-family: var(--mono);
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: #fff;
+        }
+        .nav-logo span { color: var(--info); }
+        .nav-badge {
+            font-size: 0.72rem;
+            font-family: var(--mono);
+            color: var(--ok);
+            background: rgba(0,201,122,0.1);
+            border: 1px solid rgba(0,201,122,0.25);
+            padding: 2px 8px;
+            border-radius: 3px;
+            letter-spacing: 0.05em;
+        }
+        .nav-badge::before { content: '● '; font-size: 0.6rem; }
+        .nav-time {
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* ─── MARQUEE ─── */
+        .marquee-wrap {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        /* ─── LAYOUT ─── */
+        .container {
+            max-width: 1260px;
+            margin: 0 auto;
+            padding: 28px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* ─── SECTION LABEL ─── */
+        .section-label {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            letter-spacing: 0.15em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        .section-label::before {
+            content: '//  ';
+            color: var(--border-hi);
+        }
+
+        /* ─── NETWORK GRID ─── */
+        .network-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+            gap: 12px;
+        }
+
+        .net-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .net-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--accent-color, var(--border));
+            opacity: 0.7;
+        }
+        .net-card:hover { border-color: var(--border-hi); }
+
+        .net-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .net-name {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.04em;
+        }
+        .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--ok);
+            box-shadow: 0 0 6px var(--ok);
+        }
+        .dot.err {
+            background: var(--err);
+            box-shadow: 0 0 6px var(--err);
+            animation: blink 1.4s infinite;
+        }
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        .net-block {
+            font-family: var(--mono);
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1;
+            margin-bottom: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .net-block.loading {
+            color: var(--text-dim);
+            animation: pulse 1.2s infinite;
+        }
+        @keyframes pulse { 50% { opacity: 0.4; } }
+
+        .net-foot {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 0.75rem;
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+        }
+        .net-row {
+            display: flex;
+            justify-content: space-between;
+        }
+        .net-row-k { color: var(--text-dim); }
+        .net-row-v {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        /* ─── QUERY MODULE ─── */
+        .query-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 24px;
+        }
+        .query-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .query-title i { color: var(--info); }
+        .query-sub {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        /* chain selector */
+        .chain-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .chain-btn {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 12px 8px 10px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s;
+            position: relative;
+            overflow: hidden;
+        }
+        .chain-btn:hover {
+            border-color: var(--border-hi);
+            background: #192030;
+        }
+        .chain-btn.active {
+            border-color: var(--c-color, var(--info));
+            background: rgba(255,255,255,0.04);
+        }
+        .chain-btn.active::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--c-color, var(--info));
+        }
+        .chain-btn .c-icon {
+            font-size: 1.2rem;
+        }
+        .chain-btn .c-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .chain-btn .c-tag {
+            font-size: 0.65rem;
+            font-family: var(--mono);
+            color: var(--text-dim);
+        }
+
+        /* input row */
+        .input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .addr-input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 0.88rem;
+            padding: 11px 14px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .addr-input:focus { border-color: var(--info); }
+        .addr-input::placeholder { color: var(--text-dim); }
+
+        .query-btn {
+            background: var(--info);
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 11px 22px;
+            font-weight: 700;
+            font-size: 0.88rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            white-space: nowrap;
+            transition: opacity 0.15s;
+        }
+        .query-btn:hover { opacity: 0.85; }
+        .query-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .ident-bar {
+            font-size: 0.8rem;
+            font-family: var(--mono);
+            color: var(--text-dim);
+            padding: 4px 0;
+        }
+        .ident-bar span {
+            color: var(--info);
+            font-weight: 600;
+        }
+
+        /* ─── TERMINAL ─── */
+        .term {
+            display: none;
+            margin-top: 20px;
+            background: #04070d;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .term.active { display: block; }
+
+        .term-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 14px;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
+        }
+        .term-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .term-dots {
+            display: flex;
+            gap: 5px;
+        }
+        .term-dots span {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+        }
+        .term-dots span:nth-child(1) { background: #ff5f57; }
+        .term-dots span:nth-child(2) { background: #febc2e; }
+        .term-dots span:nth-child(3) { background: #28c840; }
+        .term-label {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .term-close {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid transparent;
+        }
+        .term-close:hover {
+            color: var(--err);
+            border-color: var(--err);
+        }
+
+        .term-body {
+            padding: 16px;
+            font-family: var(--mono);
+            font-size: 0.84rem;
+            line-height: 1.85;
+            color: #7a9abc;
+            max-height: 900px;
+            overflow-y: auto;
+        }
+        .term-body::-webkit-scrollbar { width: 4px; }
+        .term-body::-webkit-scrollbar-track { background: transparent; }
+        .term-body::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+        .t-line { word-break: break-all; white-space: pre-wrap; }
+        .t-ok   { color: #00c97a; }
+        .t-hi   { color: #5ab4ff; }
+        .t-warn { color: #f59e0b; }
+        .t-err  { color: #f04040; }
+        .t-dim  { color: var(--text-dim); }
+        .t-sep  {
+            border: none;
+            border-top: 1px dashed var(--border);
+            margin: 10px 0;
+        }
+
+        /* ─── METHOD DECODE BADGE ─── */
+        .method-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(61, 158, 255, 0.08);
+            border: 1px solid rgba(61, 158, 255, 0.25);
+            border-radius: 4px;
+            padding: 4px 10px;
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            color: var(--info);
+            margin: 4px 0;
+        }
+        .method-badge .method-icon {
+            color: var(--warn);
+            font-size: 0.7rem;
+        }
+        .method-badge .method-name {
+            color: #fff;
+            font-weight: 600;
+        }
+        .method-params {
+            margin: 6px 0 6px 16px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.3);
+            border-left: 2px solid var(--info);
+            border-radius: 0 4px 4px 0;
+            font-family: var(--mono);
+            font-size: 0.76rem;
+            line-height: 1.8;
+            color: var(--text-muted);
+        }
+        .method-params .param-name { color: var(--warn); }
+        .method-params .param-value { color: var(--ok); }
+        .method-params .param-type { color: var(--text-dim); font-style: italic; }
+
+        /* ─── TOKEN TRANSFER FLOW ─── */
+        .flow-container {
+            margin: 12px 0;
+            padding: 16px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .flow-title {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .flow-title::before {
+            content: '◆';
+            color: var(--info);
+            font-size: 0.6rem;
+        }
+        .flow-item {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin: 8px 0;
+            flex-wrap: wrap;
+        }
+        .flow-addr {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-family: var(--mono);
+            font-size: 0.74rem;
+            color: var(--text);
+            max-width: 160px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            position: relative;
+        }
+        .flow-addr.from { border-color: rgba(245, 158, 11, 0.4); }
+        .flow-addr.to { border-color: rgba(0, 201, 122, 0.4); }
+        .flow-addr .addr-label {
+            display: block;
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .flow-arrow {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin: 0 8px;
+            position: relative;
+        }
+        .flow-arrow-line {
+            width: 40px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--warn), var(--ok));
+            position: relative;
+        }
+        .flow-arrow-line::after {
+            content: '';
+            position: absolute;
+            right: -5px;
+            top: -4px;
+            border: 5px solid transparent;
+            border-left: 6px solid var(--ok);
+        }
+        .flow-amount {
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #fff;
+            white-space: nowrap;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .flow-token-badge {
+            font-size: 0.65rem;
+            font-family: var(--mono);
+            background: rgba(98, 114, 234, 0.15);
+            border: 1px solid rgba(98, 114, 234, 0.3);
+            color: var(--eth);
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 8px;
+        }
+        .flow-summary {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--border);
+            font-family: var(--mono);
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .flow-summary-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .flow-summary-item .dot-sm {
+            width: 5px; height: 5px;
+            border-radius: 50%;
+        }
+
+        /* ─── ASSET SCAN SECTION ─── */
+        .scan-section {
+            margin-top: 14px;
+            padding: 16px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .scan-header {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .scan-header::before {
+            content: '◆';
+            font-size: 0.6rem;
+        }
+        .scan-header.erc20::before { color: var(--ok); }
+        .scan-header.nft::before { color: #a855f7; }
+        .scan-header.lp::before { color: var(--warn); }
+
+        /* ERC-20 Token Table */
+        .token-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--mono);
+            font-size: 0.76rem;
+        }
+        .token-table th {
+            text-align: left;
+            padding: 6px 10px;
+            color: var(--text-dim);
+            font-weight: 400;
+            font-size: 0.68rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+        }
+        .token-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(30,45,66,0.4);
+            vertical-align: middle;
+        }
+        .token-table tr:last-child td { border-bottom: none; }
+        .token-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .token-sym {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .token-sym .token-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--ok);
+        }
+        .token-addr-sm {
+            color: var(--text-dim);
+            font-size: 0.68rem;
+        }
+        .token-bal {
+            color: var(--ok);
+            font-weight: 600;
+        }
+        .token-bal.zero {
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+
+        /* NFT Grid */
+        .nft-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .nft-card {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: border-color 0.15s;
+        }
+        .nft-card:hover { border-color: #a855f7; }
+        .nft-card .nft-collection {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #a855f7;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .nft-card .nft-collection i {
+            font-size: 0.65rem;
+        }
+        .nft-card .nft-id {
+            font-family: var(--mono);
+            font-size: 0.74rem;
+            color: var(--text);
+        }
+        .nft-card .nft-contract {
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            color: var(--text-dim);
+        }
+        .nft-card .nft-standard {
+            font-size: 0.6rem;
+            font-family: var(--mono);
+            background: rgba(168,85,247,0.12);
+            border: 1px solid rgba(168,85,247,0.3);
+            color: #a855f7;
+            padding: 1px 5px;
+            border-radius: 3px;
+            width: fit-content;
+        }
+
+        /* LP / Staking Cards */
+        .lp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 10px;
+        }
+        .lp-card {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 14px;
+            position: relative;
+            overflow: hidden;
+        }
+        .lp-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--warn);
+            opacity: 0.6;
+        }
+        .lp-card .lp-protocol {
+            font-size: 0.7rem;
+            font-family: var(--mono);
+            color: var(--warn);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .lp-card .lp-pair {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .lp-card .lp-balance {
+            font-family: var(--mono);
+            font-size: 0.76rem;
+            color: var(--ok);
+            margin-bottom: 4px;
+        }
+        .lp-card .lp-detail {
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+        .lp-card .lp-type-badge {
+            position: absolute;
+            top: 8px; right: 8px;
+            font-size: 0.6rem;
+            font-family: var(--mono);
+            padding: 2px 6px;
+            border-radius: 3px;
+            letter-spacing: 0.05em;
+        }
+        .lp-type-badge.lp {
+            background: rgba(245,158,11,0.12);
+            border: 1px solid rgba(245,158,11,0.3);
+            color: var(--warn);
+        }
+        .lp-type-badge.stake {
+            background: rgba(0,201,122,0.12);
+            border: 1px solid rgba(0,201,122,0.3);
+            color: var(--ok);
+        }
+
+        .scan-empty {
+            font-family: var(--mono);
+            font-size: 0.76rem;
+            color: var(--text-dim);
+            padding: 12px 0;
+            text-align: center;
+        }
+        .scan-count {
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--border);
+        }
+
+        /* ─── AGGREGATE DASHBOARD ─── */
+        .aggregate-dashboard {
+            background: linear-gradient(135deg, rgba(0,201,122,0.08) 0%, rgba(255,107,107,0.08) 100%);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .agg-card {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .agg-card .agg-label {
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .agg-card .agg-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--ok);
+        }
+        .agg-card .agg-subtext {
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .agg-card.total {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, rgba(0,201,122,0.12) 0%, rgba(255,107,107,0.12) 100%);
+            border-color: var(--ok);
+        }
+        .agg-card.total .agg-value {
+            font-size: 1.8rem;
+        }
+
+        /* ─── RISK WARNING BANNER ─── */
+        .risk-banner {
+            background: rgba(255,107,107,0.12);
+            border: 1px solid rgba(255,107,107,0.3);
+            border-radius: 6px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--mono);
+            font-size: 0.76rem;
+        }
+        .risk-banner .risk-icon {
+            font-size: 1.2rem;
+            color: var(--err);
+        }
+        .risk-banner .risk-text {
+            color: var(--err);
+            flex: 1;
+        }
+        .risk-banner .risk-level {
+            font-weight: 700;
+            color: var(--err);
+            padding: 2px 6px;
+            background: rgba(255,107,107,0.2);
+            border-radius: 3px;
+            font-size: 0.65rem;
+        }
+
+        .risk-banner.warning {
+            background: rgba(245,158,11,0.12);
+            border-color: rgba(245,158,11,0.3);
+        }
+        .risk-banner.warning .risk-icon,
+        .risk-banner.warning .risk-text,
+        .risk-banner.warning .risk-level {
+            color: var(--warn);
+        }
+        .risk-banner.warning .risk-level {
+            background: rgba(245,158,11,0.2);
+        }
+
+        /* ─── RPC HEALTH DASHBOARD ─── */
+        .rpc-health-panel {
+            background: linear-gradient(135deg, rgba(61,158,255,0.08) 0%, rgba(0,201,122,0.08) 100%);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+        .rpc-health-title {
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 10px;
+        }
+        .rpc-health-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+        }
+        .rpc-node-badge {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+        }
+        .rpc-node-badge.healthy {
+            border-color: rgba(0,201,122,0.3);
+            background: rgba(0,201,122,0.05);
+        }
+        .rpc-node-badge.slow {
+            border-color: rgba(245,158,11,0.3);
+            background: rgba(245,158,11,0.05);
+        }
+        .rpc-node-badge.failed {
+            border-color: rgba(240,64,64,0.3);
+            background: rgba(240,64,64,0.05);
+        }
+        .rpc-node-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .rpc-node-dot.healthy { background: var(--ok); box-shadow: 0 0 4px var(--ok); }
+        .rpc-node-dot.slow { background: var(--warn); }
+        .rpc-node-dot.failed { background: var(--err); }
+        .rpc-node-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .rpc-node-name {
+            color: var(--text);
+            font-weight: 600;
+        }
+        .rpc-node-latency {
+            color: var(--text-muted);
+            font-family: var(--mono);
+            font-size: 0.7rem;
+        }
+
+        /* ─── RESPONSIVE ─── */
+        .lang-option:hover {
+            background: var(--surface-2);
+            color: var(--info);
+        }
+
+        @media (max-width: 640px) {
+            .input-row { flex-direction: column; }
+            .query-btn { width: 100%; justify-content: center; }
+            .flow-item { flex-direction: column; align-items: flex-start; gap: 4px; }
+            .flow-arrow { transform: rotate(90deg); margin: 4px 0 4px 20px; }
+            .flow-amount { top: -2px; left: 120%; transform: none; }
+            .nft-grid { grid-template-columns: 1fr; }
+            .lp-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ─── WALLET MODAL ─── */
+        .wmodal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 9000;
+            align-items: center;
+            justify-content: center;
+        }
+        .wmodal-overlay.open { display: flex; }
+        .wmodal {
+            background: var(--surface);
+            border: 1px solid var(--border-hi);
+            border-radius: 12px;
+            padding: 24px;
+            width: min(90vw, 360px);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .wmodal-title {
+            font-weight: 700;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .wmodal-title i { color: var(--info); }
+        .wmodal-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+            transition: border-color 0.15s, background 0.15s;
+            width: 100%;
+            text-align: left;
+        }
+        .wmodal-btn:hover { border-color: var(--info); background: rgba(61,158,255,0.07); }
+        .wmodal-btn .wm-icon { font-size: 1.3rem; width: 28px; text-align: center; }
+        .wmodal-btn .wm-sub { font-size: 0.72rem; color: var(--text-muted); font-weight: 400; display: block; margin-top: 1px; }
+        .wmodal-sep { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+        .wmodal-paste-row { display: flex; gap: 8px; }
+        .wmodal-paste-row input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            padding: 9px 11px;
+            outline: none;
+        }
+        .wmodal-paste-row input:focus { border-color: var(--info); }
+        .wmodal-paste-row button {
+            background: var(--info);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 9px 14px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            cursor: pointer;
+        }
+        .wmodal-close {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            cursor: pointer;
+            align-self: flex-end;
+            padding: 2px 4px;
+        }
+        .wmodal-close:hover { color: var(--err); }
+
+        /* ─── SWAP PANEL ─── */
+        .swap-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 0; overflow: hidden; }
+        .swap-header { padding: 18px 20px 0; display: flex; align-items: center; justify-content: space-between; }
+        .swap-header-title { font-size: .95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .swap-header-title i { color: var(--info); }
+        .swap-settings-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: .9rem; padding: 4px 8px; border-radius: 6px; transition: background .15s; }
+        .swap-settings-btn:hover { background: var(--surface-2); color: var(--text); }
+
+        .swap-body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 6px; }
+
+        .swap-token-box {
+            background: var(--surface-2);
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            transition: border-color .15s;
+        }
+        .swap-token-box:focus-within { border-color: var(--border-hi); }
+        .swap-token-box-label { font-size: .72rem; color: var(--text-dim); margin-bottom: 8px; font-family: var(--mono); }
+        .swap-token-row { display: flex; align-items: center; gap: 10px; }
+        .swap-amount-input {
+            flex: 1; background: none; border: none; outline: none;
+            font-size: 1.6rem; font-weight: 700; color: #fff;
+            font-family: var(--mono); min-width: 0;
+        }
+        .swap-amount-input::placeholder { color: var(--text-dim); }
+        .swap-token-select {
+            display: flex; align-items: center; gap: 7px;
+            background: var(--bg); border: 1.5px solid var(--border);
+            border-radius: 20px; padding: 7px 12px 7px 8px;
+            cursor: pointer; font-weight: 700; font-size: .88rem;
+            color: var(--text); white-space: nowrap; transition: border-color .15s, background .15s;
+            min-width: 120px;
+        }
+        .swap-token-select:hover { border-color: var(--border-hi); background: var(--surface-2); }
+        .swap-token-icon { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; }
+        .swap-balance-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: .72rem; color: var(--text-dim); font-family: var(--mono); }
+        .swap-balance-max { color: var(--info); cursor: pointer; font-weight: 600; }
+        .swap-balance-max:hover { text-decoration: underline; }
+        .swap-usd { color: var(--text-dim); font-size: .72rem; font-family: var(--mono); margin-top: 3px; }
+
+        .swap-flip-btn {
+            align-self: center; background: var(--surface-2); border: 2px solid var(--border);
+            border-radius: 10px; width: 36px; height: 36px; cursor: pointer; font-size: 1rem;
+            color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+            transition: all .15s; margin: -2px 0;
+        }
+        .swap-flip-btn:hover { border-color: var(--border-hi); color: var(--text); transform: rotate(180deg); }
+
+        .swap-info-box {
+            background: var(--surface-2); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 14px;
+            font-size: .76rem; font-family: var(--mono);
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .swap-info-row { display: flex; justify-content: space-between; color: var(--text-muted); }
+        .swap-info-row span:last-child { color: var(--text); }
+        .swap-info-row.warn span:last-child { color: var(--warn); }
+        .swap-info-row.ok span:last-child { color: var(--ok); }
+
+        .swap-action-btn {
+            width: 100%; padding: 15px; border: none; border-radius: 12px;
+            font-size: 1rem; font-weight: 700; cursor: pointer;
+            transition: opacity .15s, transform .1s;
+        }
+        .swap-action-btn:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+        .swap-action-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+        .swap-action-btn.connect { background: var(--info); color: #fff; }
+        .swap-action-btn.approve { background: var(--warn); color: #000; }
+        .swap-action-btn.swap-ready { background: linear-gradient(135deg, #6272ea, #3d9eff); color: #fff; }
+        .swap-action-btn.loading { background: var(--surface-2); color: var(--text-muted); }
+
+        .swap-warning {
+            background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.3);
+            border-radius: 8px; padding: 10px 12px;
+            font-size: .74rem; color: var(--warn); line-height: 1.6;
+            display: flex; gap: 8px; align-items: flex-start;
+        }
+        .swap-warning i { flex-shrink: 0; margin-top: 2px; }
+
+        /* token picker modal */
+        .token-picker-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
+            z-index: 9100; align-items: center; justify-content: center;
+        }
+        .token-picker-overlay.open { display: flex; }
+        .token-picker {
+            background: #131a2a; border: 1px solid #1d2d45;
+            border-radius: 20px; width: min(92vw, 400px);
+            max-height: 80vh; display: flex; flex-direction: column;
+            box-shadow: 0 24px 80px rgba(0,0,0,.7);
+            animation: wmIn .15s ease;
+        }
+        .tp-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 18px 12px; }
+        .tp-title { font-weight: 700; font-size: .95rem; }
+        .tp-close { background: #1d2d45; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: #8b9bb4; font-size: .85rem; display: flex; align-items: center; justify-content: center; }
+        .tp-close:hover { background: #263650; color: #fff; }
+        .tp-search { margin: 0 18px 12px; background: #0d1420; border: 1.5px solid #1d2d45; border-radius: 10px; padding: 10px 13px; color: #cdd9e8; font-size: .88rem; outline: none; width: calc(100% - 36px); }
+        .tp-search:focus { border-color: #3d9eff; }
+        .tp-list { overflow-y: auto; padding: 0 10px 14px; }
+        .tp-list::-webkit-scrollbar { width: 4px; }
+        .tp-list::-webkit-scrollbar-thumb { background: #1d2d45; border-radius: 2px; }
+        .tp-item { display: flex; align-items: center; gap: 12px; padding: 10px 10px; border-radius: 10px; cursor: pointer; transition: background .12s; }
+        .tp-item:hover { background: #1a2438; }
+        .tp-item img { width: 36px; height: 36px; border-radius: 50%; }
+        .tp-item-name { font-weight: 600; font-size: .88rem; }
+        .tp-item-sym { font-family: var(--mono); font-size: .72rem; color: #5a7294; }
+        .tp-item-bal { margin-left: auto; font-family: var(--mono); font-size: .78rem; color: #cdd9e8; text-align: right; }
+
+        /* slip modal */
+        .slip-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); z-index: 9200; align-items: center; justify-content: center; }
+        .slip-overlay.open { display: flex; }
+        .slip-box { background: #131a2a; border: 1px solid #1d2d45; border-radius: 16px; padding: 20px; width: min(90vw, 340px); animation: wmIn .15s ease; }
+        .slip-title { font-weight: 700; margin-bottom: 14px; display: flex; justify-content: space-between; }
+        .slip-options { display: flex; gap: 8px; margin-bottom: 12px; }
+        .slip-opt { flex: 1; padding: 8px; border-radius: 8px; border: 1.5px solid #1d2d45; background: #1a2438; color: #cdd9e8; font-weight: 700; font-size: .82rem; cursor: pointer; text-align: center; transition: all .12s; }
+        .slip-opt:hover, .slip-opt.active { border-color: #3d9eff; background: rgba(61,158,255,.1); color: #3d9eff; }
+        .slip-custom { display: flex; align-items: center; gap: 8px; }
+        .slip-custom input { flex: 1; background: #0d1420; border: 1.5px solid #1d2d45; border-radius: 8px; padding: 8px 12px; color: #fff; font-size: .88rem; outline: none; }
+        .slip-custom input:focus { border-color: #3d9eff; }
+        .slip-warn { font-size: .72rem; color: var(--warn); margin-top: 8px; display: none; }
+    </style>
+</head>
+<body>
+
+<!-- Wallet Connect Modal -->
+<div class="wmodal-overlay" id="wmodal-overlay" onclick="if(event.target===this)closeWModal()">
+    <div class="wmodal">
+        <div class="wmodal-title"><i class="fas fa-wallet"></i> 連接錢包</div>
+
+        <button class="wmodal-btn" onclick="connectMetaMask()">
+            <span class="wm-icon">🦊</span>
+            <span>
+                MetaMask / 瀏覽器錢包
+                <span class="wm-sub">MetaMask · OKX · imToken · TokenPocket 等內建瀏覽器</span>
+            </span>
+        </button>
+
+        <button class="wmodal-btn" onclick="connectWC()">
+            <span class="wm-icon">🔗</span>
+            <span>
+                WalletConnect 掃碼連接
+                <span class="wm-sub">普通瀏覽器可用 · 掃 QR 碼授權</span>
+            </span>
+        </button>
+
+        <hr class="wmodal-sep">
+
+        <div style="font-size:0.72rem;color:var(--text-muted);font-family:var(--mono);">手動貼入地址</div>
+        <div class="wmodal-paste-row">
+            <input id="wmodal-paste-input" type="text" placeholder="0x… 或 T…">
+            <button onclick="confirmPasteAddr()">確認</button>
+        </div>
+
+        <button class="wmodal-close" onclick="closeWModal()">✕ 關閉</button>
+    </div>
+</div>
+
+<nav class="nav">
+    <div class="nav-brand">
+        <div class="nav-logo">BOG<span>GLO</span></div>
+        <div class="nav-badge">OPERATIONAL</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:16px;">
+        <div style="position:relative;">
+            <button id="lang-btn" style="background:none; border:none; color:var(--text); font-size:1.4rem; cursor:pointer; padding:4px 8px;" title="Language">🌐</button>
+            <div id="lang-menu" style="display:none; position:absolute; top:100%; right:0; background:var(--surface); border:1px solid var(--border); border-radius:4px; min-width:120px; z-index:1000; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                <button class="lang-option" data-lang="zh" style="width:100%; padding:8px 12px; text-align:left; border:none; background:none; color:var(--text); cursor:pointer; font-size:0.85rem;">中文</button>
+                <button class="lang-option" data-lang="ko" style="width:100%; padding:8px 12px; text-align:left; border:none; background:none; color:var(--text); cursor:pointer; font-size:0.85rem;">한국인</button>
+                <button class="lang-option" data-lang="ja" style="width:100%; padding:8px 12px; text-align:left; border:none; background:none; color:var(--text); cursor:pointer; font-size:0.85rem;">日本語</button>
+                <button class="lang-option" data-lang="en" style="width:100%; padding:8px 12px; text-align:left; border:none; background:none; color:var(--text); cursor:pointer; font-size:0.85rem;">English</button>
+                <button class="lang-option" data-lang="es" style="width:100%; padding:8px 12px; text-align:left; border:none; background:none; color:var(--text); cursor:pointer; font-size:0.85rem;">Español</button>
+            </div>
+        </div>
+        <button id="wallet-btn" data-i18n="nav.connect" onclick="connectWallet()" style="background:var(--info); color:#fff; border:none; border-radius:4px; padding:6px 12px; font-size:0.8rem; cursor:pointer; font-weight:600;">🔗 連接</button>
+        <div id="wallet-display" style="display:none; font-family:var(--mono); font-size:0.75rem; color:var(--text-muted); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
+    </div>
+    <div class="nav-time" id="nav-clock">--:--:-- UTC</div>
+</nav>
+
+<div class="marquee-wrap">
+    <gecko-coin-price-marquee-widget
+        locale="zh-tw" dark-mode="true" outlined="false"
+        coin-ids="bitcoin,ethereum,binancecoin,solana,ripple,tron"
+        initial-currency="usd">
+    </gecko-coin-price-marquee-widget>
+</div>
+
+<div class="container">
+
+    <!-- Network status grid -->
+    <div>
+        <div class="section-label">鏈網狀態監控</div>
+        <div class="network-grid" id="net-grid"></div>
+    </div>
+
+    <!-- Unix Timestamp Tool -->
+    <div class="query-card" style="padding:18px 22px;">
+        <div class="query-title" style="margin-bottom:12px;">
+            <i class="fas fa-clock"></i> Unix 時間戳轉換工具
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div style="flex:1;min-width:160px;">
+                <div style="font-size:0.72rem;color:var(--text-dim);font-family:var(--mono);margin-bottom:5px;">Unix 時間戳 (秒 / 毫秒)</div>
+                <input class="addr-input" id="unix-input" type="text" placeholder="e.g. 1700000000" style="width:100%;" oninput="convertUnix()">
+            </div>
+            <div style="flex:1;min-width:160px;">
+                <div style="font-size:0.72rem;color:var(--text-dim);font-family:var(--mono);margin-bottom:5px;">日期時間 (本地 / UTC)</div>
+                <input class="addr-input" id="datetime-input" type="datetime-local" style="width:100%;color-scheme:dark;" oninput="convertDatetime()">
+            </div>
+            <button class="query-btn" onclick="fillNow()" style="white-space:nowrap;padding:10px 16px;">
+                <i class="fas fa-crosshairs"></i> 當前時間
+            </button>
+        </div>
+        <div id="unix-result" style="display:none;margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:12px 14px;font-family:var(--mono);font-size:0.8rem;line-height:2;"></div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SWAP 專欄 (Uniswap V3 — 鏈上簽名，代碼不持有私鑰)
+    ══════════════════════════════════════ -->
+    <div class="swap-card" id="swap-section">
+        <div class="swap-header">
+            <div class="swap-header-title"><i class="fas fa-random"></i> Swap（Uniswap V3）</div>
+            <button class="swap-settings-btn" onclick="openSlipModal()" title="滑點設定"><i class="fas fa-sliders-h"></i></button>
+        </div>
+        <div class="swap-body">
+
+            <!-- 警告提示 -->
+            <div class="swap-warning">
+                <i class="fas fa-shield-alt"></i>
+                <span>所有交易均需在您的錢包 App 手動確認簽名。本站代碼不持有私鑰，不上報任何數據，只調用 Uniswap V3 官方合約（地址硬編碼）。</span>
+            </div>
+
+            <!-- 賣出 -->
+            <div class="swap-token-box">
+                <div class="swap-token-box-label">賣出</div>
+                <div class="swap-token-row">
+                    <input class="swap-amount-input" id="swap-in-amount" type="text" placeholder="0" oninput="onSwapInChange()" autocomplete="off">
+                    <button class="swap-token-select" id="swap-in-btn" onclick="openTokenPicker('in')">
+                        <img class="swap-token-icon" id="swap-in-icon" src="https://assets.coingecko.com/coins/images/279/small/ethereum.png" alt="">
+                        <span id="swap-in-sym">ETH</span>
+                        <i class="fas fa-chevron-down" style="font-size:.65rem;color:var(--text-muted)"></i>
+                    </button>
+                </div>
+                <div class="swap-balance-row">
+                    <span id="swap-in-usd" class="swap-usd">—</span>
+                    <span>餘額: <span id="swap-in-bal">—</span> <span class="swap-balance-max" onclick="setMax()">MAX</span></span>
+                </div>
+            </div>
+
+            <!-- 翻轉 -->
+            <button class="swap-flip-btn" onclick="flipTokens()" title="翻轉">⇅</button>
+
+            <!-- 買入 -->
+            <div class="swap-token-box">
+                <div class="swap-token-box-label">買入</div>
+                <div class="swap-token-row">
+                    <input class="swap-amount-input" id="swap-out-amount" type="text" placeholder="0" readonly style="cursor:default">
+                    <button class="swap-token-select" id="swap-out-btn" onclick="openTokenPicker('out')">
+                        <img class="swap-token-icon" id="swap-out-icon" src="https://assets.coingecko.com/coins/images/325/small/Tether.png" alt="">
+                        <span id="swap-out-sym">USDT</span>
+                        <i class="fas fa-chevron-down" style="font-size:.65rem;color:var(--text-muted)"></i>
+                    </button>
+                </div>
+                <div class="swap-balance-row">
+                    <span id="swap-out-usd" class="swap-usd">—</span>
+                    <span>餘額: <span id="swap-out-bal">—</span></span>
+                </div>
+            </div>
+
+            <!-- 報價資訊 -->
+            <div class="swap-info-box" id="swap-info" style="display:none">
+                <div class="swap-info-row"><span>匯率</span><span id="si-rate">—</span></div>
+                <div class="swap-info-row"><span>滑點容忍</span><span id="si-slip">0.5%</span></div>
+                <div class="swap-info-row"><span>最小獲得</span><span id="si-min">—</span></div>
+                <div class="swap-info-row"><span>預估 Gas</span><span id="si-gas">—</span></div>
+                <div class="swap-info-row"><span>路由</span><span id="si-route">Uniswap V3</span></div>
+                <div class="swap-info-row warn" id="si-price-impact-row" style="display:none"><span>⚠ 價格影響</span><span id="si-impact">—</span></div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <button class="swap-action-btn connect" id="swap-action-btn" onclick="swapActionClick()">連接錢包後開始 Swap</button>
+        </div>
+    </div>
+
+
+    <!-- Query module -->
+    <div class="query-card">
+        <div class="query-title"><i class="fas fa-terminal"></i> RPC 全鏈資產解構引擎</div>
+        <div class="query-sub">直連底層高速 RPC 節點，解析錢包原生資產與合約代幣餘額，或查詢任意交易哈希詳情。<br>支援 <strong style="color:var(--info)">Method 解碼</strong>、<strong style="color:var(--ok)">Token Transfer Flow 視覺化</strong>、<strong style="color:var(--ok)">ERC-20 自動發現</strong>、<strong style="color:#a855f7">NFT 掃描</strong>、<strong style="color:var(--warn)">LP/Staking 資產</strong>。</div>
+
+        <div class="section-label" style="margin-bottom:10px">選擇目標鏈</div>
+        <div class="chain-grid" id="chain-grid"></div>
+
+        <div class="input-row">
+            <input
+                class="addr-input"
+                id="wallet-input"
+                type="text"
+                placeholder="錢包地址 或 交易哈希 (TxHash)…"
+                oninput="analyzeInput()"
+                autocomplete="off"
+                spellcheck="false"
+            >
+            <button class="query-btn" id="exec-btn" onclick="runQuery()">
+                <i class="fas fa-bolt"></i> 查詢
+            </button>
+        </div>
+        <div class="ident-bar">識別：<span id="ident-label">等待輸入…</span></div>
+
+        <!-- RPC Health Dashboard -->
+        <div class="rpc-health-panel" id="rpc-health-panel" style="display:none;">
+            <div class="rpc-health-title">🔗 RPC 節點健康度</div>
+            <div class="rpc-health-grid" id="rpc-health-grid"></div>
+        </div>
+
+        <div class="term" id="term">
+            <div class="term-bar">
+                <div class="term-bar-left">
+                    <div class="term-dots"><span></span><span></span><span></span></div>
+                    <div class="term-label" id="term-label">RPC TERMINAL</div>
+                </div>
+                <div class="term-close" onclick="closeTerm()">✕ 關閉</div>
+            </div>
+            <div class="term-body" id="term-body">等待指令…</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Token Picker Modal -->
+<div class="token-picker-overlay" id="tp-overlay" onclick="if(event.target===this)closeTokenPicker()">
+    <div class="token-picker">
+        <div class="tp-head">
+            <div class="tp-title">選擇代幣</div>
+            <button class="tp-close" onclick="closeTokenPicker()">✕</button>
+        </div>
+        <input class="tp-search" id="tp-search" type="text" placeholder="搜尋名稱或貼入合約地址…" oninput="filterTokenList()">
+        <div class="tp-list" id="tp-list"></div>
+    </div>
+</div>
+
+<!-- Slippage Settings Modal -->
+<div class="slip-overlay" id="slip-overlay" onclick="if(event.target===this)closeSlipModal()">
+    <div class="slip-box">
+        <div class="slip-title">
+            <span>滑點設定</span>
+            <button onclick="closeSlipModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.9rem">✕</button>
+        </div>
+        <div class="slip-options">
+            <div class="slip-opt active" onclick="setSlip(0.1,this)">0.1%</div>
+            <div class="slip-opt" onclick="setSlip(0.5,this)">0.5%</div>
+            <div class="slip-opt" onclick="setSlip(1.0,this)">1.0%</div>
+        </div>
+        <div class="slip-custom">
+            <input id="slip-custom-input" type="number" min="0.01" max="50" step="0.1" placeholder="自訂 %">
+            <button onclick="applyCustomSlip()" style="background:var(--info);color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:700">確定</button>
+        </div>
+        <div class="slip-warn" id="slip-warn">⚠ 滑點過高，可能遭受三明治攻擊</div>
+    </div>
+</div>
+<script>
+/* ═══════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   INTERNATIONALIZATION (i18n)
+═══════════════════════════════════════════ */
+let currentLanguage = localStorage.getItem('bogglo_lang') || 'zh';
+
+const i18n = {
+    zh: {
+        "nav.connect": "🔗 連接",
+        "nav.connected": "已連接",
+        "nav.disconnect": "斷開連接",
+        "chain.bitcoin": "比特幣",
+        "chain.ethereum": "以太坊",
+        "chain.bsc": "BNB 鏈",
+        "chain.arbitrum": "Arbitrum",
+        "chain.tron": "波場",
+        "chain.morph": "Morph L2",
+        "section.network": "鏈網狀態監控",
+        "section.query": "RPC 全鏈資產解構引擎",
+        "section.query_desc": "直連底層高速 RPC 節點，解析錢包原生資產與合約代幣餘額，或查詢任意交易哈希詳情。",
+        "section.chain_select": "選擇目標鏈",
+        "button.query": "查詢",
+        "label.ident": "識別",
+        "label.waiting": "等待輸入…",
+        "label.rpc_health": "🔗 RPC 節點健康度",
+        "label.native_token": "原生代幣",
+        "label.gas_price": "Gas Price",
+        "label.fee_rate": "推薦費率",
+        "label.energy_fee": "能量費率",
+    },
+    ko: {
+        "nav.connect": "🔗 연결",
+        "nav.connected": "연결됨",
+        "nav.disconnect": "연결 해제",
+        "chain.bitcoin": "비트코인",
+        "chain.ethereum": "이더리움",
+        "chain.bsc": "BNB 체인",
+        "chain.arbitrum": "Arbitrum",
+        "chain.tron": "트론",
+        "chain.morph": "Morph L2",
+        "section.network": "체인 네트워크 상태 모니터링",
+        "section.query": "RPC 전체 체인 자산 분석 엔진",
+        "section.query_desc": "고속 RPC 노드에 직접 연결하여 지갑의 기본 자산 및 계약 토큰 잔액을 분석하거나 모든 거래 해시 세부 정보를 조회하세요.",
+        "section.chain_select": "대상 체인 선택",
+        "button.query": "조회",
+        "label.ident": "식별",
+        "label.waiting": "입력 대기 중…",
+        "label.rpc_health": "🔗 RPC 노드 상태",
+        "label.native_token": "기본 토큰",
+        "label.gas_price": "Gas Price",
+        "label.fee_rate": "권장 수수료",
+        "label.energy_fee": "에너지 수수료",
+    },
+    ja: {
+        "nav.connect": "🔗 接続",
+        "nav.connected": "接続済み",
+        "nav.disconnect": "接続解除",
+        "chain.bitcoin": "ビットコイン",
+        "chain.ethereum": "イーサリアム",
+        "chain.bsc": "BNBチェーン",
+        "chain.arbitrum": "Arbitrum",
+        "chain.tron": "トロン",
+        "chain.morph": "Morph L2",
+        "section.network": "チェーンネットワーク状態監視",
+        "section.query": "RPC 全チェーン資産分析エンジン",
+        "section.query_desc": "高速 RPC ノードに直接接続してウォレットのネイティブ資産とコントラクトトークン残高を分析するか、任意のトランザクションハッシュの詳細を照会してください。",
+        "section.chain_select": "対象チェーンを選択",
+        "button.query": "照会",
+        "label.ident": "識別",
+        "label.waiting": "入力待機中…",
+        "label.rpc_health": "🔗 RPC ノード状態",
+        "label.native_token": "ネイティブトークン",
+        "label.gas_price": "Gas Price",
+        "label.fee_rate": "推奨手数料",
+        "label.energy_fee": "エネルギー手数料",
+    },
+    en: {
+        "nav.connect": "🔗 Connect",
+        "nav.connected": "Connected",
+        "nav.disconnect": "Disconnect",
+        "chain.bitcoin": "Bitcoin",
+        "chain.ethereum": "Ethereum",
+        "chain.bsc": "BNB Chain",
+        "chain.arbitrum": "Arbitrum",
+        "chain.tron": "TRON",
+        "chain.morph": "Morph L2",
+        "section.network": "Chain Network Status Monitor",
+        "section.query": "RPC Omni-Chain Asset Analysis Engine",
+        "section.query_desc": "Connect directly to high-speed RPC nodes to analyze wallet native assets and contract token balances, or query any transaction hash details.",
+        "section.chain_select": "Select Target Chain",
+        "button.query": "Query",
+        "label.ident": "Identify",
+        "label.waiting": "Waiting for input…",
+        "label.rpc_health": "🔗 RPC Node Health",
+        "label.native_token": "Native Token",
+        "label.gas_price": "Gas Price",
+        "label.fee_rate": "Recommended Fee",
+        "label.energy_fee": "Energy Fee",
+    },
+    es: {
+        "nav.connect": "🔗 Conectar",
+        "nav.connected": "Conectado",
+        "nav.disconnect": "Desconectar",
+        "chain.bitcoin": "Bitcoin",
+        "chain.ethereum": "Ethereum",
+        "chain.bsc": "Cadena BNB",
+        "chain.arbitrum": "Arbitrum",
+        "chain.tron": "TRON",
+        "chain.morph": "Morph L2",
+        "section.network": "Monitor de Estado de la Red de Cadenas",
+        "section.query": "Motor de Análisis de Activos Omni-Cadena RPC",
+        "section.query_desc": "Conéctate directamente a nodos RPC de alta velocidad para analizar activos nativos de billetera y saldos de tokens de contrato, o consulta detalles de cualquier hash de transacción.",
+        "section.chain_select": "Seleccionar Cadena Objetivo",
+        "button.query": "Consultar",
+        "label.ident": "Identificar",
+        "label.waiting": "Esperando entrada…",
+        "label.rpc_health": "🔗 Estado del Nodo RPC",
+        "label.native_token": "Token Nativo",
+        "label.gas_price": "Gas Price",
+        "label.fee_rate": "Tarifa Recomendada",
+        "label.energy_fee": "Tarifa de Energía",
+    }
+};
+
+function t(key) {
+    return i18n[currentLanguage]?.[key] || i18n['en']?.[key] || key;
+}
+
+function setLanguage(lang) {
+    currentLanguage = lang;
+    localStorage.setItem('bogglo_lang', lang);
+    updateUILanguage();
+    updateWalletDisplay();
+}
+
+function updateUILanguage() {
+    // 更新所有帶 data-i18n 屬性的元素
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.textContent = t(key);
+    });
+    
+    // 更新所有帶 data-i18n-placeholder 屬性的元素
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        el.placeholder = t(key);
+    });
+}
+
+const CHAINS = {
+    BTC:  { name: "Bitcoin",   type: "btc",  color: "#f7931a", native: "BTC",  gasLabel: "推薦費率",  icon: "fab fa-bitcoin" },
+    ETH:  { name: "Ethereum",  type: "evm",  color: "#6272ea", native: "ETH",  gasLabel: "Gas Price", icon: "fab fa-ethereum" },
+    BSC:  { name: "BNB Chain", type: "evm",  color: "#f3ba2f", native: "BNB",  gasLabel: "Gas Price", icon: "fas fa-coins" },
+    ARB:  { name: "Arbitrum",  type: "evm",  color: "#28a0f0", native: "ETH",  gasLabel: "Gas Price", icon: "fas fa-layer-group" },
+    TRON: { name: "TRON",      type: "tron", color: "#ec0928", native: "TRX",  gasLabel: "能量費率",  icon: "fas fa-bolt" },
+    MORPH:{ name: "Morph L2",  type: "evm",  color: "#00e5aa", native: "ETH",  gasLabel: "Gas Price", icon: "fas fa-circle-notch" },
+};
+
+const RPC = {
+    BTC: [
+        {url: "https://blockstream.info/api", name: "Blockstream"},
+        {url: "https://mempool.space/api", name: "Mempool.space"},
+    ],
+    ETH: [
+        {url: "https://rpc.flashbots.net", name: "Flashbots"},
+        {url: "https://ethereum-rpc.publicnode.com", name: "PublicNode"},
+        {url: "https://eth.meowrpc.com", name: "MeowRPC"},
+    ],
+    BSC: [
+        {url: "https://binance.llamarpc.com", name: "LlamaRPC"},
+        {url: "https://bsc-rpc.publicnode.com", name: "PublicNode"},
+        {url: "https://bsc.meowrpc.com", name: "MeowRPC"},
+    ],
+    ARB: [
+        {url: "https://arbitrum-one-rpc.publicnode.com", name: "PublicNode"},
+        {url: "https://arb1.arbitrum.io/rpc", name: "Arbitrum Official"},
+        {url: "https://arbitrum.meowrpc.com", name: "MeowRPC"},
+    ],
+    TRON: [
+        {url: "https://api.trongrid.io", name: "TronGrid"},
+        {url: "https://api.tronstack.io", name: "TronStack"},
+    ],
+    MORPH: [
+        {url: "https://rpc.morphl2.io", name: "Morph Official"},
+        {url: "https://morphl2-mainnet-rpc.allthatnode.com", name: "AllThatNode"},
+    ],
+};
+
+const NODE_HEALTH = {};
+
+const TOKENS = {
+    ETH: [
+        { sym:"USDT",  addr:"0xdAC17F958D2ee523a2206206994597C13D831ec7", dec:6 },
+        { sym:"USDC",  addr:"0xA0b86991c6218b36c1d19D4a2e9Eb0CE3606eB48", dec:6 },
+        { sym:"DAI",   addr:"0x6B175474E89094C44Da98b954EedeAC495271d0F", dec:18 },
+        { sym:"WETH",  addr:"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", dec:18 },
+        { sym:"WBTC",  addr:"0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", dec:8 },
+        { sym:"LINK",  addr:"0x514910771AF9Ca656af840dff83E8264EcF986CA", dec:18 },
+        { sym:"UNI",   addr:"0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984", dec:18 },
+        { sym:"AAVE",  addr:"0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", dec:18 },
+        { sym:"SHIB",  addr:"0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE", dec:18 },
+        { sym:"MATIC", addr:"0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0", dec:18 },
+        { sym:"MKR",   addr:"0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2", dec:18 },
+        { sym:"LDO",   addr:"0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32", dec:18 },
+        { sym:"stETH", addr:"0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84", dec:18 },
+        { sym:"rETH",  addr:"0xae78736Cd615f374D3085123A210448E74Fc6393", dec:18 },
+        { sym:"CRV",   addr:"0xD533a949740bb3306d119CC777fa900bA034cd52", dec:18 },
+        { sym:"PEPE",  addr:"0x6982508145454Ce325dDbE47a25d4ec3d2311933", dec:18 },
+        { sym:"APE",   addr:"0x4d224452801ACEd8B2F0aebE155379bb5D594381", dec:18 },
+        { sym:"1INCH", addr:"0x111111111117dC0aa78b770fA6A738034120C302", dec:18 },
+    ],
+    BSC: [
+        { sym:"USDT",  addr:"0x55d398326f99059fF775485246999027B3197955", dec:18 },
+        { sym:"USDC",  addr:"0x8AC76a51cc950d9822D68b83fE1Ad97B32CD580d", dec:18 },
+        { sym:"BUSD",  addr:"0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56", dec:18 },
+        { sym:"WBNB",  addr:"0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", dec:18 },
+        { sym:"CAKE",  addr:"0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", dec:18 },
+        { sym:"ETH",   addr:"0x2170Ed0880ac9A755fd29B2688956BD959F933F8", dec:18 },
+        { sym:"BTCB",  addr:"0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c", dec:18 },
+        { sym:"DAI",   addr:"0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3", dec:18 },
+        { sym:"XRP",   addr:"0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE", dec:18 },
+        { sym:"DOT",   addr:"0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402", dec:18 },
+        { sym:"LINK",  addr:"0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD", dec:18 },
+        { sym:"UNI",   addr:"0xBf5140A22578168FD562DCcF235E5D43A02ce9B1", dec:18 },
+    ],
+    ARB: [
+        { sym:"USDC",  addr:"0xaf88d065e77c8cC2239327C5EDb3A432268e5831", dec:6 },
+        { sym:"USDT",  addr:"0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", dec:6 },
+        { sym:"WETH",  addr:"0x82aF49447D8a07e3bd95BD0d56f35241523fBab1", dec:18 },
+        { sym:"ARB",   addr:"0x912CE59144191C1204E64559FE8253a0e49E6548", dec:18 },
+        { sym:"WBTC",  addr:"0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f", dec:8 },
+        { sym:"DAI",   addr:"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1", dec:18 },
+        { sym:"LINK",  addr:"0xf97f4df75117a78c1A5a0DBb814Af92458539FB4", dec:18 },
+        { sym:"GMX",   addr:"0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a", dec:18 },
+        { sym:"GNS",   addr:"0x18c11FD286C5EC11c3b683Caa813B77f5163A122", dec:18 },
+        { sym:"MAGIC", addr:"0x539bdE0d7Dbd336b79148AA742883198BBF60342", dec:18 },
+    ],
+    MORPH:[
+        { sym:"USDT",  addr:"0xc7D67c7d2F5E1B5E9A5b4e2F4b8F2C3D4E5F6A7B", dec:6 },
+        { sym:"USDC",  addr:"0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", dec:6 },
+        { sym:"WETH",  addr:"0x5300000000000000000000000000000000000004", dec:18 },
+    ],
+};
+
+/* ═══════════════════════════════════════════
+   NFT COLLECTIONS TO SCAN (ERC-721 / ERC-1155)
+═══════════════════════════════════════════ */
+const NFT_COLLECTIONS = {
+    ETH: [
+        { name:"Bored Ape Yacht Club", addr:"0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D", standard:"ERC-721" },
+        { name:"Mutant Ape YC",        addr:"0x60E4d786628Fea6478F785A6d7e704777c86a7c6", standard:"ERC-721" },
+        { name:"Azuki",                addr:"0xED5AF388653567Af2F388E6224dC7C4b3241C544", standard:"ERC-721" },
+        { name:"Pudgy Penguins",       addr:"0xBd3531dA5CF5857e7CfAA92426877b022e612cf8", standard:"ERC-721" },
+        { name:"Doodles",              addr:"0x8a90CAb2b38dba80c64b7734e58Ee1dB38B8992e", standard:"ERC-721" },
+        { name:"CloneX",               addr:"0x49cF6f5d44E70224e2E23fDcdd2C053F30aDA28B", standard:"ERC-721" },
+        { name:"Moonbirds",            addr:"0x23581767a106ae21c074b2276D25e5C3e136a68b", standard:"ERC-721" },
+        { name:"CryptoPunks (Wrapped)",addr:"0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6", standard:"ERC-721" },
+        { name:"Loot",                 addr:"0xFF9C1b15B16263C61d017ee9F65C50e4AE0113D7", standard:"ERC-721" },
+        { name:"ENS Domains",          addr:"0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85", standard:"ERC-721" },
+    ],
+    BSC: [
+        { name:"Pancake Squad",        addr:"0x0a8901b0E25DEb55A87524f0cC164E9644020EBA", standard:"ERC-721" },
+        { name:"Pancake Bunnies",      addr:"0xDf7952B35f24aCF7fC0487D01c8d5690a60DBa07", standard:"ERC-721" },
+    ],
+    ARB: [
+        { name:"Smol Brains",          addr:"0x6325439389E0797Ab35752B4F43a14C004f710FF", standard:"ERC-721" },
+        { name:"GMX Blueberry Club",   addr:"0x17f4BAa9D35Ee54fFbCb2608e20786473c7aa49f", standard:"ERC-721" },
+        { name:"Treasure (MAGIC)",     addr:"0xEBba467eCB6b21239178033189CeAE27CA12EaDf", standard:"ERC-1155" },
+    ],
+    MORPH: [],
+};
+
+/* ═══════════════════════════════════════════
+   LP / STAKING CONTRACTS TO SCAN
+═══════════════════════════════════════════ */
+const LP_STAKING = {
+    ETH: [
+        // Uniswap V2 LP Tokens
+        { protocol:"Uniswap V2", pair:"USDC/ETH",   addr:"0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc", dec:18, type:"lp" },
+        { protocol:"Uniswap V2", pair:"USDT/ETH",   addr:"0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852", dec:18, type:"lp" },
+        { protocol:"Uniswap V2", pair:"DAI/ETH",    addr:"0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11", dec:18, type:"lp" },
+        { protocol:"Uniswap V2", pair:"WBTC/ETH",   addr:"0xBb2b8038a1640196FbE3e38816F3e67Cba72D940", dec:18, type:"lp" },
+        { protocol:"SushiSwap",  pair:"USDC/ETH",   addr:"0x397FF1542f962076d0BFE58eA045FfA2d347ACa0", dec:18, type:"lp" },
+        { protocol:"SushiSwap",  pair:"USDT/ETH",   addr:"0x06da0fd433C1A5d7a4faa01111c044910A184553", dec:18, type:"lp" },
+        // Staking
+        { protocol:"Lido",       pair:"stETH",      addr:"0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84", dec:18, type:"stake" },
+        { protocol:"Rocket Pool",pair:"rETH",       addr:"0xae78736Cd615f374D3085123A210448E74Fc6393", dec:18, type:"stake" },
+        { protocol:"Aave V3",    pair:"aEthWETH",   addr:"0x4d5F47FA6A74757f35C14fD3a6Ef8E3C9BC514E8", dec:18, type:"stake" },
+        { protocol:"Aave V3",    pair:"aEthUSDC",   addr:"0x98C23E9d8f34FEFb1B7BD6a91B7FF122F4e16F5c", dec:6,  type:"stake" },
+        { protocol:"Compound",   pair:"cUSDC",      addr:"0x39AA39c021dfbaE8faC545936693aC917d5E7563", dec:8,  type:"stake" },
+        { protocol:"Compound",   pair:"cETH",       addr:"0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5", dec:8,  type:"stake" },
+        { protocol:"Curve",      pair:"3pool LP",   addr:"0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490", dec:18, type:"lp" },
+        { protocol:"Convex",     pair:"cvxCRV",     addr:"0x62B9c7356A2Dc64a1969e19C23e4f579F9810Aa7", dec:18, type:"stake" },
+    ],
+    BSC: [
+        { protocol:"PancakeSwap", pair:"CAKE/BNB",  addr:"0x0eD7e52944161450477ee417DE9Cd3a859b14fD0", dec:18, type:"lp" },
+        { protocol:"PancakeSwap", pair:"USDT/BNB",  addr:"0x16b9a82891338f9bA80E2D6970FddA79D1eb0daE", dec:18, type:"lp" },
+        { protocol:"PancakeSwap", pair:"BUSD/BNB",  addr:"0x58F876857a02D6762E0101bb5C46A8c1ED44Dc16", dec:18, type:"lp" },
+        { protocol:"PancakeSwap", pair:"ETH/BNB",   addr:"0x74E4716E431f45807DCF19f284c7aA99F18a4fbc", dec:18, type:"lp" },
+        { protocol:"Venus",       pair:"vBNB",      addr:"0xA07c5b74C9B40447a954e1466938b865b6BBea36", dec:8,  type:"stake" },
+        { protocol:"Venus",       pair:"vUSDT",     addr:"0xfD5840Cd36d94D7229439859C0112a4185BC0255", dec:8,  type:"stake" },
+        { protocol:"Alpaca Finance",pair:"ibBNB",   addr:"0xd7D069493685A581d27824Fc46EdA46B7EfC0063", dec:18, type:"stake" },
+    ],
+    ARB: [
+        { protocol:"Uniswap V3",  pair:"USDC/ETH",  addr:"0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", dec:18, type:"lp" },
+        { protocol:"SushiSwap",   pair:"WETH/USDC", addr:"0x905dfCD5649217c42684f23958568e533C711Aa3", dec:18, type:"lp" },
+        { protocol:"GMX",         pair:"GLP",       addr:"0x4277f8F2c384827B5273592FF7CeBd9f2C1ac258", dec:18, type:"stake" },
+        { protocol:"GMX",         pair:"staked GMX",addr:"0xd2D1162512F927a7e282Ef43a362659E4F2a728F", dec:18, type:"stake" },
+        { protocol:"Radiant",     pair:"dLP",       addr:"0x32dF62dc3aEd2cD6C9b9d40dB8b35129E543B5C3", dec:18, type:"stake" },
+        { protocol:"Camelot",     pair:"GRAIL/ETH", addr:"0x5De5b9F7BbE8A1c5F6e6C6B1bF2C8b5eA4e3F2a1", dec:18, type:"lp" },
+    ],
+    MORPH: [],
+};
+
+/* ═══════════════════════════════════════════
+   METHOD SIGNATURE DATABASE
+   常見 ERC-20 / DEX / NFT / DeFi 方法簽名
+═══════════════════════════════════════════ */
+const METHOD_SIGS = {
+    // ERC-20
+    "0xa9059cbb": { name: "transfer", params: ["address to", "uint256 amount"] },
+    "0x23b872dd": { name: "transferFrom", params: ["address from", "address to", "uint256 amount"] },
+    "0x095ea7b3": { name: "approve", params: ["address spender", "uint256 amount"] },
+    "0x70a08231": { name: "balanceOf", params: ["address account"] },
+    "0xdd62ed3e": { name: "allowance", params: ["address owner", "address spender"] },
+    "0x18160ddd": { name: "totalSupply", params: [] },
+    "0x313ce567": { name: "decimals", params: [] },
+    "0x06fdde03": { name: "name", params: [] },
+    "0x95d89b41": { name: "symbol", params: [] },
+    "0x40c10f19": { name: "mint", params: ["address to", "uint256 amount"] },
+    "0x42966c68": { name: "burn", params: ["uint256 amount"] },
+    "0x79cc6790": { name: "burnFrom", params: ["address account", "uint256 amount"] },
+
+    // Uniswap V2 Router
+    "0x38ed1739": { name: "swapExactTokensForTokens", params: ["uint256 amountIn", "uint256 amountOutMin", "address[] path", "address to", "uint256 deadline"] },
+    "0x8803dbee": { name: "swapTokensForExactTokens", params: ["uint256 amountOut", "uint256 amountInMax", "address[] path", "address to", "uint256 deadline"] },
+    "0x7ff36ab5": { name: "swapExactETHForTokens", params: ["uint256 amountOutMin", "address[] path", "address to", "uint256 deadline"] },
+    "0x18cbafe5": { name: "swapExactTokensForETH", params: ["uint256 amountIn", "uint256 amountOutMin", "address[] path", "address to", "uint256 deadline"] },
+    "0xfb3bdb41": { name: "swapETHForExactTokens", params: ["uint256 amountOut", "address[] path", "address to", "uint256 deadline"] },
+    "0xe8e33700": { name: "addLiquidity", params: ["address tokenA", "address tokenB", "uint256 amountADesired", "uint256 amountBDesired", "uint256 amountAMin", "uint256 amountBMin", "address to", "uint256 deadline"] },
+    "0xf305d719": { name: "addLiquidityETH", params: ["address token", "uint256 amountTokenDesired", "uint256 amountTokenMin", "uint256 amountETHMin", "address to", "uint256 deadline"] },
+    "0xbaa2abde": { name: "removeLiquidity", params: ["address tokenA", "address tokenB", "uint256 liquidity", "uint256 amountAMin", "uint256 amountBMin", "address to", "uint256 deadline"] },
+    "0x02751cec": { name: "removeLiquidityETH", params: ["address token", "uint256 liquidity", "uint256 amountTokenMin", "uint256 amountETHMin", "address to", "uint256 deadline"] },
+
+    // Uniswap V3
+    "0x414bf389": { name: "exactInputSingle", params: ["tuple params"] },
+    "0xc04b8d59": { name: "exactInput", params: ["tuple params"] },
+    "0xdb3e2198": { name: "exactOutputSingle", params: ["tuple params"] },
+    "0xf28c0498": { name: "exactOutput", params: ["tuple params"] },
+    "0x5ae401dc": { name: "multicall", params: ["uint256 deadline", "bytes[] data"] },
+    "0xac9650d8": { name: "multicall", params: ["bytes[] data"] },
+    "0x04e45aaf": { name: "exactInputSingle", params: ["tuple params"] },
+
+    // ERC-721 / NFT
+    "0x42842e0e": { name: "safeTransferFrom", params: ["address from", "address to", "uint256 tokenId"] },
+    "0xb88d4fde": { name: "safeTransferFrom", params: ["address from", "address to", "uint256 tokenId", "bytes data"] },
+    "0xa22cb465": { name: "setApprovalForAll", params: ["address operator", "bool approved"] },
+    "0x6352211e": { name: "ownerOf", params: ["uint256 tokenId"] },
+    "0x1249c58b": { name: "mint", params: [] },
+    "0xa0712d68": { name: "mint", params: ["uint256 quantity"] },
+
+    // ERC-1155
+    "0xf242432a": { name: "safeTransferFrom", params: ["address from", "address to", "uint256 id", "uint256 amount", "bytes data"] },
+    "0x2eb2c2d6": { name: "safeBatchTransferFrom", params: ["address from", "address to", "uint256[] ids", "uint256[] amounts", "bytes data"] },
+
+    // Common DeFi
+    "0xd0e30db0": { name: "deposit", params: [] },
+    "0x2e1a7d4d": { name: "withdraw", params: ["uint256 amount"] },
+    "0x3ccfd60b": { name: "withdraw", params: [] },
+    "0xb6b55f25": { name: "deposit", params: ["uint256 amount"] },
+    "0xe2bbb158": { name: "deposit", params: ["uint256 pid", "uint256 amount"] },
+    "0x441a3e70": { name: "withdraw", params: ["uint256 pid", "uint256 amount"] },
+    "0x1058d281": { name: "harvest", params: ["uint256 pid"] },
+    "0xddc63262": { name: "harvest", params: [] },
+    "0xa694fc3a": { name: "stake", params: ["uint256 amount"] },
+    "0x2e17de78": { name: "unstake", params: ["uint256 amount"] },
+    "0x4e71d92d": { name: "claim", params: [] },
+    "0xe9fad8ee": { name: "exit", params: [] },
+
+    // Proxy / Multicall
+    "0x1b2ef1ca": { name: "claimReward", params: ["uint256 amount", "uint256 nonce"] },
+    "0x3593564c": { name: "execute", params: ["bytes commands", "bytes[] inputs", "uint256 deadline"] },
+    "0x0162e2d0": { name: "execute", params: ["tuple[] commands", "bytes[] state"] },
+
+    // Bridge
+    "0x0100c0d6": { name: "bridgeETH", params: ["uint256 amount", "uint32 minGasLimit", "bytes extraData"] },
+    "0x838b2520": { name: "bridgeERC20", params: ["address token", "uint256 amount", "uint32 minGasLimit", "bytes extraData"] },
+
+    // WETH
+    "0xd0e30db0": { name: "deposit (wrap ETH)", params: [] },
+    "0x2e1a7d4d": { name: "withdraw (unwrap WETH)", params: ["uint256 wad"] },
+};
+
+/* ═══════════════════════════════════════════
+   KNOWN TOKEN ADDRESSES (for flow labeling)
+═══════════════════════════════════════════ */
+const KNOWN_TOKENS = {
+    // Ethereum
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": { sym: "USDT", dec: 6 },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": { sym: "USDC", dec: 6 },
+    "0x6b175474e89094c44da98b954eedeac495271d0f": { sym: "DAI", dec: 18 },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": { sym: "WETH", dec: 18 },
+    "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": { sym: "WBTC", dec: 8 },
+    "0x514910771af9ca656af840dff83e8264ecf986ca": { sym: "LINK", dec: 18 },
+    "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": { sym: "UNI", dec: 18 },
+    "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9": { sym: "AAVE", dec: 18 },
+    "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce": { sym: "SHIB", dec: 18 },
+    // BSC
+    "0x55d398326f99059ff775485246999027b3197955": { sym: "USDT", dec: 18 },
+    "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d": { sym: "USDC", dec: 18 },
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": { sym: "WBNB", dec: 18 },
+    "0xe9e7cea3dedca5984780bafc599bd69add087d56": { sym: "BUSD", dec: 18 },
+    // Arbitrum
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831": { sym: "USDC", dec: 6 },
+    "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": { sym: "USDT", dec: 6 },
+    "0x82af49447d8a07e3bd95bd0d56f35241523fbab1": { sym: "WETH", dec: 18 },
+    "0x912ce59144191c1204e64559fe8253a0e49e6548": { sym: "ARB", dec: 18 },
+};
+
+/* ERC-20 Transfer event topic */
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+/* ERC-721 Transfer (same topic) */
+/* Withdrawal event (WETH) */
+const WITHDRAWAL_TOPIC = "0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65";
+/* Deposit event (WETH) */
+const DEPOSIT_TOPIC = "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c";
+
+/* ═══════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════ */
+let activeChain = "BTC";
+let refreshBusy = false;
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   WALLET INTEGRATION
+═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   WALLETCONNECT v2 — 正確實現
+   全局: window.EthereumProvider (unpkg UMD)
+═══════════════════════════════════════════ */
+const WC_PROJECT_ID = "53202dd753c7257584adfa9959dce792";
+let connectedAddress = null;
+let _wcProvider     = null;
+let _ethersProvider = null;   // ethers.BrowserProvider wrapping WC
+
+function connectWallet()  { document.getElementById("wmodal-overlay").classList.add("open"); }
+function closeWModal()    { document.getElementById("wmodal-overlay").classList.remove("open"); }
+
+/* ① WalletConnect v2 */
+async function connectWC() {
+    closeWModal();
+    openTerm("WalletConnect v2");
+    try {
+        const EP = window.EthereumProvider;
+        if (!EP) throw new Error("SDK 未載入 — 請重新整理後再試 (window.EthereumProvider undefined)");
+        termWrite(`<div class="t-line t-dim">[WC] 初始化…</div>`);
+        _wcProvider = await EP.init({
+            projectId: WC_PROJECT_ID,
+            chains:         [1],
+            optionalChains: [56, 42161, 137],
+            showQrModal:    true,
+            qrModalOptions: { themeMode: "dark" },
+            metadata: { name:"Bogglo Ultra", description:"全鏈監控", url: window.location.origin, icons:[] }
+        });
+        termWrite(`<div class="t-line t-dim">[WC] 等待錢包掃碼…</div>`);
+        await _wcProvider.connect();
+        const accs = _wcProvider.accounts;
+        if (accs && accs.length > 0) {
+            _ethersProvider = new ethers.BrowserProvider(_wcProvider);
+            setConnectedAddress(accs[0]);
+            termWrite(`<div class="t-line t-ok">[WC] 連接成功: ${accs[0]}</div>`);
+        }
+        _wcProvider.on("accountsChanged", (a) => { setConnectedAddress(a[0]||null); });
+        _wcProvider.on("disconnect",      ()  => { _wcProvider=null; _ethersProvider=null; setConnectedAddress(null); });
+    } catch(e) {
+        if (/reject|cancel|close/i.test(e.message||""))
+            termWrite(`<div class="t-line t-dim">[WC] 用戶取消。</div>`);
+        else
+            termWrite(`<div class="t-line t-err">[ERROR] ${e.message||e}</div>`);
+    }
+}
+
+/* ② window.ethereum (MetaMask / DApp 內建瀏覽器) */
+async function connectMetaMask() {
+    closeWModal();
+    if (!window.ethereum) {
+        openTerm("Wallet");
+        termWrite(`<div class="t-line t-err">[ERROR] 未偵測到 window.ethereum。</div>`);
+        termWrite(`<div class="t-line t-dim">  ⓘ 請在 MetaMask / OKX 的 DApp 瀏覽器中打開本頁，或改用 WalletConnect。</div>`);
+        return;
+    }
+    try {
+        const accs = await window.ethereum.request({ method:"eth_requestAccounts" });
+        if (accs && accs.length > 0) {
+            _ethersProvider = new ethers.BrowserProvider(window.ethereum);
+            setConnectedAddress(accs[0]);
+        }
+        window.ethereum.on("accountsChanged", (a) => setConnectedAddress(a[0]||null));
+        window.ethereum.on("disconnect",      ()  => { _ethersProvider=null; setConnectedAddress(null); });
+    } catch(e) {
+        openTerm("Wallet");
+        termWrite(`<div class="t-line t-err">[ERROR] 授權失敗: ${e.message||e}</div>`);
+    }
+}
+
+/* ③ 手動貼入地址（查詢用，無法發送交易） */
+function confirmPasteAddr() {
+    const val = document.getElementById("wmodal-paste-input").value.trim();
+    if (!val) return;
+    closeWModal();
+    setConnectedAddress(val);
+    document.getElementById("wmodal-paste-input").value = "";
+}
+
+function setConnectedAddress(addr) {
+    connectedAddress = addr || null;
+    updateWalletDisplay();
+    const input = document.getElementById("wallet-input");
+    if (connectedAddress) { input.value = connectedAddress; analyzeInput(); }
+    else input.value = "";
+    updateSwapUI();
+}
+
+async function disconnectWallet() {
+    try { if (_wcProvider?.disconnect) await _wcProvider.disconnect(); } catch {}
+    _wcProvider = null; _ethersProvider = null;
+    setConnectedAddress(null);
+}
+
+function updateWalletDisplay() {
+    const btn = document.getElementById("wallet-btn");
+    const display = document.getElementById("wallet-display");
+    if (!btn) return;
+    if (connectedAddress) {
+        btn.removeAttribute("data-i18n");
+        btn.textContent = "🟢 " + connectedAddress.slice(0,6) + "…" + connectedAddress.slice(-4);
+        btn.onclick = disconnectWallet;
+        if (display) { display.textContent = connectedAddress; display.style.display = "block"; }
+    } else {
+        btn.setAttribute("data-i18n","nav.connect");
+        btn.textContent = t("nav.connect");
+        btn.onclick = connectWallet;
+        if (display) display.style.display = "none";
+    }
+}
+
+/* ═══════════════════════════════════════════
+   SWAP ENGINE (Uniswap V3 — 極度安全版)
+   安全原則：
+   1. 合約地址全部硬編碼，不接受用戶輸入
+   2. 所有鏈上操作必須由用戶在錢包手動簽名
+   3. 代碼不持有、不傳輸任何私鑰
+   4. 報價走 Uniswap V3 Quoter 鏈上讀取，不依賴第三方 API
+   5. approve 只對 SwapRouter02 授權，且只授權所需數量
+   6. 使用 deadline 防止交易被延遲執行
+   7. amountOutMinimum 由滑點計算，防止三明治攻擊
+═══════════════════════════════════════════ */
+
+/* ── 硬編碼合約地址（Ethereum Mainnet，不可更改） ── */
+const UNISWAP = Object.freeze({
+    ROUTER:  "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45", // SwapRouter02
+    QUOTER:  "0x61fFE014bA17989E743c5F6cB21bF9697530B21e", // QuoterV2
+    FACTORY: "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+    WETH:    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    CHAIN_ID: 1,
+});
+
+/* ── Quoter V2 ABI（只讀，只用 quoteExactInputSingle） ── */
+const QUOTER_ABI = [
+    "function quoteExactInputSingle((address tokenIn,address tokenOut,uint256 amountIn,uint24 fee,uint160 sqrtPriceLimitX96)) external returns (uint256 amountOut,uint160 sqrtPriceX96After,uint32 initializedTicksCrossed,uint256 gasEstimate)"
+];
+
+/* ── ERC-20 ABI（只需 approve + allowance + balanceOf + decimals） ── */
+const ERC20_ABI = [
+    "function approve(address spender,uint256 amount) returns (bool)",
+    "function allowance(address owner,address spender) view returns (uint256)",
+    "function balanceOf(address account) view returns (uint256)",
+    "function decimals() view returns (uint8)",
+    "function symbol() view returns (string)"
+];
+
+/* ── Router ABI（只需 exactInputSingle + multicall） ── */
+const ROUTER_ABI = [
+    "function exactInputSingle((address tokenIn,address tokenOut,uint24 fee,address recipient,uint256 amountIn,uint256 amountOutMinimum,uint160 sqrtPriceLimitX96)) payable returns (uint256 amountOut)",
+    "function multicall(uint256 deadline,bytes[] calldata data) payable returns (bytes[] memory)"
+];
+
+/* ── 常用費率（0.05% / 0.3% / 1%） ── */
+const FEE_TIERS = [500, 3000, 10000];
+
+/* ── 代幣清單 ── */
+const TOKEN_LIST = [
+    { sym:"ETH",  name:"Ethereum",    addr:"NATIVE",                                      dec:18, icon:"https://assets.coingecko.com/coins/images/279/small/ethereum.png",  cg:"ethereum"  },
+    { sym:"USDT", name:"Tether USD",  addr:"0xdAC17F958D2ee523a2206206994597C13D831ec7", dec:6,  icon:"https://assets.coingecko.com/coins/images/325/small/Tether.png",    cg:"tether"    },
+    { sym:"USDC", name:"USD Coin",    addr:"0xA0b86991c6218b36c1d19D4a2e9Eb0CE3606eB48", dec:6,  icon:"https://assets.coingecko.com/coins/images/6319/small/usdc.png",      cg:"usd-coin"  },
+    { sym:"DAI",  name:"Dai",         addr:"0x6B175474E89094C44Da98b954EedeAC495271d0F", dec:18, icon:"https://assets.coingecko.com/coins/images/9956/small/dai-multi-collateral-mcd.png", cg:"dai" },
+    { sym:"WBTC", name:"Wrapped BTC", addr:"0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", dec:8,  icon:"https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png", cg:"wrapped-bitcoin" },
+    { sym:"WETH", name:"Wrapped ETH", addr:"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", dec:18, icon:"https://assets.coingecko.com/coins/images/2518/small/weth.png",     cg:"weth"      },
+    { sym:"LINK", name:"Chainlink",   addr:"0x514910771AF9Ca656af840dff83E8264EcF986CA", dec:18, icon:"https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png", cg:"chainlink" },
+    { sym:"UNI",  name:"Uniswap",     addr:"0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984", dec:18, icon:"https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png", cg:"uniswap"  },
+    { sym:"AAVE", name:"Aave",        addr:"0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", dec:18, icon:"https://assets.coingecko.com/coins/images/12645/small/AAVE.png",     cg:"aave"      },
+    { sym:"SHIB", name:"Shiba Inu",   addr:"0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE", dec:18, icon:"https://assets.coingecko.com/coins/images/11939/small/shiba.png",    cg:"shiba-inu" },
+];
+
+/* ── State ── */
+let swapTokenIn   = TOKEN_LIST[0];  // ETH
+let swapTokenOut  = TOKEN_LIST[1];  // USDT
+let swapSlippage  = 0.5;            // %
+let swapQuote     = null;           // last quote result
+let swapApproved  = false;
+let quoteTimer    = null;
+let _tpTarget     = "in";           // which side is the picker for
+
+/* ── Token Picker ── */
+function openTokenPicker(side) {
+    _tpTarget = side;
+    document.getElementById("tp-search").value = "";
+    renderTokenList(TOKEN_LIST);
+    document.getElementById("tp-overlay").classList.add("open");
+    setTimeout(() => document.getElementById("tp-search").focus(), 100);
+}
+function closeTokenPicker() { document.getElementById("tp-overlay").classList.remove("open"); }
+function filterTokenList() {
+    const q = document.getElementById("tp-search").value.trim().toLowerCase();
+    const filtered = q ? TOKEN_LIST.filter(t => t.sym.toLowerCase().includes(q) || t.name.toLowerCase().includes(q) || t.addr.toLowerCase().includes(q)) : TOKEN_LIST;
+    renderTokenList(filtered);
+}
+function renderTokenList(list) {
+    const el = document.getElementById("tp-list");
+    el.innerHTML = list.map(tok => `
+        <div class="tp-item" onclick="selectToken('${tok.sym}')">
+            <img src="${tok.icon}" alt="${tok.sym}" onerror="this.style.display='none'">
+            <div><div class="tp-item-name">${tok.name}</div><div class="tp-item-sym">${tok.sym}</div></div>
+        </div>`).join("");
+}
+function selectToken(sym) {
+    const tok = TOKEN_LIST.find(t => t.sym === sym);
+    if (!tok) return;
+    closeTokenPicker();
+    if (_tpTarget === "in") {
+        if (tok.sym === swapTokenOut.sym) swapTokenOut = swapTokenIn;
+        swapTokenIn = tok;
+    } else {
+        if (tok.sym === swapTokenIn.sym) swapTokenIn = swapTokenOut;
+        swapTokenOut = tok;
+    }
+    updateSwapTokenDisplay();
+    clearQuote();
+    scheduleQuote();
+}
+function flipTokens() {
+    [swapTokenIn, swapTokenOut] = [swapTokenOut, swapTokenIn];
+    document.getElementById("swap-in-amount").value  = document.getElementById("swap-out-amount").value || "";
+    document.getElementById("swap-out-amount").value = "";
+    updateSwapTokenDisplay();
+    clearQuote();
+    scheduleQuote();
+}
+function updateSwapTokenDisplay() {
+    document.getElementById("swap-in-sym").textContent   = swapTokenIn.sym;
+    document.getElementById("swap-out-sym").textContent  = swapTokenOut.sym;
+    document.getElementById("swap-in-icon").src          = swapTokenIn.icon;
+    document.getElementById("swap-out-icon").src         = swapTokenOut.icon;
+    updateSwapBalances();
+}
+
+/* ── Slippage ── */
+function openSlipModal()  { document.getElementById("slip-overlay").classList.add("open"); }
+function closeSlipModal() { document.getElementById("slip-overlay").classList.remove("open"); }
+function setSlip(val, el) {
+    swapSlippage = val;
+    document.querySelectorAll(".slip-opt").forEach(b => b.classList.remove("active"));
+    if (el) el.classList.add("active");
+    document.getElementById("si-slip").textContent = val + "%";
+    document.getElementById("slip-warn").style.display = val >= 5 ? "block" : "none";
+    clearQuote(); scheduleQuote();
+}
+function applyCustomSlip() {
+    const v = parseFloat(document.getElementById("slip-custom-input").value);
+    if (isNaN(v) || v <= 0 || v > 50) return;
+    setSlip(v, null);
+    document.querySelectorAll(".slip-opt").forEach(b => b.classList.remove("active"));
+    closeSlipModal();
+}
+
+/* ── MAX ── */
+async function setMax() {
+    if (!connectedAddress || !_ethersProvider) return;
+    try {
+        let bal;
+        if (swapTokenIn.addr === "NATIVE") {
+            bal = await _ethersProvider.getBalance(connectedAddress);
+            const reserve = ethers.parseEther("0.01");
+            bal = bal > reserve ? bal - reserve : 0n;
+        } else {
+            const c = new ethers.Contract(swapTokenIn.addr, ERC20_ABI, _ethersProvider);
+            bal = await c.balanceOf(connectedAddress);
+        }
+        document.getElementById("swap-in-amount").value = ethers.formatUnits(bal, swapTokenIn.dec);
+        scheduleQuote();
+    } catch {}
+}
+
+/* ── Quote ── */
+function onSwapInChange() { clearQuote(); scheduleQuote(); }
+function scheduleQuote()  { clearTimeout(quoteTimer); quoteTimer = setTimeout(fetchQuote, 600); }
+function clearQuote() {
+    swapQuote = null;
+    document.getElementById("swap-out-amount").value = "";
+    document.getElementById("swap-info").style.display = "none";
+    document.getElementById("si-price-impact-row").style.display = "none";
+}
+
+async function fetchQuote() {
+    const amtStr = document.getElementById("swap-in-amount").value.trim();
+    if (!amtStr || isNaN(parseFloat(amtStr)) || parseFloat(amtStr) <= 0) return;
+    if (swapTokenIn.sym === swapTokenOut.sym) return;
+
+    const rpcUrl = "https://rpc.flashbots.net";
+    const provider = new ethers.JsonRpcProvider(rpcUrl);   // 只讀，不需要簽名
+    const quoter   = new ethers.Contract(UNISWAP.QUOTER, QUOTER_ABI, provider);
+
+    const tokenInAddr  = swapTokenIn.addr  === "NATIVE" ? UNISWAP.WETH : swapTokenIn.addr;
+    const tokenOutAddr = swapTokenOut.addr === "NATIVE" ? UNISWAP.WETH : swapTokenOut.addr;
+    const amtIn = ethers.parseUnits(amtStr, swapTokenIn.dec);
+
+    setSwapActionLoading("計算報價中…");
+
+    let bestQuote = null, bestFee = 3000;
+    for (const fee of FEE_TIERS) {
+        try {
+            const [amtOut] = await quoter.quoteExactInputSingle.staticCall({
+                tokenIn: tokenInAddr, tokenOut: tokenOutAddr,
+                amountIn: amtIn, fee, sqrtPriceLimitX96: 0n
+            });
+            if (!bestQuote || amtOut > bestQuote.amtOut) {
+                bestQuote = { amtOut, fee };
+                bestFee = fee;
+            }
+        } catch {}
+    }
+
+    if (!bestQuote) {
+        document.getElementById("swap-out-amount").value = "";
+        setSwapActionBtn();
+        return;
+    }
+
+    swapQuote = { ...bestQuote, amtIn, tokenInAddr, tokenOutAddr };
+    const fmtOut = ethers.formatUnits(bestQuote.amtOut, swapTokenOut.dec);
+    document.getElementById("swap-out-amount").value = parseFloat(fmtOut).toFixed(6);
+
+    // 價格影響估算
+    const rate    = parseFloat(fmtOut) / parseFloat(amtStr);
+    const feeStr  = bestFee === 500 ? "0.05%" : bestFee === 3000 ? "0.3%" : "1%";
+
+    const slipFactor = 1 - swapSlippage / 100;
+    const minOut     = (parseFloat(fmtOut) * slipFactor).toFixed(6);
+
+    document.getElementById("swap-info").style.display = "flex";
+    document.getElementById("si-rate").textContent   = `1 ${swapTokenIn.sym} = ${rate.toFixed(6)} ${swapTokenOut.sym}`;
+    document.getElementById("si-slip").textContent   = swapSlippage + "%";
+    document.getElementById("si-min").textContent    = `${minOut} ${swapTokenOut.sym}`;
+    document.getElementById("si-gas").textContent    = "~$1–5 (鏈上估算)";
+    document.getElementById("si-route").textContent  = `Uniswap V3 (fee ${feeStr})`;
+
+    swapApproved = false;
+    setSwapActionBtn();
+}
+
+/* ── Action button state machine ── */
+function setSwapActionLoading(txt) {
+    const btn = document.getElementById("swap-action-btn");
+    btn.className = "swap-action-btn loading";
+    btn.disabled  = true;
+    btn.textContent = txt || "…";
+}
+
+async function setSwapActionBtn() {
+    const btn = document.getElementById("swap-action-btn");
+    const amt = document.getElementById("swap-in-amount").value.trim();
+
+    if (!connectedAddress || !_ethersProvider) {
+        btn.className   = "swap-action-btn connect";
+        btn.disabled    = false;
+        btn.textContent = "連接錢包";
+        btn.onclick     = connectWallet;
+        return;
+    }
+    if (!amt || !swapQuote) {
+        btn.className   = "swap-action-btn loading";
+        btn.disabled    = true;
+        btn.textContent = "輸入數量";
+        return;
+    }
+    // Check if approve needed (ERC-20 only)
+    if (swapTokenIn.addr !== "NATIVE") {
+        try {
+            const c         = new ethers.Contract(swapTokenIn.addr, ERC20_ABI, _ethersProvider);
+            const allowance = await c.allowance(connectedAddress, UNISWAP.ROUTER);
+            if (allowance < swapQuote.amtIn) {
+                btn.className   = "swap-action-btn approve";
+                btn.disabled    = false;
+                btn.textContent = `授權 ${swapTokenIn.sym}`;
+                btn.onclick     = doApprove;
+                return;
+            }
+        } catch {}
+    }
+    btn.className   = "swap-action-btn swap-ready";
+    btn.disabled    = false;
+    btn.textContent = `Swap ${swapTokenIn.sym} → ${swapTokenOut.sym}`;
+    btn.onclick     = doSwap;
+}
+
+function swapActionClick() { connectWallet(); }
+
+/* ── Approve (精確授權額，不授權 max) ── */
+async function doApprove() {
+    if (!_ethersProvider || !swapQuote) return;
+    setSwapActionLoading("等待錢包確認授權…");
+    try {
+        const signer  = await _ethersProvider.getSigner();
+        const token   = new ethers.Contract(swapTokenIn.addr, ERC20_ABI, signer);
+        const tx      = await token.approve(UNISWAP.ROUTER, swapQuote.amtIn);
+        setSwapActionLoading("授權交易廣播中…");
+        await tx.wait();
+        swapApproved = true;
+        setSwapActionBtn();
+    } catch(e) {
+        setSwapActionBtn();
+        if (!/reject|cancel/i.test(e.message||"")) alert("授權失敗: " + (e.reason || e.message));
+    }
+}
+
+/* ── Swap ── */
+async function doSwap() {
+    if (!_ethersProvider || !swapQuote) return;
+    const amtStr = document.getElementById("swap-in-amount").value.trim();
+    if (!amtStr) return;
+
+    /* 安全確認對話框 */
+    const minOut = ethers.formatUnits(
+        swapQuote.amtOut * BigInt(Math.floor((1 - swapSlippage/100) * 10000)) / 10000n,
+        swapTokenOut.dec
+    );
+    const confirmed = window.confirm(
+`【Swap 確認】
+賣出: ${amtStr} ${swapTokenIn.sym}
+最少獲得: ${parseFloat(minOut).toFixed(6)} ${swapTokenOut.sym}
+滑點: ${swapSlippage}%
+路由: Uniswap V3
+合約: ${UNISWAP.ROUTER}
+
+⚠ 交易送出後不可撤回。請確認您已核對所有信息。
+點擊「確定」後，錢包 App 將彈出簽名確認。`
+    );
+    if (!confirmed) return;
+
+    setSwapActionLoading("等待錢包簽名…");
+    try {
+        const signer     = await _ethersProvider.getSigner();
+        const router     = new ethers.Contract(UNISWAP.ROUTER, ROUTER_ABI, signer);
+        const deadline   = BigInt(Math.floor(Date.now()/1000) + 1800); // 30 min
+        const amtOutMin  = swapQuote.amtOut * BigInt(Math.floor((1 - swapSlippage/100) * 10000)) / 10000n;
+        const isNativeIn = swapTokenIn.addr === "NATIVE";
+        const amtIn      = swapQuote.amtIn;
+
+        const params = {
+            tokenIn:              swapQuote.tokenInAddr,
+            tokenOut:             swapQuote.tokenOutAddr,
+            fee:                  swapQuote.fee,
+            recipient:            connectedAddress,
+            amountIn:             amtIn,
+            amountOutMinimum:     amtOutMin,
+            sqrtPriceLimitX96:    0n,
+        };
+
+        setSwapActionLoading("廣播交易中…");
+        let tx;
+        if (isNativeIn) {
+            tx = await router.exactInputSingle(params, { value: amtIn, deadline });
+        } else {
+            tx = await router.exactInputSingle(params, { deadline });
+        }
+
+        setSwapActionLoading("等待確認…");
+        const receipt = await tx.wait();
+        alert(`✅ Swap 成功！\nTx: ${receipt.hash}`);
+        document.getElementById("swap-in-amount").value  = "";
+        document.getElementById("swap-out-amount").value = "";
+        clearQuote();
+        updateSwapBalances();
+        setSwapActionBtn();
+    } catch(e) {
+        setSwapActionBtn();
+        if (!/reject|cancel/i.test(e.message||""))
+            alert("Swap 失敗: " + (e.reason || e.shortMessage || e.message));
+    }
+}
+
+/* ── Balances ── */
+async function updateSwapBalances() {
+    if (!connectedAddress || !_ethersProvider) return;
+    try {
+        const getbal = async (tok) => {
+            if (tok.addr === "NATIVE") {
+                const b = await _ethersProvider.getBalance(connectedAddress);
+                return parseFloat(ethers.formatEther(b)).toFixed(4);
+            }
+            const c = new ethers.Contract(tok.addr, ERC20_ABI, _ethersProvider);
+            const b = await c.balanceOf(connectedAddress);
+            return parseFloat(ethers.formatUnits(b, tok.dec)).toFixed(4);
+        };
+        const [inBal, outBal] = await Promise.all([getbal(swapTokenIn), getbal(swapTokenOut)]);
+        document.getElementById("swap-in-bal").textContent  = inBal;
+        document.getElementById("swap-out-bal").textContent = outBal;
+    } catch {}
+}
+
+function updateSwapUI() {
+    setSwapActionBtn();
+    updateSwapBalances();
+}
+
+/* init token list */
+document.addEventListener("DOMContentLoaded", () => {
+    updateSwapTokenDisplay();
+    renderTokenList(TOKEN_LIST);
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("DOM Loaded, initializing...");
+    try {
+        // 初始化語言（必須最先，確保 wallet-btn 文字正確）
+        updateUILanguage();
+        updateWalletDisplay();
+
+        // 初始化語言切換按鈕
+        document.getElementById("lang-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            const menu = document.getElementById("lang-menu");
+            menu.style.display = menu.style.display === "none" ? "block" : "none";
+        });
+
+        document.querySelectorAll(".lang-option").forEach(btn => {
+            btn.addEventListener("click", () => {
+                setLanguage(btn.getAttribute("data-lang"));
+                document.getElementById("lang-menu").style.display = "none";
+            });
+        });
+
+        // 點外部關閉語言選單
+        document.addEventListener("click", () => {
+            const menu = document.getElementById("lang-menu");
+            if (menu) menu.style.display = "none";
+        });
+        
+        buildGrid();
+        console.log("Grid built");
+        buildChainBtns();
+        console.log("Chain buttons built");
+        selectChain("BTC");
+        console.log("BTC selected");
+        refreshAll();
+        setInterval(refreshAll, 5000);
+        setInterval(updateClock, 1000);
+        updateClock();
+    } catch (e) {
+        console.error("Initialization failed:", e);
+    }
+});
+
+function updateClock() {
+    const now = new Date();
+    document.getElementById("nav-clock").textContent =
+        now.toUTCString().split(" ")[4] + " UTC";
+}
+
+/* ─── Network grid cards ─── */
+function buildGrid() {
+    const g = document.getElementById("net-grid");
+    g.innerHTML = "";
+    Object.entries(CHAINS).forEach(([k, c]) => {
+        const card = document.createElement("div");
+        card.className = "net-card";
+        card.style.setProperty("--accent-color", c.color);
+        card.innerHTML = `
+            <div class="net-head">
+                <div class="net-name">${c.name}</div>
+                <div class="dot" id="dot-${k}"></div>
+            </div>
+            <div class="net-foot" style="border-top:none;padding-top:0;margin-bottom:8px">
+                <div class="net-row">
+                    <span class="net-row-k">區塊高度</span>
+                    <span class="net-row-v net-block loading" id="blk-${k}" style="font-size:0.82rem;color:#fff;font-weight:700">———</span>
+                </div>
+            </div>
+            <div class="net-foot">
+                <div class="net-row">
+                    <span class="net-row-k">原生代幣</span>
+                    <span class="net-row-v" style="color:${c.color}">${c.native}</span>
+                </div>
+                <div class="net-row">
+                    <span class="net-row-k">${c.gasLabel}</span>
+                    <span class="net-row-v" id="gas-${k}">—</span>
+                </div>
+            </div>
+        `;
+        g.appendChild(card);
+    });
+}
+
+/* ─── Chain selector buttons ─── */
+function buildChainBtns() {
+    const g = document.getElementById("chain-grid");
+    g.innerHTML = "";
+    Object.entries(CHAINS).forEach(([k, c]) => {
+        const btn = document.createElement("button");
+        btn.className = "chain-btn";
+        btn.id = `cbtn-${k}`;
+        btn.style.setProperty("--c-color", c.color);
+        btn.innerHTML = `
+            <i class="${c.icon} c-icon" style="color:${c.color}"></i>
+            <span class="c-name">${c.name}</span>
+            <span class="c-tag">${k}</span>
+        `;
+        btn.onclick = () => selectChain(k);
+        g.appendChild(btn);
+    });
+}
+
+function selectChain(k) {
+    activeChain = k;
+    document.querySelectorAll(".chain-btn").forEach(b => b.classList.remove("active"));
+    const btn = document.getElementById(`cbtn-${k}`);
+    if (btn) btn.classList.add("active");
+    renderRPCHealth();
+    analyzeInput();
+}
+
+/* ═══════════════════════════════════════════
+   INPUT ANALYSIS
+═══════════════════════════════════════════ */
+function analyzeInput() {
+    const v = document.getElementById("wallet-input").value.trim();
+    const lbl = document.getElementById("ident-label");
+    if (!v) { lbl.textContent = "等待輸入…"; lbl.style.color = ""; return; }
+
+    if (v.startsWith("T") && v.length === 34)
+        return set(lbl, "TRON 錢包地址", "#ec0928");
+    if ((v.startsWith("bc1") || v.startsWith("1") || v.startsWith("3")) && v.length >= 26)
+        return set(lbl, "Bitcoin 錢包地址", "#f7931a");
+    if (v.startsWith("0x")) {
+        if (v.length === 42) return set(lbl, `EVM 錢包地址  [${activeChain}]`, "#3d9eff");
+        if (v.length === 66) return set(lbl, "EVM 交易哈希 TxHash", "#3d9eff");
+        return set(lbl, "0x 數據流（格式待確認）", "#5a7294");
+    }
+    if (/^[0-9a-fA-F]{64}$/.test(v))
+        return set(lbl, "原始交易哈希（無 0x 前綴）", "#3d9eff");
+    set(lbl, "通用查詢模式", "#5a7294");
+}
+function set(el, text, color) { el.textContent = text; el.style.color = color; }
+
+function isBTCTxid(v) {
+    return /^[a-fA-F0-9]{64}$/.test(v);
+}
+
+/* ═══════════════════════════════════════════
+   METHOD DECODE ENGINE
+═══════════════════════════════════════════ */
+function decodeMethod(inputData) {
+    if (!inputData || inputData === "0x" || inputData.length < 10) {
+        return { selector: null, name: "Native Transfer", params: [], raw: inputData };
+    }
+
+    const selector = inputData.slice(0, 10).toLowerCase();
+    const sig = METHOD_SIGS[selector];
+
+    if (!sig) {
+        return { selector, name: null, params: [], raw: inputData };
+    }
+
+    // Decode parameters
+    const paramData = inputData.slice(10);
+    const decodedParams = [];
+
+    let offset = 0;
+    for (const paramDef of sig.params) {
+        const [type, name] = paramDef.split(" ");
+        const chunk = paramData.slice(offset, offset + 64);
+
+        if (!chunk) break;
+
+        let value = "";
+        if (type === "address") {
+            value = "0x" + chunk.slice(24);
+        } else if (type.startsWith("uint")) {
+            try {
+                const bn = new BigNumber(chunk, 16);
+                // Check if it looks like a token amount (very large number)
+                if (bn.gt(1e15)) {
+                    value = bn.toFixed(0) + " (raw)";
+                } else {
+                    value = bn.toFixed(0);
+                }
+            } catch {
+                value = "0x" + chunk;
+            }
+        } else if (type === "bool") {
+            value = parseInt(chunk, 16) ? "true" : "false";
+        } else {
+            value = "0x" + chunk.slice(0, 40) + "…";
+        }
+
+        decodedParams.push({ type, name: name || `param${offset/64}`, value });
+        offset += 64;
+
+        // Stop after reasonable number of params for complex types
+        if (offset > 320 && type.includes("[]")) break;
+    }
+
+    return { selector, name: sig.name, params: decodedParams, raw: inputData };
+}
+
+function renderMethodDecode(decoded) {
+    if (!decoded.selector) {
+        return `<div class="t-line"><span class="method-badge"><i class="fas fa-arrow-right method-icon"></i> <span class="method-name">原生轉帳 (Native Transfer)</span></span></div>`;
+    }
+
+    if (!decoded.name) {
+        return `
+<div class="t-line"><span class="method-badge"><i class="fas fa-question-circle method-icon"></i> <span class="method-name">Unknown Method</span> <span style="color:var(--text-dim)">${decoded.selector}</span></span></div>
+<div class="t-line t-dim">  ⓘ 未收錄的方法簽名，可能為自定義合約函數</div>`;
+    }
+
+    let html = `<div class="t-line"><span class="method-badge"><i class="fas fa-code method-icon"></i> <span class="method-name">${decoded.name}()</span> <span style="color:var(--text-dim)">${decoded.selector}</span></span></div>`;
+
+    if (decoded.params.length > 0) {
+        html += `<div class="method-params">`;
+        for (const p of decoded.params) {
+            html += `<div><span class="param-type">${p.type}</span> <span class="param-name">${p.name}</span> = <span class="param-value">${p.value}</span></div>`;
+        }
+        html += `</div>`;
+    }
+
+    return html;
+}
+
+/* ═══════════════════════════════════════════
+   TOKEN TRANSFER FLOW VISUALIZATION
+═══════════════════════════════════════════ */
+function parseTransferLogs(logs) {
+    const transfers = [];
+
+    for (const log of logs) {
+        // ERC-20 Transfer event: Transfer(address from, address to, uint256 value)
+        if (log.topics && log.topics[0] === TRANSFER_TOPIC) {
+            const tokenAddr = log.address.toLowerCase();
+            const knownToken = KNOWN_TOKENS[tokenAddr];
+
+            if (log.topics.length >= 3) {
+                const from = "0x" + (log.topics[1] || "").slice(26);
+                const to = "0x" + (log.topics[2] || "").slice(26);
+                let value = "0";
+                let tokenId = null;
+
+                if (log.data && log.data !== "0x" && log.data.length > 2) {
+                    // ERC-20 transfer
+                    const rawVal = new BigNumber(log.data, 16);
+                    const dec = knownToken ? knownToken.dec : 18;
+                    value = rawVal.div(new BigNumber(10).pow(dec)).toFixed(4);
+                } else if (log.topics.length >= 4) {
+                    // ERC-721 transfer (tokenId in topic[3])
+                    tokenId = new BigNumber(log.topics[3], 16).toFixed(0);
+                }
+
+                transfers.push({
+                    from,
+                    to,
+                    value,
+                    tokenId,
+                    symbol: knownToken ? knownToken.sym : shortenAddr(tokenAddr),
+                    tokenAddr,
+                    isNFT: !!tokenId
+                });
+            }
+        }
+    }
+
+    return transfers;
+}
+
+function renderTransferFlow(transfers, txFrom, txTo) {
+    if (transfers.length === 0) return "";
+
+    let html = `<div class="flow-container">`;
+    html += `<div class="flow-title">Token Transfer Flow — ${transfers.length} 筆代幣轉移</div>`;
+
+    for (let i = 0; i < transfers.length; i++) {
+        const t = transfers[i];
+        const fromLabel = getAddrLabel(t.from, txFrom, txTo);
+        const toLabel = getAddrLabel(t.to, txFrom, txTo);
+        const amountDisplay = t.isNFT ? `NFT #${t.tokenId}` : `${t.value} ${t.symbol}`;
+
+        html += `
+<div class="flow-item">
+    <div class="flow-addr from">
+        <span class="addr-label">${fromLabel}</span>
+        ${shortenAddr(t.from)}
+    </div>
+    <div class="flow-arrow">
+        <div class="flow-amount">${amountDisplay}</div>
+        <div class="flow-arrow-line"></div>
+    </div>
+    <div class="flow-addr to">
+        <span class="addr-label">${toLabel}</span>
+        ${shortenAddr(t.to)}
+    </div>
+    <span class="flow-token-badge">${t.symbol}</span>
+</div>`;
+    }
+
+    // Summary
+    const tokenSummary = {};
+    for (const t of transfers) {
+        if (t.isNFT) continue;
+        if (!tokenSummary[t.symbol]) tokenSummary[t.symbol] = 0;
+        tokenSummary[t.symbol] += parseFloat(t.value) || 0;
+    }
+
+    html += `<div class="flow-summary">`;
+    html += `<div class="flow-summary-item"><div class="dot-sm" style="background:var(--info)"></div> 轉移次數: ${transfers.length}</div>`;
+    for (const [sym, total] of Object.entries(tokenSummary)) {
+        html += `<div class="flow-summary-item"><div class="dot-sm" style="background:var(--ok)"></div> ${sym}: ${total.toFixed(4)}</div>`;
+    }
+    html += `</div>`;
+    html += `</div>`;
+
+    return html;
+}
+
+function getAddrLabel(addr, txFrom, txTo) {
+    const a = addr.toLowerCase();
+    if (a === txFrom?.toLowerCase()) return "發送者 (From)";
+    if (a === txTo?.toLowerCase()) return "接收者 (To)";
+    if (a === "0x0000000000000000000000000000000000000000") return "Null (Mint/Burn)";
+    // Check if it's a known token contract
+    if (KNOWN_TOKENS[a]) return `${KNOWN_TOKENS[a].sym} 合約`;
+    return "中間地址";
+}
+
+function shortenAddr(addr) {
+    if (!addr || addr.length < 12) return addr || "—";
+    return addr.slice(0, 8) + "…" + addr.slice(-6);
+}
+
+/* ═══════════════════════════════════════════
+   GLOBAL ASSET TRACKING & PRICING
+═══════════════════════════════════════════ */
+let GLOBAL_ASSETS = {
+    chains: {},
+    totalUSD: 0,
+    prices: {}
+};
+
+const PRICE_CACHE = {};
+const RISK_CACHE = {};
+
+async function getTokenPrices(tokenIds) {
+    if (!tokenIds || tokenIds.length === 0) return {};
+    const cacheKey = tokenIds.sort().join(',');
+    if (PRICE_CACHE[cacheKey]) return PRICE_CACHE[cacheKey];
+
+    try {
+        const ids = tokenIds.join(',');
+        const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+        if (r.ok) {
+            const data = await r.json();
+            PRICE_CACHE[cacheKey] = data;
+            return data;
+        }
+    } catch (e) {
+        termWrite(`<div class="t-line t-dim">  ⚠ 價格 API 暫時不可用</div>`);
+    }
+    return {};
+}
+
+async function checkAddressRisk(addr, chain) {
+    if (!addr || addr === '0x0000000000000000000000000000000000000000') return null;
+    const cacheKey = `${chain}:${addr}`;
+    if (RISK_CACHE[cacheKey] !== undefined) return RISK_CACHE[cacheKey];
+
+    try {
+        const chainMap = { ETH: '1', BSC: '56', ARB: '42161' };
+        const chainId = chainMap[chain];
+        if (!chainId) return null;
+
+        const r = await fetch(`https://api.gopluslabs.io/api/v1/address_security/${addr}?chain_id=${chainId}`);
+        if (r.ok) {
+            const data = await r.json();
+            if (data.code === '1' && data.result && data.result[addr]) {
+                const riskData = data.result[addr];
+                RISK_CACHE[cacheKey] = riskData;
+                return riskData;
+            }
+        }
+    } catch (e) {
+        // Risk API failure handled silently
+    }
+    RISK_CACHE[cacheKey] = null;
+    return null;
+}
+
+/* ═══════════════════════════════════════════
+   QUERY EXECUTION
+═══════════════════════════════════════════ */
+async function runQuery() {
+    const raw = document.getElementById("wallet-input").value.trim();
+    if (!raw) return;
+
+    const btn = document.getElementById("exec-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 查詢中…';
+
+    openTerm(`${activeChain} // RPC TERMINAL`);
+    renderRPCHealth();
+    termWrite(`<div class="t-line t-dim">[INIT] 連通 ${activeChain} 節點池…</div>`);
+
+    try {
+        const isHash = activeChain === "BTC" ? isBTCTxid(raw) : (raw.length === 66 || raw.length === 64);
+        const chain = CHAINS[activeChain];
+
+        if (chain.type === "evm") {
+            await queryEVM(raw, isHash);
+        } else if (activeChain === "BTC") {
+            await queryBTC(raw, isHash);
+        } else if (activeChain === "TRON") {
+            await queryTRON(raw, isHash);
+        }
+    } catch (e) {
+        termWrite(`<div class="t-line t-err">[EXCEPTION] ${e.message}</div>`);
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-bolt"></i> 查詢';
+}
+
+/* ─── EVM ─── */
+async function queryEVM(query, isHash) {
+    const chain = CHAINS[activeChain];
+    if (isHash) {
+        termWrite(`<div class="t-line t-dim">[RPC] eth_getTransactionByHash…</div>`);
+        const [rTx, rReceipt] = await Promise.all([
+            rpc(activeChain, { jsonrpc:"2.0", method:"eth_getTransactionByHash", params:[query], id:1 }),
+            rpc(activeChain, { jsonrpc:"2.0", method:"eth_getTransactionReceipt", params:[query], id:2 }),
+        ]);
+        if (!rTx.ok || !rTx.data.result) {
+            return termWrite(`<div class="t-line t-err">[MISS] 未找到該交易，可能尚未廣播至 ${activeChain}。</div>`);
+        }
+        const tx = rTx.data.result;
+        const receipt = rReceipt.ok && rReceipt.data.result ? rReceipt.data.result : null;
+        const status = receipt ? (receipt.status === "0x1" ? "✓ SUCCESS" : "✗ FAILED") : "PENDING";
+        const gasUsed = receipt ? parseInt(receipt.gasUsed, 16).toLocaleString() : "—";
+        const blockNum = tx.blockNumber ? parseInt(tx.blockNumber, 16).toLocaleString() : "Pending";
+        const valueEth = new BigNumber(tx.value).div(1e18).toFixed(6);
+        const gasPriceGwei = tx.gasPrice ? new BigNumber(tx.gasPrice, 16).div(1e9).toFixed(2) : "0";
+
+        termWrite(`
+<div class="t-line t-ok">[OK] ${activeChain} 交易解析完成</div>
+<hr class="t-sep">
+<div class="t-line">  TXHASH  <span class="t-hi">${query}</span></div>
+<div class="t-line">  STATUS  <span class="${status.startsWith("✓") ? "t-ok" : "t-err"}">${status}</span></div>
+<div class="t-line">  BLOCK   ${blockNum}</div>
+<div class="t-line">  FROM    <span class="t-warn">${tx.from}</span></div>
+<div class="t-line">  TO      <span class="t-warn">${tx.to || "(contract deploy)"}</span></div>
+<div class="t-line">  VALUE   <span class="t-ok">${valueEth} ${chain.native}</span></div>
+<div class="t-line">  GAS     ${gasUsed} used  ·  ${gasPriceGwei} Gwei</div>
+`);
+
+        // ══════ METHOD DECODE ══════
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[DECODE] 解碼交易 Method…</div>`);
+        const decoded = decodeMethod(tx.input);
+        termWrite(renderMethodDecode(decoded));
+
+        // ══════ TOKEN TRANSFER FLOW ══════
+        if (receipt && receipt.logs && receipt.logs.length > 0) {
+            termWrite(`<hr class="t-sep"><div class="t-line t-dim">[FLOW] 解析 Token Transfer 事件 (${receipt.logs.length} logs)…</div>`);
+            const transfers = parseTransferLogs(receipt.logs);
+            if (transfers.length > 0) {
+                termWrite(renderTransferFlow(transfers, tx.from, tx.to));
+            } else {
+                termWrite(`<div class="t-line t-dim">  ⓘ 無 ERC-20/721 Transfer 事件</div>`);
+            }
+        } else if (receipt) {
+            termWrite(`<hr class="t-sep"><div class="t-line t-dim">[FLOW] 無事件日誌 — 純原生代幣轉帳</div>`);
+        }
+
+    } else {
+        await queryEVMWallet(query, chain);
+    }
+}
+
+/* ─── EVM Wallet Full Scan ─── */
+async function queryEVMWallet(query, chain) {
+    const pad = query.replace("0x","").toLowerCase().padStart(64,"0");
+
+    // Initialize chain assets if not exists
+    if (!GLOBAL_ASSETS.chains[activeChain]) {
+        GLOBAL_ASSETS.chains[activeChain] = { native: 0, tokens: {}, nfts: [], lp: [], totalUSD: 0 };
+    }
+
+    // ═══ Phase 0: Address Risk Check ═══
+    const riskData = await checkAddressRisk(query, activeChain);
+    if (riskData && (riskData.phishing_activities === '1' || riskData.stealing_attack === '1' || riskData.blacklisted === '1')) {
+        const riskLevel = riskData.phishing_activities === '1' ? 'PHISHING' : (riskData.stealing_attack === '1' ? 'MALICIOUS' : 'BLACKLISTED');
+        termWrite(`<div class="risk-banner"><span class="risk-icon">⚠</span><span class="risk-text">地址風險警告</span><span class="risk-level">${riskLevel}</span></div>`);
+    } else if (riskData && (riskData.suspicious_outgoing_transfer === '1' || riskData.suspicious_contract_creation === '1')) {
+        termWrite(`<div class="risk-banner warning"><span class="risk-icon">⚠</span><span class="risk-text">地址存在可疑活動</span><span class="risk-level">WARNING</span></div>`);
+    }
+
+    // ═══ Phase 1: Native Balance ═══
+    termWrite(`<div class="t-line t-dim">[RPC] eth_getBalance…</div>`);
+    const rBal = await rpc(activeChain, { jsonrpc:"2.0", method:"eth_getBalance", params:[query,"latest"], id:3 });
+    const native = rBal.ok && rBal.data.result
+        ? new BigNumber(rBal.data.result).div(1e18).toFixed(6)
+        : "0.000000";
+
+    termWrite(`
+<div class="t-line t-ok">[OK] ${activeChain} 賬戶資產解構完成</div>
+<hr class="t-sep">
+<div class="t-line">  ADDR  <span class="t-hi">${query}</span></div>
+<div class="t-line">  <span class="t-warn">${chain.native.padEnd(6)}</span>  <span class="t-ok">${native}</span></div>
+`);
+
+    // ═══ Phase 2: ERC-20 Auto Discovery ═══
+    termWrite(`<hr class="t-sep"><div class="t-line t-dim">[SCAN] ERC-20 代幣自動發現… 掃描 ${(TOKENS[activeChain]||[]).length} 個合約</div>`);
+    const foundTokens = [];
+    const tokens = TOKENS[activeChain] || [];
+
+    // Batch query in groups of 5 for speed
+    const tokenBatches = [];
+    for (let i = 0; i < tokens.length; i += 5) {
+        tokenBatches.push(tokens.slice(i, i + 5));
+    }
+
+    for (const batch of tokenBatches) {
+        const results = await Promise.allSettled(
+            batch.map(tok => rpc(activeChain, {
+                jsonrpc:"2.0", method:"eth_call",
+                params:[{ to: tok.addr, data: "0x70a08231" + pad }, "latest"], id: Math.random()
+            }))
+        );
+        for (let i = 0; i < batch.length; i++) {
+            const r = results[i];
+            if (r.status === "fulfilled" && r.value.ok && r.value.data.result && r.value.data.result !== "0x" && r.value.data.result !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+                const bal = new BigNumber(r.value.data.result, 16).div(new BigNumber(10).pow(batch[i].dec));
+                if (bal.gt(0)) {
+                    foundTokens.push({ ...batch[i], balance: bal.toFixed(4) });
+                }
+            }
+        }
+    }
+
+    // Render ERC-20 results
+    if (foundTokens.length > 0) {
+        let tokenHtml = `<div class="scan-section"><div class="scan-header erc20">ERC-20 代幣持倉 — ${foundTokens.length} 種代幣</div>`;
+        tokenHtml += `<table class="token-table"><thead><tr><th>代幣</th><th>合約地址</th><th>餘額</th></tr></thead><tbody>`;
+        for (const t of foundTokens) {
+            const isZero = parseFloat(t.balance) === 0;
+            tokenHtml += `<tr>
+                <td><span class="token-sym"><span class="token-dot"></span>${t.sym}</span></td>
+                <td><span class="token-addr-sm">${shortenAddr(t.addr)}</span></td>
+                <td><span class="token-bal${isZero ? ' zero' : ''}">${t.balance}</span></td>
+            </tr>`;
+        }
+        tokenHtml += `</tbody></table>`;
+        tokenHtml += `<div class="scan-count">✔ 掃描完成：共檢查 ${tokens.length} 個合約，發現 ${foundTokens.length} 種代幣有餘額</div>`;
+        tokenHtml += `</div>`;
+        termWrite(tokenHtml);
+    } else {
+        termWrite(`<div class="t-line t-dim">  ⓘ 未發現 ERC-20 代幣持倉</div>`);
+    }
+
+    // ═══ Phase 3: NFT Scan ═══
+    const nftCollections = NFT_COLLECTIONS[activeChain] || [];
+    if (nftCollections.length > 0) {
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[NFT] 掃描 NFT 持倉… 檢查 ${nftCollections.length} 個集合</div>`);
+        const foundNFTs = [];
+
+        const nftBatches = [];
+        for (let i = 0; i < nftCollections.length; i += 5) {
+            nftBatches.push(nftCollections.slice(i, i + 5));
+        }
+
+        for (const batch of nftBatches) {
+            const results = await Promise.allSettled(
+                batch.map(nft => {
+                    // balanceOf(address) for ERC-721
+                    // balanceOf(address, id) for ERC-1155 - we check balanceOf(address) first
+                    return rpc(activeChain, {
+                        jsonrpc:"2.0", method:"eth_call",
+                        params:[{ to: nft.addr, data: "0x70a08231" + pad }, "latest"], id: Math.random()
+                    });
+                })
+            );
+            for (let i = 0; i < batch.length; i++) {
+                const r = results[i];
+                if (r.status === "fulfilled" && r.value.ok && r.value.data.result && r.value.data.result !== "0x" && r.value.data.result !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+                    const count = parseInt(r.value.data.result, 16);
+                    if (count > 0) {
+                        foundNFTs.push({ ...batch[i], count });
+                    }
+                }
+            }
+        }
+
+        if (foundNFTs.length > 0) {
+            let nftHtml = `<div class="scan-section"><div class="scan-header nft">NFT 持倉 — ${foundNFTs.length} 個集合</div>`;
+            nftHtml += `<div class="nft-grid">`;
+            for (const nft of foundNFTs) {
+                nftHtml += `
+                <div class="nft-card">
+                    <div class="nft-collection"><i class="fas fa-gem"></i> ${nft.name}</div>
+                    <div class="nft-id">持有數量：<span style="color:var(--ok);font-weight:700">${nft.count}</span></div>
+                    <div class="nft-contract">${shortenAddr(nft.addr)}</div>
+                    <div class="nft-standard">${nft.standard}</div>
+                </div>`;
+            }
+            nftHtml += `</div>`;
+            nftHtml += `<div class="scan-count">✔ NFT 掃描完成：共檢查 ${nftCollections.length} 個集合，發現 ${foundNFTs.length} 個持倉</div>`;
+            nftHtml += `</div>`;
+            termWrite(nftHtml);
+        } else {
+            termWrite(`<div class="t-line t-dim">  ⓘ 未發現已知 NFT 集合持倉</div>`);
+        }
+    }
+
+    // ═══ Phase 4: LP / Staking Scan ═══
+    const lpList = LP_STAKING[activeChain] || [];
+    if (lpList.length > 0) {
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[LP/STAKE] 掃描 LP 與 Staking 資產… 檢查 ${lpList.length} 個合約</div>`);
+        const foundLP = [];
+
+        const lpBatches = [];
+        for (let i = 0; i < lpList.length; i += 5) {
+            lpBatches.push(lpList.slice(i, i + 5));
+        }
+
+        for (const batch of lpBatches) {
+            const results = await Promise.allSettled(
+                batch.map(lp => rpc(activeChain, {
+                    jsonrpc:"2.0", method:"eth_call",
+                    params:[{ to: lp.addr, data: "0x70a08231" + pad }, "latest"], id: Math.random()
+                }))
+            );
+            for (let i = 0; i < batch.length; i++) {
+                const r = results[i];
+                if (r.status === "fulfilled" && r.value.ok && r.value.data.result && r.value.data.result !== "0x" && r.value.data.result !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+                    const bal = new BigNumber(r.value.data.result, 16).div(new BigNumber(10).pow(batch[i].dec));
+                    if (bal.gt(0)) {
+                        foundLP.push({ ...batch[i], balance: bal.toFixed(6) });
+                    }
+                }
+            }
+        }
+
+        if (foundLP.length > 0) {
+            let lpHtml = `<div class="scan-section"><div class="scan-header lp">LP / Staking 資產 — ${foundLP.length} 個持倉</div>`;
+            lpHtml += `<div class="lp-grid">`;
+            for (const lp of foundLP) {
+                const typeLabel = lp.type === 'lp' ? 'LP' : 'STAKE';
+                const typeClass = lp.type === 'lp' ? 'lp' : 'stake';
+                lpHtml += `
+                <div class="lp-card">
+                    <span class="lp-type-badge ${typeClass}">${typeLabel}</span>
+                    <div class="lp-protocol"><i class="fas fa-${lp.type === 'lp' ? 'water' : 'lock'}"></i> ${lp.protocol}</div>
+                    <div class="lp-pair">${lp.pair}</div>
+                    <div class="lp-balance">${lp.balance}</div>
+                    <div class="lp-detail">合約: ${shortenAddr(lp.addr)}</div>
+                </div>`;
+            }
+            lpHtml += `</div>`;
+            lpHtml += `<div class="scan-count">✔ LP/Staking 掃描完成：共檢查 ${lpList.length} 個合約，發現 ${foundLP.length} 個持倉</div>`;
+            lpHtml += `</div>`;
+            termWrite(lpHtml);
+        } else {
+            termWrite(`<div class="t-line t-dim">  ⓘ 未發現 LP / Staking 資產</div>`);
+        }
+    }
+
+    // Final summary
+    termWrite(`<hr class="t-sep"><div class="t-line t-ok">[DONE] 全量資產掃描完成 — ERC-20: ${foundTokens.length} | NFT: ${(NFT_COLLECTIONS[activeChain]||[]).length > 0 ? '已掃描' : 'N/A'} | LP/Stake: ${(LP_STAKING[activeChain]||[]).length > 0 ? '已掃描' : 'N/A'}</div>`);
+}
+
+/* ─── BTC ─── */
+async function queryBTC(query, isHash) {
+    termWrite(`<div class="t-line t-dim">[BTC] Multi-Source Decode Engine...</div>`);
+
+    async function getJSON(url) {
+        try {
+            const r = await fetch(url);
+            if (r.ok) return await r.json();
+        } catch(e) {}
+        return null;
+    }
+
+    if (!isHash) {
+        let d =
+            await getJSON(`https://blockstream.info/api/address/${query}`) ||
+            await getJSON(`https://mempool.space/api/address/${query}`);
+
+        if (!d) {
+            return termWrite(`<div class="t-line t-err">[FAIL] BTC 地址解析失敗，地址不存在或節點拒絕響應。</div>`);
+        }
+
+        const funded =
+            (d.chain_stats?.funded_txo_sum || 0) +
+            (d.mempool_stats?.funded_txo_sum || 0);
+
+        const spent =
+            (d.chain_stats?.spent_txo_sum || 0) +
+            (d.mempool_stats?.spent_txo_sum || 0);
+
+        const txCount =
+            (d.chain_stats?.tx_count || 0) +
+            (d.mempool_stats?.tx_count || 0);
+
+        const balance = (funded - spent) / 1e8;
+
+        termWrite(`
+<div class="t-line t-ok">[OK] Bitcoin 地址解構完成</div>
+<hr class="t-sep">
+<div class="t-line"> ADDR     <span class="t-hi">${query}</span></div>
+<div class="t-line"> TYPE     ${detectBTCAddressType(query)}</div>
+<div class="t-line"> BALANCE  <span class="t-ok">${balance.toFixed(8)} BTC</span></div>
+<div class="t-line"> TXCOUNT  ${txCount}</div>
+<div class="t-line"> FUNDED   ${(funded/1e8).toFixed(8)} BTC</div>
+<div class="t-line"> SPENT    ${(spent/1e8).toFixed(8)} BTC</div>
+`);
+
+        // ═══ BRC-20 Scan ═══
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[BRC-20] 掃描 BRC-20 代幣…</div>`);
+        try {
+            const brc20Resp = await fetch(`https://open-api.unisat.io/v1/indexer/address/${query}/brc20/summary?start=0&limit=100`);
+            if (brc20Resp.ok) {
+                const brc20Data = await brc20Resp.json();
+                if (brc20Data.data && brc20Data.data.detail && brc20Data.data.detail.length > 0) {
+                    let brc20Html = `<div class="scan-section"><div class="scan-header erc20">BRC-20 代幣持倉 — ${brc20Data.data.detail.length} 種代幣</div>`;
+                    brc20Html += `<table class="token-table"><thead><tr><th>代幣</th><th>可用餘額</th><th>可轉移餘額</th></tr></thead><tbody>`;
+                    for (const token of brc20Data.data.detail) {
+                        brc20Html += `<tr><td><span class="token-sym"><span class="token-dot" style="background:#f59e0b"></span>${token.tick}</span></td><td><span class="token-bal">${token.availableBalance}</span></td><td><span class="token-bal">${token.transferableBalance}</span></td></tr>`;
+                    }
+                    brc20Html += `</tbody></table><div class="scan-count">✔ 掃描完成：共發現 ${brc20Data.data.detail.length} 種 BRC-20 代幣</div></div>`;
+                    termWrite(brc20Html);
+                } else {
+                    termWrite(`<div class="t-line t-dim">  ⓘ 未發現 BRC-20 代幣持倉</div>`);
+                }
+            }
+        } catch (e) {
+            termWrite(`<div class="t-line t-dim">  ⚠ BRC-20 API 暫時不可用</div>`);
+        }
+
+        // ═══ BTC UTXO Scan ═══
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[UTXO] 掃描 UTXO 詳細列表…</div>`);
+        try {
+            const utxoResp = await fetch(`https://blockstream.info/api/address/${query}/utxo`);
+            if (utxoResp.ok) {
+                const utxos = await utxoResp.json();
+                if (utxos && utxos.length > 0) {
+                    let utxoHtml = `<div class="scan-section"><div class="scan-header erc20">UTXO 詳細列表 — ${utxos.length} 個未花費輸出</div>`;
+                    utxoHtml += `<table class="token-table"><thead><tr><th>TxID</th><th>Index</th><th>金額 (BTC)</th><th>確認數</th><th>狀態</th></tr></thead><tbody>`;
+                    
+                    const currentHeight = d.chain_stats?.tx_count ? 850000 : 0; // Approximate
+                    for (const utxo of utxos.slice(0, 20)) {
+                        const btcAmount = (utxo.value / 1e8).toFixed(8);
+                        const confirms = utxo.status?.confirmed ? (currentHeight - utxo.status.block_height + 1) : 0;
+                        const confirmStatus = confirms >= 6 ? "✓ 已確認" : (confirms > 0 ? `⚠ ${confirms} 確認` : "⏳ 未確認");
+                        utxoHtml += `<tr><td><span class="token-sym" style="font-size:0.7rem">${utxo.txid.slice(0,12)}…</span></td><td>${utxo.vout}</td><td><span class="token-bal">${btcAmount}</span></td><td>${confirms}</td><td>${confirmStatus}</td></tr>`;
+                    }
+                    utxoHtml += `</tbody></table><div class="scan-count">✔ 掃描完成：共發現 ${utxos.length} 個 UTXO，總金額 ${(utxos.reduce((a,u)=>a+u.value,0)/1e8).toFixed(8)} BTC</div></div>`;
+                    termWrite(utxoHtml);
+                } else {
+                    termWrite(`<div class="t-line t-dim">  ⓘ 未發現 UTXO</div>`);
+                }
+            }
+        } catch (e) {
+            termWrite(`<div class="t-line t-dim">  ⚠ UTXO 掃描 API 暫時不可用</div>`);
+        }
+
+        // ═══ Runes Scan ═══
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[RUNES] 掃描 Runes 資產…</div>`);
+        try {
+            const runesResp = await fetch(`https://open-api.unisat.io/v1/indexer/address/${query}/runes/balance-list?start=0&limit=100`);
+            if (runesResp.ok) {
+                const runesData = await runesResp.json();
+                if (runesData.data && runesData.data.detail && runesData.data.detail.length > 0) {
+                    let runesHtml = `<div class="scan-section"><div class="scan-header lp">Runes 資產 — ${runesData.data.detail.length} 種 Runes</div>`;
+                    runesHtml += `<div class="lp-grid">`;
+                    for (const rune of runesData.data.detail) {
+                        runesHtml += `<div class="lp-card"><span class="lp-type-badge lp">RUNE</span><div class="lp-protocol"><i class="fas fa-gem"></i> Runes</div><div class="lp-pair">${rune.spacedRune}</div><div class="lp-balance">${rune.amount}</div><div class="lp-detail">ID: ${rune.runeid}</div></div>`;
+                    }
+                    runesHtml += `</div><div class="scan-count">✔ 掃描完成：共發現 ${runesData.data.detail.length} 種 Runes 資產</div></div>`;
+                    termWrite(runesHtml);
+                } else {
+                    termWrite(`<div class="t-line t-dim">  ⓘ 未發現 Runes 資產</div>`);
+                }
+            }
+        } catch (e) {
+            termWrite(`<div class="t-line t-dim">  ⚠ Runes API 暫時不可用</div>`);
+        }
+    } else {
+        let d =
+            await getJSON(`https://blockstream.info/api/tx/${query}`) ||
+            await getJSON(`https://mempool.space/api/tx/${query}`);
+
+        if (!d) {
+            return termWrite(`<div class="t-line t-err">[MISS] 找不到 BTC 交易。</div>`);
+        }
+
+        let totalIn = 0;
+        let totalOut = 0;
+
+        (d.vin || []).forEach(v => {
+            if (v.prevout?.value) totalIn += v.prevout.value;
+        });
+
+        (d.vout || []).forEach(v => {
+            if (v.value) totalOut += v.value;
+        });
+
+        const fee = d.fee || 0;
+        const confirmed = d.status?.confirmed || false;
+
+        termWrite(`
+<div class="t-line t-ok">[OK] Bitcoin 交易解構完成</div>
+<hr class="t-sep">
+<div class="t-line"> TXID     <span class="t-hi">${d.txid}</span></div>
+<div class="t-line"> STATUS   <span class="${confirmed ? "t-ok" : "t-warn"}">${confirmed ? "CONFIRMED" : "MEMPOOL"}</span></div>
+<div class="t-line"> BLOCK    ${d.status?.block_height || "未確認"}</div>
+<div class="t-line"> INPUT    ${(totalIn/1e8).toFixed(8)} BTC</div>
+<div class="t-line"> OUTPUT   ${(totalOut/1e8).toFixed(8)} BTC</div>
+<div class="t-line"> FEE      ${(fee/1e8).toFixed(8)} BTC</div>
+<div class="t-line"> VIN      ${(d.vin||[]).length}</div>
+<div class="t-line"> VOUT     ${(d.vout||[]).length}</div>
+`);
+
+        // ══════ BTC TRANSFER FLOW ══════
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[FLOW] Bitcoin UTXO 資金流向…</div>`);
+        let btcFlowHtml = `<div class="flow-container"><div class="flow-title">BTC UTXO Flow — ${(d.vin||[]).length} 輸入 → ${(d.vout||[]).length} 輸出</div>`;
+
+        // Show inputs
+        const inputs = (d.vin || []).slice(0, 5);
+        const outputs = (d.vout || []).slice(0, 8);
+
+        for (const vin of inputs) {
+            const fromAddr = vin.prevout?.scriptpubkey_address || "Unknown";
+            const val = vin.prevout?.value ? (vin.prevout.value / 1e8).toFixed(8) : "?";
+            btcFlowHtml += `
+<div class="flow-item">
+    <div class="flow-addr from">
+        <span class="addr-label">INPUT</span>
+        ${shortenAddr(fromAddr)}
+    </div>
+    <div class="flow-arrow">
+        <div class="flow-amount">${val} BTC</div>
+        <div class="flow-arrow-line"></div>
+    </div>
+    <div class="flow-addr to">
+        <span class="addr-label">TX</span>
+        ${shortenAddr(d.txid)}
+    </div>
+    <span class="flow-token-badge">BTC</span>
+</div>`;
+        }
+
+        if ((d.vin||[]).length > 5) {
+            btcFlowHtml += `<div class="t-line t-dim" style="margin:4px 0 4px 16px">  … 及其他 ${(d.vin||[]).length - 5} 個輸入</div>`;
+        }
+
+        btcFlowHtml += `<hr class="t-sep">`;
+
+        for (const vout of outputs) {
+            const toAddr = vout.scriptpubkey_address || "OP_RETURN";
+            const val = vout.value ? (vout.value / 1e8).toFixed(8) : "0";
+            btcFlowHtml += `
+<div class="flow-item">
+    <div class="flow-addr from">
+        <span class="addr-label">TX</span>
+        ${shortenAddr(d.txid)}
+    </div>
+    <div class="flow-arrow">
+        <div class="flow-amount">${val} BTC</div>
+        <div class="flow-arrow-line"></div>
+    </div>
+    <div class="flow-addr to">
+        <span class="addr-label">OUTPUT</span>
+        ${shortenAddr(toAddr)}
+    </div>
+    <span class="flow-token-badge">BTC</span>
+</div>`;
+        }
+
+        if ((d.vout||[]).length > 8) {
+            btcFlowHtml += `<div class="t-line t-dim" style="margin:4px 0 4px 16px">  … 及其他 ${(d.vout||[]).length - 8} 個輸出</div>`;
+        }
+
+        btcFlowHtml += `
+<div class="flow-summary">
+    <div class="flow-summary-item"><div class="dot-sm" style="background:var(--warn)"></div> 總輸入: ${(totalIn/1e8).toFixed(8)} BTC</div>
+    <div class="flow-summary-item"><div class="dot-sm" style="background:var(--ok)"></div> 總輸出: ${(totalOut/1e8).toFixed(8)} BTC</div>
+    <div class="flow-summary-item"><div class="dot-sm" style="background:var(--err)"></div> 手續費: ${(fee/1e8).toFixed(8)} BTC</div>
+</div></div>`;
+        termWrite(btcFlowHtml);
+    }
+}
+
+function detectBTCAddressType(addr) {
+    if (addr.startsWith("bc1q")) return "Bech32 (SegWit v0)";
+    if (addr.startsWith("bc1p")) return "Bech32m (Taproot)";
+    if (addr.startsWith("1")) return "P2PKH (Legacy)";
+    if (addr.startsWith("3")) return "P2SH (可能 SegWit)";
+    return "Unknown";
+}
+
+/* ─── TRON ─── */
+function tronHex(addr) {
+    try {
+        const AB = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+        let n = new BigNumber(0);
+        for (const c of addr) n = n.multipliedBy(58).plus(AB.indexOf(c));
+        let hex = n.toString(16);
+        if (hex.length % 2) hex = "0" + hex;
+        return hex.substring(2, 42).padStart(64, "0");
+    } catch { return "0".repeat(64); }
+}
+
+async function queryTRON(query, isHash) {
+    if (isHash) {
+        termWrite(`<div class="t-line t-dim">[API] trongrid.io / gettransactionbyid…</div>`);
+        const r = await fetch("https://api.trongrid.io/wallet/gettransactionbyid", {
+            method:"POST", headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ value: query })
+        });
+        if (!r.ok) return termWrite(`<div class="t-line t-err">[FAIL] TRON 網關無響應。</div>`);
+        const d = await r.json();
+        if (!d || !d.txID)
+            return termWrite(`<div class="t-line t-err">[MISS] 未找到該交易哈希。</div>`);
+        const ok = d.ret && d.ret[0].contractRet === "SUCCESS";
+        const contractType = d.raw_data.contract[0].type;
+
+        termWrite(`
+<div class="t-line t-ok">[OK] TRON 交易解析完成</div>
+<hr class="t-sep">
+<div class="t-line">  TXID    <span class="t-hi">${d.txID}</span></div>
+<div class="t-line">  STATUS  <span class="${ok?"t-ok":"t-err"}">${ok ? "✓ SUCCESS" : "✗ FAILED"}</span></div>
+<div class="t-line">  TYPE    ${contractType}</div>
+`);
+
+        // ══════ TRON METHOD DECODE ══════
+        termWrite(`<hr class="t-sep"><div class="t-line t-dim">[DECODE] 解碼 TRON 交易類型…</div>`);
+        const contract = d.raw_data.contract[0];
+        const paramValue = contract.parameter?.value || {};
+
+        if (contractType === "TriggerSmartContract") {
+            // Smart contract call - decode the data field
+            const data = paramValue.data;
+            if (data) {
+                const decoded = decodeMethod("0x" + data);
+                termWrite(renderMethodDecode(decoded));
+            } else {
+                termWrite(`<div class="t-line"><span class="method-badge"><i class="fas fa-file-contract method-icon"></i> <span class="method-name">Smart Contract Call</span></span></div>`);
+            }
+
+            // Get transaction info for logs
+            termWrite(`<div class="t-line t-dim">[FLOW] 查詢 TRON 事件日誌…</div>`);
+            try {
+                const rInfo = await fetch("https://api.trongrid.io/wallet/gettransactioninfobyid", {
+                    method:"POST", headers:{"Content-Type":"application/json"},
+                    body: JSON.stringify({ value: query })
+                });
+                if (rInfo.ok) {
+                    const info = await rInfo.json();
+                    if (info.log && info.log.length > 0) {
+                        // Convert TRON logs to EVM-like format for parsing
+                        const evmLogs = info.log.map(l => ({
+                            address: "0x" + (l.address || ""),
+                            topics: (l.topics || []).map(t => "0x" + t),
+                            data: l.data ? "0x" + l.data : "0x"
+                        }));
+                        const transfers = parseTransferLogs(evmLogs);
+                        if (transfers.length > 0) {
+                            // Fix TRON addresses display
+                            termWrite(renderTransferFlow(transfers, paramValue.owner_address, paramValue.contract_address));
+                        } else {
+                            termWrite(`<div class="t-line t-dim">  ⓘ 無 TRC-20 Transfer 事件</div>`);
+                        }
+                    }
+                }
+            } catch(e) {
+                termWrite(`<div class="t-line t-dim">  ⓘ 事件日誌查詢失敗</div>`);
+            }
+
+        } else if (contractType === "TransferContract") {
+            const amount = paramValue.amount ? (paramValue.amount / 1e6).toFixed(6) : "0";
+            termWrite(`<div class="t-line"><span class="method-badge"><i class="fas fa-arrow-right method-icon"></i> <span class="method-name">TRX Transfer</span></span></div>`);
+            termWrite(`<div class="method-params"><div><span class="param-type">address</span> <span class="param-name">to</span> = <span class="param-value">${paramValue.to_address || "—"}</span></div><div><span class="param-type">uint256</span> <span class="param-name">amount</span> = <span class="param-value">${amount} TRX</span></div></div>`);
+
+            // Simple TRX transfer flow
+            let flowHtml = `<div class="flow-container"><div class="flow-title">TRX Transfer Flow</div>`;
+            flowHtml += `
+<div class="flow-item">
+    <div class="flow-addr from">
+        <span class="addr-label">發送者</span>
+        ${shortenAddr(paramValue.owner_address || "—")}
+    </div>
+    <div class="flow-arrow">
+        <div class="flow-amount">${amount} TRX</div>
+        <div class="flow-arrow-line"></div>
+    </div>
+    <div class="flow-addr to">
+        <span class="addr-label">接收者</span>
+        ${shortenAddr(paramValue.to_address || "—")}
+    </div>
+    <span class="flow-token-badge">TRX</span>
+</div></div>`;
+            termWrite(flowHtml);
+
+        } else if (contractType === "TransferAssetContract") {
+            termWrite(`<div class="t-line"><span class="method-badge"><i class="fas fa-coins method-icon"></i> <span class="method-name">TRC-10 Asset Transfer</span></span></div>`);
+            termWrite(`<div class="method-params"><div><span class="param-type">string</span> <span class="param-name">asset</span> = <span class="param-value">${paramValue.asset_name || "—"}</span></div><div><span class="param-type">address</span> <span class="param-name">to</span> = <span class="param-value">${paramValue.to_address || "—"}</span></div><div><span class="param-type">uint256</span> <span class="param-name">amount</span> = <span class="param-value">${paramValue.amount || 0}</span></div></div>`);
+        } else {
+            termWrite(`<div class="t-line"><span class="method-badge"><i class="fas fa-cube method-icon"></i> <span class="method-name">${contractType}</span></span></div>`);
+        }
+
+    } else {
+        termWrite(`<div class="t-line t-dim">[API] trongrid.io / getaccount…</div>`);
+        const hexParam = tronHex(query);
+        const [rAcc, rUsdt, rRes] = await Promise.all([
+            fetch("https://api.trongrid.io/wallet/getaccount", {
+                method:"POST", headers:{"Content-Type":"application/json"},
+                body: JSON.stringify({ address:query, visible:true })
+            }),
+            fetch("https://api.trongrid.io/wallet/triggerconstantcontract", {
+                method:"POST", headers:{"Content-Type":"application/json"},
+                body: JSON.stringify({
+                    owner_address: query,
+                    contract_address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+                    function_selector: "balanceOf(address)",
+                    parameter: hexParam,
+                    visible: true
+                })
+            }),
+            fetch("https://api.trongrid.io/wallet/getaccountresource", {
+                method:"POST", headers:{"Content-Type":"application/json"},
+                body: JSON.stringify({ address:query, visible:true })
+            }),
+        ]);
+
+        let html = `
+<div class="t-line t-ok">[OK] TRON 賬戶資產解構完成</div>
+<hr class="t-sep">
+<div class="t-line">  ADDR  <span class="t-hi">${query}</span></div>
+`;
+        if (rAcc.ok) {
+            const acc = await rAcc.json();
+            const trx = acc.balance ? (acc.balance / 1e6).toFixed(4) : "0.0000";
+            html += `<div class="t-line">  <span class="t-warn">TRX   </span>  <span class="t-ok">${trx}</span></div>`;
+        }
+        if (rUsdt.ok) {
+            const ud = await rUsdt.json();
+            if (ud && ud.constant_result && ud.constant_result[0]) {
+                const ubal = new BigNumber(ud.constant_result[0], 16).div(1e6).toFixed(4);
+                html += `<div class="t-line">  <span class="t-warn">USDT  </span>  <span class="t-ok">${ubal}</span></div>`;
+            } else {
+                html += `<div class="t-line">  <span class="t-warn">USDT  </span>  <span class="t-ok">0.0000</span></div>`;
+            }
+        }
+        if (rRes.ok) {
+            const rd = await rRes.json();
+            const netFree  = (rd.FreeNetLimit||600)  - (rd.FreeNetUsed||0);
+            const energyFree = (rd.EnergyLimit||0)   - (rd.EnergyUsed||0);
+            html += `
+<hr class="t-sep">
+<div class="t-line t-dim">  資源池狀態</div>
+<div class="t-line">  帶寬餘量   <span class="t-hi">${netFree.toLocaleString()}</span>  / ${(rd.FreeNetLimit||600)}</div>
+<div class="t-line">  可用能量   <span class="t-hi">${energyFree.toLocaleString()}</span>  / ${(rd.EnergyLimit||0)}</div>
+<div class="t-line t-dim">  ⓘ 能量為 0 時，TRC-20 轉帳將燒毀 <span class="t-warn">~32–65 TRX</span> 手續費</div>
+`;
+        }
+        termWrite(html);
+    }
+}
+
+/* ═══════════════════════════════════════════
+   NETWORK MONITOR
+═══════════════════════════════════════════ */
+async function refreshAll() {
+    if (refreshBusy) return;
+    refreshBusy = true;
+    await Promise.allSettled(Object.keys(CHAINS).map(k => refreshChain(k)));
+    refreshBusy = false;
+}
+
+async function refreshChain(k) {
+    const blkEl  = document.getElementById(`blk-${k}`);
+    const gasEl  = document.getElementById(`gas-${k}`);
+    const dotEl  = document.getElementById(`dot-${k}`);
+    if (!blkEl) return;
+
+    try {
+        if (CHAINS[k].type === "btc") {
+            let height = null;
+            for (const src of ["https://blockstream.info/api/blocks/tip/height","https://mempool.space/api/blocks/tip/height"]) {
+                try {
+                    const r = await fetch(src);
+                    if (r.ok) { const t = await r.text(); if (!isNaN(t)) { height = parseInt(t); break; } }
+                } catch {}
+            }
+            if (height) {
+                blkEl.textContent = height.toLocaleString();
+                blkEl.classList.remove("loading");
+                dotEl.className = "dot";
+            } else { dotEl.className = "dot err"; }
+
+            try {
+                const r = await fetch("https://blockstream.info/api/fee-estimates");
+                if (r.ok) { const d = await r.json(); if (d["2"]) gasEl.textContent = `${Math.round(d["2"])} sat/vB`; }
+            } catch {}
+
+        } else if (CHAINS[k].type === "evm") {
+            const [rBlk, rGas] = await Promise.all([
+                rpc(k, { jsonrpc:"2.0", method:"eth_blockNumber", params:[], id:5 }),
+                rpc(k, { jsonrpc:"2.0", method:"eth_gasPrice",    params:[], id:6 }),
+            ]);
+            if (rBlk.ok && rBlk.data.result) {
+                blkEl.textContent = parseInt(rBlk.data.result, 16).toLocaleString();
+                blkEl.classList.remove("loading");
+                dotEl.className = "dot";
+            } else { dotEl.className = "dot err"; }
+            if (rGas.ok && rGas.data.result) {
+                gasEl.textContent = `${new BigNumber(rGas.data.result, 16).div(1e9).toFixed(2)} Gwei`;
+            }
+
+        } else if (CHAINS[k].type === "tron") {
+            const r = await fetch("https://api.trongrid.io/wallet/getnowblock", { method:"POST" });
+            if (r.ok) {
+                const d = await r.json();
+                if (d && d.block_header) {
+                    blkEl.textContent = d.block_header.raw_data.number.toLocaleString();
+                    blkEl.classList.remove("loading");
+                    dotEl.className = "dot";
+                }
+            } else { dotEl.className = "dot err"; }
+            try {
+                const r2 = await fetch("https://api.trongrid.io/wallet/getchainparameters", { method:"POST" });
+                if (r2.ok) {
+                    const p = await r2.json();
+                    const ef = p.chainParameter.find(x => x.key === "getEnergyFee");
+                    if (ef) gasEl.textContent = `${ef.value} sun`;
+                }
+            } catch {}
+        }
+    } catch { dotEl.className = "dot err"; }
+}
+
+/* ═══════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════ */
+
+async function rpc(chain, payload, suffix = "", method = "POST") {
+    const nodes = [...RPC[chain]];
+
+    nodes.sort((a,b)=>(NODE_HEALTH[b.url]?.score||100)-(NODE_HEALTH[a.url]?.score||100));
+
+    for (const node of nodes) {
+        const started = performance.now();
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(()=>controller.abort(), 8000);
+
+            const opts = {
+                method,
+                signal: controller.signal,
+                headers: { "Content-Type":"application/json" }
+            };
+
+            if (method === "POST" && payload) {
+                opts.body = JSON.stringify(payload);
+            }
+
+            const r = await fetch(node.url + suffix, opts);
+            clearTimeout(timer);
+
+            if (r.ok) {
+                NODE_HEALTH[node.url] ??= {score:100, latency:0, fails:0};
+                NODE_HEALTH[node.url].score += 1;
+                NODE_HEALTH[node.url].latency = Math.round(performance.now() - started);
+
+                return {
+                    ok: true,
+                    node: node.url,
+                    latency: NODE_HEALTH[node.url].latency,
+                    data: await r.json()
+                };
+            }
+        } catch (e) {
+            NODE_HEALTH[node.url] ??= {score:100, latency:0, fails:0};
+            NODE_HEALTH[node.url].score -= 10;
+            NODE_HEALTH[node.url].fails += 1;
+        }
+    }
+
+    return { ok:false };
+}
+
+function renderRPCHealth() {
+    const panel = document.getElementById("rpc-health-panel");
+    const grid = document.getElementById("rpc-health-grid");
+    
+    if (!RPC[activeChain] || RPC[activeChain].length === 0) {
+        panel.style.display = "none";
+        return;
+    }
+    
+    grid.innerHTML = "";
+    let hasData = false;
+    
+    for (const node of RPC[activeChain]) {
+        const health = NODE_HEALTH[node.url] || {score: 100, latency: 0, fails: 0};
+        const status = health.score >= 80 ? "healthy" : (health.score >= 50 ? "slow" : "failed");
+        const statusText = status === "healthy" ? "✓ 健康" : (status === "slow" ? "⚠ 緩慢" : "✗ 故障");
+        
+        if (health.latency > 0 || health.fails > 0) hasData = true;
+        
+        const badge = document.createElement("div");
+        badge.className = `rpc-node-badge ${status}`;
+        badge.innerHTML = `
+            <div class="rpc-node-dot ${status}"></div>
+            <div class="rpc-node-info">
+                <div class="rpc-node-name">${node.name}</div>
+                <div class="rpc-node-latency">${statusText} • ${health.latency}ms</div>
+            </div>
+        `;
+        grid.appendChild(badge);
+    }
+    
+    panel.style.display = hasData ? "block" : "none";
+}
+
+/* ═══════════════════════════════════════════
+   UNIX TIMESTAMP TOOL
+═══════════════════════════════════════════ */
+function fillNow() {
+    const now = Math.floor(Date.now() / 1000);
+    document.getElementById("unix-input").value = now;
+    convertUnix();
+}
+
+function convertUnix() {
+    const raw = document.getElementById("unix-input").value.trim();
+    const box = document.getElementById("unix-result");
+    if (!raw || isNaN(raw)) { box.style.display = "none"; return; }
+    let ts = parseInt(raw);
+    if (ts > 1e12) ts = Math.floor(ts / 1000);
+    const d = new Date(ts * 1000);
+    if (isNaN(d.getTime())) { box.style.display = "none"; return; }
+    const pad = (n) => String(n).padStart(2, "0");
+    const localStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}  ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    const utcStr  = `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}  ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+    const diffSec = Math.floor(Date.now() / 1000) - ts;
+    let relStr;
+    const abs = Math.abs(diffSec);
+    const sign = diffSec >= 0 ? "前" : "後";
+    if (abs < 60)           relStr = `${abs} 秒${sign}`;
+    else if (abs < 3600)    relStr = `${Math.floor(abs/60)} 分鐘${sign}`;
+    else if (abs < 86400)   relStr = `${Math.floor(abs/3600)} 小時${sign}`;
+    else if (abs < 2592000) relStr = `${Math.floor(abs/86400)} 天${sign}`;
+    else if (abs < 31536000)relStr = `${Math.floor(abs/2592000)} 個月${sign}`;
+    else                    relStr = `${Math.floor(abs/31536000)} 年${sign}`;
+    const msTs = ts * 1000;
+    box.style.display = "block";
+    box.innerHTML = `
+<div><span style="color:var(--text-dim)">本地時間 &nbsp;&nbsp;</span><span style="color:#fff">${localStr}</span></div>
+<div><span style="color:var(--text-dim)">UTC 時間 &nbsp;&nbsp;&nbsp;</span><span style="color:#fff">${utcStr} UTC</span></div>
+<div><span style="color:var(--text-dim)">相對時間 &nbsp;&nbsp;</span><span style="color:var(--warn)">${relStr}</span></div>
+<div><span style="color:var(--text-dim)">毫秒時間戳</span><span style="color:var(--text-muted)">${msTs}</span></div>
+<div><span style="color:var(--text-dim)">ISO 8601 &nbsp;&nbsp;</span><span style="color:var(--text-muted)">${d.toISOString()}</span></div>`;
+    const dtLocal = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    document.getElementById("datetime-input").value = dtLocal;
+}
+
+function convertDatetime() {
+    const val = document.getElementById("datetime-input").value;
+    const box = document.getElementById("unix-result");
+    if (!val) { box.style.display = "none"; return; }
+    const d = new Date(val);
+    if (isNaN(d.getTime())) { box.style.display = "none"; return; }
+    const ts = Math.floor(d.getTime() / 1000);
+    document.getElementById("unix-input").value = ts;
+    convertUnix();
+}
+
+function openTerm(label) {
+    document.getElementById("term-label").textContent = label;
+    document.getElementById("term-body").innerHTML = "";
+    document.getElementById("term").classList.add("active");
+}
+function closeTerm() { document.getElementById("term").classList.remove("active"); }
+function termWrite(html) {
+    const body = document.getElementById("term-body");
+    body.innerHTML += html;
+    body.scrollTop = body.scrollHeight;
+}
+</script>
+</body>
+</html>
